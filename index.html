@@ -1293,15 +1293,22 @@ async function seedAllWatchlist(){
   }
 
   // Phase 2: seed history for all cards
-  let done=0;
+  let done=0, seeded=0, skipped=0;
   for(const c of watchlist){
+    const before=Object.keys(priceHistory[c.id]?.points??{}).length||priceHistory[c.id]?.points?.length||0;
     await seedPriceHistory(c);
+    const after=priceHistory[c.id]?.points?.length||0;
+    if(after>before) seeded++; else skipped++;
     done++;
     btn.textContent=`SEEDING… ${done}/${watchlist.length}`;
-    await new Promise(r=>setTimeout(r,300)); // gentle rate limiting
+    await new Promise(r=>setTimeout(r,300));
   }
   btn.textContent='⟳ SEED HISTORY';btn.disabled=false;
   applyWlControls();
+  // Summary alert
+  const msg=`Seeding complete.\n✓ ${seeded} card${seeded!==1?'s':''} got price history.\n✗ ${skipped} card${skipped!==1?'s':''} skipped (not in PPT database or no numeric TCGPlayer ID).`;
+  if(skipped>0) console.info('[PPT]',msg);
+  showBriefToast(`⟳ Done — ${seeded} seeded, ${skipped} skipped`);
 }
 // Seeds historical price data from pokemonpricetracker.com when a card is added to watchlist.
 // Requires a free API key from pokemonpricetracker.com (100 credits/day, no card required).
@@ -1319,67 +1326,37 @@ async function seedPriceHistory(snap){
       const r=await fetch(`https://api.pokemontcg.io/v2/cards/${snap.id}`,{headers});
       if(r.ok){
         const d=await r.json();
-        // pokemontcg.io stores TCGPlayer URL as card.tcgplayer.url
         const url=d.data?.tcgplayer?.url||'';
-        // Try all known numeric ID formats in the TCGPlayer URL
-        let m=url.match(/\/product\/(\d+)/);   // standard: /product/12345/
-        if(!m) m=url.match(/tcgplayer\/(\d+)/); // prices URL: /tcgplayer/12345
-        if(!m) m=url.match(/[?&]productId=(\d+)/); // query param format
-        if(m){ tcgId=m[1]; snap.tcgplayerId=m[1]; } // cache it on the snap for next time
-        if(!tcgId) console.log('[PPT] No numeric ID in URL:',url,'for',snap.name);
+        let m=url.match(/\/product\/(\d+)/);
+        if(!m) m=url.match(/tcgplayer\/(\d+)/);
+        if(!m) m=url.match(/[?&]productId=(\d+)/);
+        if(m){ tcgId=m[1]; snap.tcgplayerId=m[1]; }
+        else if(url){ console.log('[PPT] No numeric ID in TCGPlayer URL for',snap.name,'—',url); }
       }
-    }catch(e){}
+    }catch(e){ console.warn('[PPT] pokemontcg.io lookup failed for',snap.name,e); }
   }
 
-  // Attempt 2: search PPT directly by card name + set number — no numeric ID needed
-  // This is the most reliable fallback for older watchlist cards
-  let pptCardId=null; // PPT's own internal ID, alternative to tcgPlayerId
-  if(!tcgId){
-    try{
-      const nameQuery=encodeURIComponent(snap.name);
-      const searchUrl=`https://www.pokemonpricetracker.com/api/v2/cards?search=${nameQuery}&includeHistory=true&days=3&limit=10`;
-      const sr=await fetch(searchUrl,{headers:{'Authorization':'Bearer '+pptKey}});
-      if(sr.ok){
-        const sd=await sr.json();
-        const results=Array.isArray(sd?.data)?sd.data:(sd?.data?[sd.data]:[]);
-        // Find the best match: same name and card number
-        const match=results.find(c=>{
-          const nameOk=c.name?.toLowerCase()===snap.name.toLowerCase();
-          const numOk=!snap.number||String(c.cardNumber||c.number||'').includes(String(snap.number));
-          return nameOk&&numOk;
-        })||results.find(c=>c.name?.toLowerCase()===snap.name.toLowerCase())
-          ||results[0];
-
-        if(match){
-          console.log('[PPT] Found by name search:',match.name,'tcgPlayerId=',match.tcgPlayerId);
-          // If search result already has history embedded, use it directly
-          const embeddedHistory=match.priceHistory??match.price_history??match.history??[];
-          if(Array.isArray(embeddedHistory)&&embeddedHistory.length){
-            await ingestHistory(snap, embeddedHistory);
-            return;
-          }
-          // Otherwise grab the tcgPlayerId for a targeted fetch
-          tcgId=match.tcgPlayerId??match.tcgplayer_id??null;
-        } else {
-          console.warn('[PPT] Name search returned no matches for',snap.name);
-        }
-      }
-    }catch(e){ console.warn('[PPT] Name search error:',e); }
+  // Attempt 2: try the set-code ID directly with PPT (some cards are indexed this way)
+  // e.g. snap.id = "swsh9tg-TG16" → try tcgPlayerId=swsh9tg-TG16
+  if(!tcgId&&snap.id){
+    tcgId=snap.id; // use the pokemontcg.io card ID as a last resort
+    console.log('[PPT] Trying card ID as fallback tcgId:',tcgId,'for',snap.name);
   }
 
-  if(!tcgId){ console.warn('[PPT] Could not resolve TCGPlayer ID for',snap.name,'— skipping'); return; }
+  if(!tcgId){ console.warn('[PPT] No ID available for',snap.name,'— skipping'); return; }
 
   try{
-    const url=`https://www.pokemonpricetracker.com/api/v2/cards?tcgPlayerId=${tcgId}&includeHistory=true&days=3`;
+    const url=`https://www.pokemonpricetracker.com/api/v2/cards?tcgPlayerId=${encodeURIComponent(tcgId)}&includeHistory=true&days=3`;
     const r=await fetch(url,{headers:{'Authorization':'Bearer '+pptKey}});
-    const raw=await r.json();
-
-    console.log('[PPT] Response for',snap.name,'(tcgId='+tcgId+'):',raw);
 
     if(!r.ok){
-      console.warn('[PPT] HTTP',r.status,'—',raw?.message||raw?.error||'unknown error');
+      // If the card ID fallback didn't work, log clearly and move on
+      console.warn('[PPT]',snap.name,'— HTTP',r.status,'with tcgId='+tcgId+'. This card may not be in PPT database.');
       return;
     }
+
+    const raw=await r.json();
+    console.log('[PPT] Response for',snap.name,'(tcgId='+tcgId+'):',raw);
 
     const cardArr=Array.isArray(raw?.data)?raw.data:(raw?.data?[raw.data]:[raw]);
     const cardObj=cardArr[0]??{};
