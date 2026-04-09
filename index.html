@@ -1460,179 +1460,137 @@ function applyBulkEdit(){
 function renderDashboard(){
   const el=document.getElementById('dashboard-content');
   if(!el) return;
-
-  // ── Stats ──
   const totalVal=owned.reduce((s,c)=>s+((c.isJP&&c.jpPrice!=null?c.jpPrice:c.market)??0),0);
   const totalPaid=owned.filter(c=>c.purchasePrice!=null).reduce((s,c)=>s+c.purchasePrice,0);
   const pnl=totalVal-totalPaid;
-  const mostVal=[...owned].sort((a,b)=>((b.isJP&&b.jpPrice?b.jpPrice:b.market)??0)-((a.isJP&&a.jpPrice?a.jpPrice:a.market)??0))[0];
-  const recentSold=[...sold].sort((a,b)=>(b.soldAt??0)-(a.soldAt??0))[0];
-  const recentBought=[...owned].sort((a,b)=>(b.boughtAt??b.addedAt??0)-(a.boughtAt??a.addedAt??0))[0];
   const wlVal=watchlist.reduce((s,c)=>s+(c.market??0),0);
+  const top3=[...owned].sort((a,b)=>((b.isJP&&b.jpPrice?b.jpPrice:b.market)??0)-((a.isJP&&a.jpPrice?a.jpPrice:a.market)??0)).slice(0,3);
+  const recentSold=[...sold].sort((a,b)=>(b.soldAt??0)-(a.soldAt??0))[0];
 
-  // ── Price history for portfolio value chart ──
-  // Reconstruct daily portfolio value from priceHistory points
+  // Portfolio value over time
   const dayMap={};
-  owned.forEach(c=>{
-    const hist=priceHistory[c.id];
-    if(!hist?.points?.length) return;
-    hist.points.forEach(p=>{
-      const day=new Date(p.t).toLocaleDateString('en-US',{month:'short',day:'numeric'});
-      dayMap[day]=(dayMap[day]||0)+(p.market??0);
-    });
-  });
-  const dayEntries=Object.entries(dayMap).slice(-30);
+  owned.forEach(c=>{const hist=priceHistory[c.id];if(!hist?.points?.length)return;hist.points.forEach(p=>{const day=new Date(p.t).toLocaleDateString('en-US',{month:'short',day:'numeric'});dayMap[day]=(dayMap[day]||0)+(p.market??0);});});
+  const dayEntries=Object.entries(dayMap).sort((a,b)=>new Date(a[0])-new Date(b[0])).slice(-30);
 
-  // ── Watchlist price spread ──
-  const wlData=watchlist.filter(c=>c.market!=null).sort((a,b)=>(b.market??0)-(a.market??0)).slice(0,10);
+  // Cumulative sales over time
+  const salesByDay={};
+  sold.forEach(c=>{if(!c.soldAt)return;const day=new Date(c.soldAt).toLocaleDateString('en-US',{month:'short',day:'numeric'});salesByDay[day]=(salesByDay[day]||0)+(c.soldPrice??0);});
+  let cum=0;
+  const salesCum=Object.entries(salesByDay).sort((a,b)=>new Date(a[0])-new Date(b[0])).map(([d,v])=>{cum+=v;return{day:d,val:parseFloat(cum.toFixed(2))};});
+
+  // Watchlist price history
+  const wlColors=['#c9a84c','#4caf7d','#60a5fa','#c4b5fd','#f87171'];
+  const wlWithHist=watchlist.map(c=>({c,pts:(priceHistory[c.id]?.points||[]).filter(p=>p.market!=null).sort((a,b)=>a.t-b.t)})).filter(x=>x.pts.length>=2).sort((a,b)=>b.pts.length-a.pts.length).slice(0,5);
+
+  // Build a full vertical pcard identical to BINDR/Search tabs
+  function dashCard(c, label, val, valColor){
+    if(!c) return `<div class="pcard" style="border:1px dashed var(--b1);min-height:220px;display:flex;align-items:center;justify-content:center"><span style="font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif">No data yet</span></div>`;
+    const ri=raritySnap(c);
+    const setId=c.setId||c.id.split('-').slice(0,-1).join('-');
+    const relDate=c.releaseDate?c.releaseDate.replace(/\//g,'-'):'';
+    const fb=c.isFav?"border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)":"";
+    return `<div class="pcard${ri.rank<=3?' is-rare':''}" style="${fb}">
+      <img src="${c.img}" loading="lazy"/>
+      <span class="rtag ${ri.cls}" style="margin-bottom:2px">${ri.label}</span>
+      <div class="pcard-name">${c.name}</div>
+      <div class="pcard-set">${c.set} · ${c.number}/${c.total}</div>
+      ${relDate?`<div class="set-own-badge" style="margin-bottom:2px">Set Release: ${relDate}</div>`:''}
+      ${setOwnershipBadge(setId,c.total)}
+      <div class="cond-divider"></div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <span style="font-size:8px;color:var(--t3);font-family:'DM Sans',sans-serif;font-weight:600;letter-spacing:0.06em;text-transform:uppercase">${label}</span>
+        <span style="font-size:14px;font-weight:700;font-family:'DM Sans',sans-serif;font-variant-numeric:tabular-nums;color:${valColor||'var(--gold2)'}">$${(val??0).toFixed(2)}</span>
+      </div>
+    </div>`;
+  }
 
   el.innerHTML=`
   <style>
-    .db-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
-    .db-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
-    @media(max-width:768px){.db-grid{grid-template-columns:repeat(2,1fr)}.db-grid-2{grid-template-columns:1fr}}
+    .db-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+    @media(max-width:768px){.db-metrics{grid-template-columns:repeat(2,1fr)}}
     .db-metric{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rl);padding:10px 12px}
     .db-metric-label{font-size:8px;color:var(--t3);font-family:'DM Sans',sans-serif;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:4px}
-    .db-metric-val{font-size:18px;font-weight:700;color:var(--text);font-family:'DM Sans',sans-serif;font-variant-numeric:tabular-nums;line-height:1.1}
-    .db-metric-sub{font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif;margin-top:2px}
-    .db-card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--rl);padding:12px 14px}
+    .db-metric-val{font-size:18px;font-weight:700;font-family:'DM Sans',sans-serif;font-variant-numeric:tabular-nums;line-height:1.1}
+    .db-card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--rl);padding:12px 14px;margin-bottom:12px}
     .db-card-title{font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--t2);font-family:'Space Mono',monospace;text-transform:uppercase;margin-bottom:10px}
     .db-chart-wrap{position:relative;width:100%}
-    .db-hero{display:flex;gap:10px;align-items:center;margin-bottom:8px}
-    .db-hero img{width:48px;height:68px;object-fit:cover;border-radius:5px;background:var(--s2);flex-shrink:0}
-    .db-hero-body{min-width:0}
-    .db-hero-name{font-size:11px;font-weight:600;color:var(--text);font-family:'DM Sans',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .db-hero-sub{font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif;margin-top:1px}
-    .db-hero-val{font-size:16px;font-weight:700;color:var(--gold2);font-family:'DM Sans',sans-serif;font-variant-numeric:tabular-nums;margin-top:3px}
+    .db-4grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+    @media(max-width:900px){.db-4grid{grid-template-columns:repeat(2,1fr)}}
+    .db-legend{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+    .db-legend-item{display:flex;align-items:center;gap:4px;font-size:8px;color:var(--t2);font-family:'DM Sans',sans-serif;max-width:130px;overflow:hidden}
+    .db-legend-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
   </style>
 
-  <div class="db-grid">
-    <div class="db-metric">
-      <div class="db-metric-label">Collection Value</div>
-      <div class="db-metric-val" style="color:var(--gold2)">$${totalVal.toFixed(0)}</div>
-      <div class="db-metric-sub">${owned.length} cards</div>
-    </div>
-    <div class="db-metric">
-      <div class="db-metric-label">Total Paid</div>
-      <div class="db-metric-val">$${totalPaid.toFixed(0)}</div>
-      <div class="db-metric-sub">${owned.filter(c=>c.purchasePrice!=null).length} with price</div>
-    </div>
-    <div class="db-metric">
-      <div class="db-metric-label">Unrealised P&L</div>
-      <div class="db-metric-val" style="color:${pnl>=0?'var(--green)':'var(--red)'}">${pnl>=0?'+':''}$${pnl.toFixed(0)}</div>
-      <div class="db-metric-sub">${totalPaid>0?(pnl/totalPaid*100).toFixed(1)+'%':''}</div>
-    </div>
-    <div class="db-metric">
-      <div class="db-metric-label">Watchlist Value</div>
-      <div class="db-metric-val">$${wlVal.toFixed(0)}</div>
-      <div class="db-metric-sub">${watchlist.length} cards watching</div>
+  <div class="db-metrics">
+    <div class="db-metric"><div class="db-metric-label">Collection Value</div><div class="db-metric-val" style="color:var(--gold2)">$${totalVal.toFixed(0)}</div><div style="font-size:8px;color:var(--t3);font-family:'DM Sans',sans-serif;margin-top:2px">${owned.length} cards</div></div>
+    <div class="db-metric"><div class="db-metric-label">Total Paid</div><div class="db-metric-val">$${totalPaid.toFixed(0)}</div></div>
+    <div class="db-metric"><div class="db-metric-label">P&L</div><div class="db-metric-val" style="color:${pnl>=0?'var(--green)':'var(--red)'}">${pnl>=0?'+':''}$${Math.abs(pnl).toFixed(0)}</div></div>
+    <div class="db-metric"><div class="db-metric-label">Watchlist</div><div class="db-metric-val">$${wlVal.toFixed(0)}</div><div style="font-size:8px;color:var(--t3);font-family:'DM Sans',sans-serif;margin-top:2px">${watchlist.length} watching</div></div>
+  </div>
+
+  <div class="db-card">
+    <div class="db-card-title">Highlights</div>
+    <div class="db-4grid">
+      ${dashCard(top3[0],'#1 Most Valuable',(top3[0]?.isJP&&top3[0]?.jpPrice?top3[0].jpPrice:top3[0]?.market))}
+      ${dashCard(top3[1],'#2 Most Valuable',(top3[1]?.isJP&&top3[1]?.jpPrice?top3[1].jpPrice:top3[1]?.market))}
+      ${dashCard(top3[2],'#3 Most Valuable',(top3[2]?.isJP&&top3[2]?.jpPrice?top3[2].jpPrice:top3[2]?.market))}
+      ${recentSold ? dashCard(recentSold,'Last Sold',recentSold.soldPrice,'var(--green)') : `<div class="pcard" style="border:1px dashed var(--b1);min-height:220px;display:flex;align-items:center;justify-content:center"><span style="font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif">No sales yet</span></div>`}
     </div>
   </div>
 
-  <div class="db-grid-2">
-    ${mostVal?`<div class="db-card">
-      <div class="db-card-title">Most Valuable</div>
-      <div class="db-hero">
-        <img src="${mostVal.img}" loading="lazy"/>
-        <div class="db-hero-body">
-          <div class="db-hero-name">${mostVal.name}</div>
-          <div class="db-hero-sub">${mostVal.set}</div>
-          <div class="db-hero-val">$${((mostVal.isJP&&mostVal.jpPrice?mostVal.jpPrice:mostVal.market)??0).toFixed(2)}</div>
-        </div>
-      </div>
-    </div>`:''}
-    ${recentBought?`<div class="db-card">
-      <div class="db-card-title">Most Recent Add</div>
-      <div class="db-hero">
-        <img src="${recentBought.img}" loading="lazy"/>
-        <div class="db-hero-body">
-          <div class="db-hero-name">${recentBought.name}</div>
-          <div class="db-hero-sub">${recentBought.set}</div>
-          <div class="db-hero-val" style="color:var(--text);font-size:11px">${recentBought.boughtAt?fmtDate(recentBought.boughtAt):'Recently added'}</div>
-        </div>
-      </div>
-    </div>`:''}
-  </div>
-
-  ${recentSold?`<div class="db-card" style="margin-bottom:12px">
-    <div class="db-card-title">Most Recent Sale</div>
-    <div class="db-hero">
-      <img src="${recentSold.img}" loading="lazy"/>
-      <div class="db-hero-body">
-        <div class="db-hero-name">${recentSold.name}</div>
-        <div class="db-hero-sub">${recentSold.set} · Sold ${fmtDate(recentSold.soldAt)}</div>
-        <div style="display:flex;gap:12px;margin-top:4px">
-          <div><div class="db-metric-label">Sold for</div><div style="font-size:13px;font-weight:700;color:var(--green);font-family:'DM Sans',sans-serif">$${(recentSold.soldPrice??0).toFixed(2)}</div></div>
-          ${recentSold.purchasePrice!=null?`<div><div class="db-metric-label">P&L</div><div style="font-size:13px;font-weight:700;color:${(recentSold.soldPrice??0)-recentSold.purchasePrice>=0?'var(--green)':'var(--red)'};font-family:'DM Sans',sans-serif">${((recentSold.soldPrice??0)-recentSold.purchasePrice>=0?'+':'')}$${((recentSold.soldPrice??0)-recentSold.purchasePrice).toFixed(2)}</div></div>`:''}
-        </div>
-      </div>
-    </div>
-  </div>`:''}
-
-  ${dayEntries.length>=2?`<div class="db-card" style="margin-bottom:12px">
+  ${dayEntries.length>=2?`<div class="db-card">
     <div class="db-card-title">Collection Value Over Time</div>
-    <div class="db-chart-wrap" style="height:180px"><canvas id="db-chart-val" role="img" aria-label="Line chart of collection value over time"></canvas></div>
+    <div class="db-chart-wrap" style="height:160px"><canvas id="db-chart-val" role="img" aria-label="Collection value over time"></canvas></div>
   </div>`:''}
 
-  ${wlData.length?`<div class="db-card">
-    <div class="db-card-title">Watchlist — Top 10 by Market Value</div>
-    <div class="db-chart-wrap" style="height:${wlData.length*38+40}px"><canvas id="db-chart-wl" role="img" aria-label="Bar chart of watchlist card values"></canvas></div>
-  </div>`:''}
+  <div class="db-card">
+    <div class="db-card-title">Sales Revenue</div>
+    <div class="db-chart-wrap" style="height:150px"><canvas id="db-chart-sales" role="img" aria-label="Cumulative sales revenue over time"></canvas></div>
+  </div>
+
+  ${wlWithHist.length>=1?`<div class="db-card">
+    <div class="db-card-title">Watchlist Price History — Buy Signal?</div>
+    <div class="db-legend">${wlWithHist.map((x,i)=>`<div class="db-legend-item"><div class="db-legend-dot" style="background:${wlColors[i]}"></div><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.c.name}</span></div>`).join('')}</div>
+    <div class="db-chart-wrap" style="height:180px"><canvas id="db-chart-wl" role="img" aria-label="Watchlist prices over time"></canvas></div>
+    <div style="font-size:8px;color:var(--t3);font-family:'DM Sans',sans-serif;margin-top:7px">↓ Trending down may be a buying opportunity · ↑ Rising may continue or correct</div>
+  </div>`:`<div class="db-card"><div class="db-card-title">Watchlist Price History</div><div style="font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif">Refresh watchlist prices over multiple days to build history here.</div></div>`}
   `;
 
-  // Chart.js must already be loaded by the time this runs
-  if(typeof Chart==='undefined'){ console.warn('Chart.js not loaded'); return; }
+  if(typeof Chart==='undefined') return;
+  const gold='#c9a84c',goldA='rgba(201,168,76,0.12)',grn='#4caf7d',grnA='rgba(76,175,125,0.15)',grid='rgba(255,255,255,0.05)';
+  const baseX={ticks:{color:'#585250',font:{size:8,family:'DM Sans'},maxTicksLimit:7},grid:{display:false},border:{color:'transparent'}};
+  const baseY={ticks:{color:'#585250',font:{size:8,family:'DM Sans'},callback:v=>'$'+v},grid:{color:grid},border:{color:'transparent'}};
 
-  const gold='#c9a84c';
-  const goldAlpha='rgba(201,168,76,0.12)';
-  const green='#4caf7d';
-  const gridCol='rgba(255,255,255,0.05)';
+  if(dayEntries.length>=2)
+    new Chart(document.getElementById('db-chart-val'),{type:'line',data:{labels:dayEntries.map(e=>e[0]),datasets:[{data:dayEntries.map(e=>+e[1].toFixed(2)),borderColor:gold,backgroundColor:goldA,tension:0.4,pointRadius:2,borderWidth:2,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:v=>'$'+v.parsed.y.toFixed(2)}}},scales:{x:baseX,y:baseY}}});
 
-  if(dayEntries.length>=2){
-    new Chart(document.getElementById('db-chart-val'),{
-      type:'line',
-      data:{
-        labels:dayEntries.map(e=>e[0]),
-        datasets:[{
-          label:'Value',data:dayEntries.map(e=>parseFloat(e[1].toFixed(2))),
-          borderColor:gold,backgroundColor:goldAlpha,
-          tension:0.4,pointRadius:3,pointBackgroundColor:gold,
-          borderWidth:2,fill:true
-        }]
+  // Sales chart always renders — shows empty state via Chart.js if no data
+  new Chart(document.getElementById('db-chart-sales'),{type:'line',
+    data:{
+      labels:salesCum.length?salesCum.map(e=>e.day):['No sales yet'],
+      datasets:[{
+        data:salesCum.length?salesCum.map(e=>e.val):[null],
+        borderColor:grn,backgroundColor:grnA,
+        tension:0.4,pointRadius:salesCum.length?3:0,pointBackgroundColor:grn,
+        borderWidth:2.5,fill:true
+      }]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:v=>'$'+v.parsed.y.toFixed(2)}},
       },
-      options:{responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:false},tooltip:{callbacks:{label:v=>'$'+v.parsed.y.toFixed(2)}}},
-        scales:{
-          x:{ticks:{color:'#585250',font:{size:9,family:'DM Sans'},maxTicksLimit:8},grid:{display:false},border:{color:'transparent'}},
-          y:{ticks:{color:'#585250',font:{size:9,family:'DM Sans'},callback:v=>'$'+v},grid:{color:gridCol},border:{color:'transparent'}}
-        }
+      scales:{
+        x:{ticks:{color:'#585250',font:{size:8,family:'DM Sans'}},grid:{display:false},border:{color:'transparent'}},
+        y:{min:0,ticks:{color:'#585250',font:{size:8,family:'DM Sans'},callback:v=>'$'+v},grid:{color:grid},border:{color:'transparent'}}
       }
-    });
-  }
+    }
+  });
 
-  if(wlData.length){
-    new Chart(document.getElementById('db-chart-wl'),{
-      type:'bar',
-      data:{
-        labels:wlData.map(c=>c.name.length>18?c.name.slice(0,16)+'…':c.name),
-        datasets:[{
-          label:'Market',data:wlData.map(c=>parseFloat((c.market??0).toFixed(2))),
-          backgroundColor:wlData.map((_,i)=>i===0?gold:'rgba(201,168,76,0.35)'),
-          borderRadius:4,borderSkipped:false
-        }]
-      },
-      options:{responsive:true,maintainAspectRatio:false,
-        indexAxis:'y',
-        plugins:{legend:{display:false},tooltip:{callbacks:{label:v=>'$'+v.parsed.x.toFixed(2)}}},
-        scales:{
-          x:{ticks:{color:'#585250',font:{size:9,family:'DM Sans'},callback:v=>'$'+v},grid:{color:gridCol},border:{color:'transparent'}},
-          y:{ticks:{color:'#ccc',font:{size:9,family:'DM Sans'}},grid:{display:false},border:{color:'transparent'}}
-        }
-      }
-    });
+  if(wlWithHist.length>=1){
+    const allDays=[...new Set(wlWithHist.flatMap(x=>x.pts.map(p=>new Date(p.t).toLocaleDateString('en-US',{month:'short',day:'numeric'}))))].sort((a,b)=>new Date(a)-new Date(b));
+    new Chart(document.getElementById('db-chart-wl'),{type:'line',data:{labels:allDays,datasets:wlWithHist.map((x,i)=>({label:x.c.name,data:allDays.map(day=>{const pt=x.pts.find(p=>new Date(p.t).toLocaleDateString('en-US',{month:'short',day:'numeric'})===day);return pt?+pt.market.toFixed(2):null;}),borderColor:wlColors[i],backgroundColor:'transparent',tension:0.4,pointRadius:2,borderWidth:2,spanGaps:true}))},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,callbacks:{label:v=>v.dataset.label+': $'+v.parsed.y?.toFixed(2)}}},scales:{x:baseX,y:baseY}}});
   }
 }
-
 // ── WATCHLIST ─────────────────────────────────────────────────────────────
 function applyWlControls(){
   wlFiltered=filterSort([...watchlist],
