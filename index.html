@@ -517,9 +517,10 @@ body.light .bottom-nav{background:rgba(245,244,241,0.78);}
   opacity:0;pointer-events:none;transition:opacity .2s;
 }
 .binder-overlay.open{opacity:1;pointer-events:all;}
-.binder-topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 8px;flex-shrink:0;}
+.binder-topbar{display:flex;flex-direction:column;gap:6px;padding:10px 14px 6px;flex-shrink:0;border-bottom:1px solid var(--b1);}
 .binder-title{font-size:10px;font-weight:700;letter-spacing:0.12em;color:var(--gold2);font-family:'Space Mono',monospace}
 .binder-counter{font-size:10px;color:var(--t3);font-family:'Space Mono',monospace;letter-spacing:0.06em}
+.binder-ctrl-label{font-size:8px;font-weight:700;letter-spacing:0.08em;color:var(--t3);font-family:'Space Mono',monospace}
 .binder-close{background:none;border:1px solid var(--b2);border-radius:var(--r);color:var(--t2);padding:4px 12px;font-size:10px;cursor:pointer;font-family:'Space Mono',monospace;letter-spacing:0.06em;transition:all .15s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
 .binder-close:hover{border-color:var(--gold);color:var(--gold2)}
 .binder-body{flex:1;overflow:hidden;padding:0 12px;display:flex;flex-direction:column;}
@@ -530,10 +531,10 @@ body.light .bottom-nav{background:rgba(245,244,241,0.78);}
 .binder-card-slot{overflow:hidden;position:relative;}
 .binder-card-wrap{transform:scale(0.6);transform-origin:top left;width:166.67%;position:absolute;top:0;left:0;}
 
-.binder-ctrl{background:var(--s2);border:1px solid var(--b1);border-radius:var(--r);color:var(--t2);font-family:'Space Mono',monospace;font-size:8px;padding:4px 6px;cursor:pointer;letter-spacing:0.04em;height:28px;-webkit-tap-highlight-color:transparent;}
-.binder-nav-btn{background:none;border:1px solid var(--b1);border-radius:var(--r);color:var(--t2);font-size:16px;line-height:1;padding:2px 10px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:all .15s;height:28px;display:flex;align-items:center;}
-.binder-nav-btn:hover{border-color:var(--gold);color:var(--gold2)}
-.binder-nav-btn:disabled{opacity:0.25;cursor:default}
+.binder-ctrl{background:var(--s2);border:1px solid var(--b1);border-radius:var(--r);color:var(--t2);font-family:'Space Mono',monospace;font-size:8px;padding:4px 8px;cursor:pointer;letter-spacing:0.04em;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.binder-page-dots{display:flex;align-items:center;justify-content:center;gap:6px;padding:6px 0 2px;flex-shrink:0;}
+.binder-dot{width:6px;height:6px;border-radius:50%;background:var(--b2);cursor:pointer;transition:all .15s;touch-action:manipulation;}
+.binder-dot.active{background:var(--gold2);width:18px;border-radius:3px;}
 </style>
 </head>
 <body>
@@ -1696,12 +1697,13 @@ function toggleBinderMode(){
 function binderApplyFilter(){
   const sort=document.getElementById('binder-sort')?.value||'bought';
   const rar=document.getElementById('binder-rarity')?.value||'';
+  const ft=document.getElementById('binder-filter')?.value||'';
+  const fav=document.getElementById('binder-fav')?.value||'';
   let list=[...owned];
   if(ownHideStd) list=list.filter(c=>raritySnap(c).rank<6||c.isFav);
-  const favFilter=document.getElementById('own-fav')?.value||'';
-  if(favFilter==='fav') list=list.filter(c=>c.isFav);
-  if(favFilter==='unfav') list=list.filter(c=>!c.isFav);
-  ownFiltered=filterSort(list,'',rar,sort);
+  if(fav==='fav') list=list.filter(c=>c.isFav);
+  if(fav==='unfav') list=list.filter(c=>!c.isFav);
+  ownFiltered=filterSort(list,ft,rar,sort);
   binderPage=1;
   renderBinder();
 }
@@ -3136,32 +3138,44 @@ if(localStorage.getItem('pf_theme')==='light'){document.body.classList.add('ligh
 <!-- BINDER OVERLAY -->
 <div class="binder-overlay" id="binder-overlay">
   <div class="binder-topbar">
-    <select class="binder-ctrl" id="binder-sort" onchange="binderApplyFilter()" style="touch-action:manipulation">
-      <option value="bought">Date bought</option>
-      <option value="added">Date added</option>
-      <option value="market-desc">Value ↓</option>
-      <option value="rarity">Rarity</option>
-      <option value="name">Name A–Z</option>
-      <option value="set">Set A–Z</option>
-    </select>
-    <select class="binder-ctrl" id="binder-rarity" onchange="binderApplyFilter()" style="touch-action:manipulation">
-      <option value="">All rarities</option>
-      <option value="ILLUS">Illus</option>
-      <option value="ULTRA">Ultra</option>
-      <option value="FULL|HYPER">Full Art</option>
-      <option value="RARE">Rare+</option>
-    </select>
-    <button class="binder-nav-btn" id="binder-prev" onclick="binderNav(-1)" style="touch-action:manipulation">‹</button>
-    <span class="binder-counter" id="binder-counter" style="flex:1;text-align:center">Page 1 / 1</span>
-    <button class="binder-nav-btn" id="binder-next" onclick="binderNav(1)" style="touch-action:manipulation">›</button>
-    <button class="binder-close" onclick="closeBinderOverlay()" style="touch-action:manipulation">✕</button>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <span class="binder-title">⧉ BINDER</span>
+      <button class="binder-close" onclick="closeBinderOverlay()">✕ CLOSE</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+      <span class="binder-ctrl-label">Filter</span>
+      <input type="text" class="binder-ctrl" id="binder-filter" placeholder="Name..." oninput="binderApplyFilter()" style="width:80px"/>
+      <select class="binder-ctrl" id="binder-rarity" onchange="binderApplyFilter()">
+        <option value="">All rarities</option>
+        <option value="ILLUS">Illus Rare</option>
+        <option value="FULL|HYPER">Full Art / Hyper</option>
+        <option value="ULTRA|SPEC">Ultra / Spec</option>
+        <option value="RARE">Rare+</option>
+        <option value="STANDARD">Standard</option>
+      </select>
+      <span class="binder-ctrl-label">Show</span>
+      <select class="binder-ctrl" id="binder-fav" onchange="binderApplyFilter()">
+        <option value="">All cards</option>
+        <option value="fav">⭐ Favourites</option>
+        <option value="unfav">Non-fav</option>
+      </select>
+      <span class="binder-ctrl-label">Sort</span>
+      <select class="binder-ctrl" id="binder-sort" onchange="binderApplyFilter()">
+        <option value="bought">Date bought</option>
+        <option value="added">Date added</option>
+        <option value="name">Name A–Z</option>
+        <option value="market-desc">Value ↓</option>
+        <option value="set">Set A–Z</option>
+        <option value="rarity">Rarity</option>
+      </select>
+    </div>
   </div>
   <div class="binder-body">
     <div class="binder-viewport" id="binder-viewport">
       <div class="binder-track" id="binder-track"></div>
     </div>
   </div>
-
+  <div class="binder-page-dots" id="binder-dots"></div>
 </div>
 <!-- BINDER EDIT MODAL -->
 <div class="modal-bg" id="binder-edit-modal" onclick="if(event.target===this)closeBinderEdit()">
