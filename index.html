@@ -1308,7 +1308,7 @@ async function seedAllWatchlist(){
   // Summary alert
   const msg=`Seeding complete.\n✓ ${seeded} card${seeded!==1?'s':''} got price history.\n✗ ${skipped} card${skipped!==1?'s':''} skipped (not in PPT database or no numeric TCGPlayer ID).`;
   if(skipped>0) console.info('[PPT]',msg);
-  showBriefToast(`⟳ Done — ${seeded} seeded, ${skipped} skipped`);
+  showBriefToast(`⟳ Done — ${seeded} seeded, ${skipped} skipped`, 6000);
 }
 // Seeds historical price data from pokemonpricetracker.com when a card is added to watchlist.
 // Requires a free API key from pokemonpricetracker.com (100 credits/day, no card required).
@@ -2445,13 +2445,14 @@ function bulkAddToOwned(){
   updateBulkBar();renderSrPage();
   if(added)showBriefToast(`✓ Added ${added} card${added!==1?'s':''} to Folio`);
 }
-function showBriefToast(msg){
+function showBriefToast(msg, duration=4000){
   const t=document.getElementById('undo-toast');
   const ub=document.querySelector('.undo-btn');
+  if(!t) return;
   document.getElementById('undo-msg').textContent=msg;
   if(ub)ub.style.display='none';
   t.classList.add('show');
-  setTimeout(()=>{t.classList.remove('show');if(ub)ub.style.display='';},2500);
+  setTimeout(()=>{t.classList.remove('show');if(ub)ub.style.display='';},duration);
 }
 
 // ── PRICE ALERT TAG (watchlist) ───────────────────────────────────────────
