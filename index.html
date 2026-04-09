@@ -698,8 +698,40 @@ body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);m
         <option value="rarity">Rarity</option>
       </select>
       <div style="display:flex;gap:4px;margin-left:auto">
+      <button id="own-bulk-btn" class="toggle-btn" onclick="toggleBulkEdit()" style="white-space:nowrap">✎ BULK EDIT</button>
       <button id="own-hide-std-btn" class="toggle-btn" onclick="ownHideStd=!ownHideStd;this.textContent=ownHideStd?'⊙ STD HIDDEN':'⊙ HIDE STD';this.style.borderColor=ownHideStd?'var(--gold)':'var(--b1)';this.style.color=ownHideStd?'var(--gold)':'var(--t3)';applyOwnControls()" style="white-space:nowrap">⊙ HIDE STD</button>
       <button id="own-compact-btn" class="toggle-btn" onclick="ownCompact=!ownCompact;this.textContent=ownCompact?'⊞ FULL':'⊟ COMPACT';this.style.borderColor=ownCompact?'var(--gold)':'var(--b1)';this.style.color=ownCompact?'var(--gold)':'var(--t3)';applyOwnControls()" style="white-space:nowrap">⊟ COMPACT</button>
+      </div>
+    </div>
+    <div id="bulk-edit-panel" style="display:none;background:var(--s1);border:1px solid var(--gold);border-radius:var(--rl);padding:12px 14px;margin-bottom:12px">
+      <div style="font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--gold2);margin-bottom:10px;font-family:'Space Mono',monospace">BULK EDIT — applies to all cards on this page</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div>
+          <div class="edit-label" style="margin-bottom:3px">Date bought (all)</div>
+          <input class="edit-input" id="bulk-date" type="date" style="width:100%"/>
+        </div>
+        <div>
+          <div class="edit-label" style="margin-bottom:3px">Price paid (all)</div>
+          <input class="edit-input" id="bulk-price" type="number" min="0" step="0.01" placeholder="0.00" style="width:100%"/>
+        </div>
+        <div>
+          <div class="edit-label" style="margin-bottom:3px">Bought from (all)</div>
+          <input class="edit-input" id="bulk-from" type="text" placeholder="eBay, LGS, pack..." style="width:100%"/>
+        </div>
+        <div>
+          <div class="edit-label" style="margin-bottom:3px">Apply to</div>
+          <select class="ctrl-select" id="bulk-target" style="width:100%;font-size:10px">
+            <option value="page">Cards on this page</option>
+            <option value="all">All filtered cards</option>
+            <option value="noprice">Cards missing price</option>
+            <option value="nodate">Cards missing date</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-sm" onclick="applyBulkEdit()">✓ APPLY</button>
+        <button class="btn-ghost btn-sm" onclick="clearBulkInputs()">✕ CLEAR</button>
+        <span id="bulk-edit-status" style="font-size:9px;color:var(--t3);align-self:center;font-family:'DM Sans',sans-serif"></span>
       </div>
     </div>
     <div id="owned-cards"></div>
@@ -1507,6 +1539,69 @@ function addToOwned(snap){
   if(b){const orig=b.textContent;b.textContent='✓ ADDED';setTimeout(()=>b.textContent=orig,1200);}
 }
 
+
+// ── BULK EDIT ──────────────────────────────────────────────────────────────
+let bulkEditOpen=false;
+function toggleBulkEdit(){
+  bulkEditOpen=!bulkEditOpen;
+  const panel=document.getElementById('bulk-edit-panel');
+  const btn=document.getElementById('own-bulk-btn');
+  if(panel) panel.style.display=bulkEditOpen?'block':'none';
+  if(btn){btn.style.borderColor=bulkEditOpen?'var(--gold)':'var(--b1)';btn.style.color=bulkEditOpen?'var(--gold)':'var(--t3)';}
+}
+function clearBulkInputs(){
+  ['bulk-date','bulk-price','bulk-from'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.value='';
+  });
+  const st=document.getElementById('bulk-edit-status');if(st)st.textContent='';
+}
+function applyBulkEdit(){
+  const dateVal=document.getElementById('bulk-date')?.value;
+  const priceVal=document.getElementById('bulk-price')?.value?.trim();
+  const fromVal=document.getElementById('bulk-from')?.value?.trim();
+  const target=document.getElementById('bulk-target')?.value||'page';
+
+  if(!dateVal&&!priceVal&&!fromVal){
+    const st=document.getElementById('bulk-edit-status');
+    if(st){st.textContent='Nothing to apply.';st.style.color='var(--red)';}
+    return;
+  }
+
+  // Determine which cards to update
+  let targets=[];
+  if(target==='page')    targets=[...ownFiltered.slice((ownPage-1)*PER,ownPage*PER)];
+  if(target==='all')     targets=[...ownFiltered];
+  if(target==='noprice') targets=ownFiltered.filter(c=>c.purchasePrice==null);
+  if(target==='nodate')  targets=ownFiltered.filter(c=>!c.boughtAt);
+
+  let count=0;
+  targets.forEach(c=>{
+    if(priceVal!==''&&priceVal!=null){
+      const pp=parseFloat(priceVal);
+      if(!isNaN(pp)&&pp>=0){
+        c.purchasePrice=pp;
+        if(ledger[c.id]) ledger[c.id].purchasePrice=pp;
+      }
+    }
+    if(dateVal){
+      const [dy,dm,dd]=dateVal.split('-').map(Number);
+      const ts=new Date(dy,dm-1,dd,12,0,0).getTime();
+      if(!isNaN(ts)){
+        c.boughtAt=ts;
+        if(ledger[c.id]) ledger[c.id].ownAt=ts;
+        if(ledger[c.id]) ledger[c.id].statusAt=ts;
+      }
+    }
+    if(fromVal) c.boughtFrom=fromVal||null;
+    count++;
+  });
+
+  save();
+  const st=document.getElementById('bulk-edit-status');
+  if(st){st.textContent=`✓ Updated ${count} card${count!==1?'s':''}.`;st.style.color='var(--green)';}
+  refreshOwnedInPlace();
+}
+
 // ── WATCHLIST ─────────────────────────────────────────────────────────────
 function applyWlControls(){
   wlFiltered=filterSort([...watchlist],
@@ -1735,6 +1830,22 @@ function applyOwnControls(){
     document.getElementById('own-sort')?.value||'bought');
   ownPage=1;renderOwned();
 }
+function refreshOwnedInPlace(){
+  // Re-filter and re-render without resetting page — used after edits
+  let list=[...owned];
+  if(ownHideStd) list=list.filter(c=>raritySnap(c).rank<5||c.isFav);
+  const favFilter=document.getElementById('own-fav')?.value||'';
+  if(favFilter==='fav')   list=list.filter(c=>c.isFav);
+  if(favFilter==='unfav') list=list.filter(c=>!c.isFav);
+  ownFiltered=filterSort(list,
+    document.getElementById('own-filter')?.value||'',
+    document.getElementById('own-rarity')?.value||'',
+    document.getElementById('own-sort')?.value||'bought');
+  // clamp page
+  const tp=Math.ceil(ownFiltered.length/PER);
+  if(ownPage>tp&&tp>0) ownPage=tp;
+  renderOwned();
+}
 
 async function refreshOwned(){
   if(!owned.length) return;
@@ -1813,9 +1924,10 @@ function saveOwnedEdit(i){
     const blVal=parseFloat(blInput.value);
     if(!isNaN(blVal)&&blVal>0){c.blPrice=blVal;if(ledger[c.id]){ledger[c.id].isBL=true;ledger[c.id].blPrice=blVal;}}
   } else if(!c.isBL&&ledger[c.id]){ledger[c.id].isBL=false;ledger[c.id].blPrice=null;}
-  save();applyOwnControls();
-  const area=document.getElementById('oe-'+i);if(area)area.classList.remove('open');
-  const tog=document.getElementById('oet-'+i);if(tog)tog.textContent='▼ EDIT';
+  save();refreshOwnedInPlace();
+  // reopen same edit panel after re-render
+  const area2=document.getElementById('oe-'+i);if(area2)area2.classList.remove('open');
+  const tog2=document.getElementById('oet-'+i);if(tog2)tog2.textContent='▼ EDIT';
 }
 
 
@@ -1838,7 +1950,7 @@ function toggleBLMode(i){
     if(blPlaceholder)blPlaceholder.style.display='none';
     if(blBtn){blBtn.textContent='✓ BL';blBtn.style.color='var(--purple)';blBtn.style.borderColor='rgba(196,181,253,0.4)';blBtn.style.background='var(--purple-dim)';}
   }
-  save();applyOwnControls();
+  save();refreshOwnedInPlace();
 }
 
 function toggleJPMode(i){
@@ -1861,7 +1973,7 @@ function toggleJPMode(i){
     if(jpPlaceholder)jpPlaceholder.style.display='none';
     if(jpBtn){jpBtn.textContent='✓ JP';jpBtn.style.color='var(--gold)';jpBtn.style.borderColor='rgba(201,168,76,0.4)';jpBtn.style.background='var(--gold-dim)';}
   }
-  save();applyOwnControls();
+  save();refreshOwnedInPlace();
 }
 
 function cloneCard(copyId){
