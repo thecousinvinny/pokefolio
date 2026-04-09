@@ -403,6 +403,39 @@ body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);m
 /* SET OWNERSHIP BADGE */
 .set-own-badge{font-size:9px;color:var(--t3);letter-spacing:0;font-family:'DM Sans',sans-serif;margin-bottom:4px}
 .set-own-badge span{color:var(--gold2);font-weight:700}
+
+/* CONDITION PRICE TABLE in search results */
+.cond-table{width:100%;border-collapse:collapse;margin:4px 0;font-family:'DM Sans',sans-serif}
+.cond-table tr{border-bottom:1px solid var(--b1)}
+.cond-table tr:last-child{border-bottom:none}
+.cond-table td{padding:3px 0;font-size:9px;line-height:1.4;vertical-align:middle}
+.cond-table td:last-child{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.cond-table td:first-child{color:var(--t3);font-weight:500}
+.cond-divider{height:1px;background:var(--b1);margin:5px 0}
+
+/* WATCHLIST collapsible price details */
+.wl-expand-btn{width:100%;background:none;border:none;border-top:1px solid var(--b1);color:var(--t3);font-family:'DM Sans',sans-serif;font-size:9px;font-weight:600;padding:5px 0 3px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:color .15s}
+.wl-expand-btn:hover{color:var(--gold2)}
+.wl-expand-panel{display:none;padding-top:4px}
+.wl-expand-panel.open{display:block}
+.price-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 0;margin:4px 0}
+.price-cell{display:flex;flex-direction:column}
+.price-cell.right{align-items:flex-end;text-align:right}
+.price-cell-label{font-size:8px;color:var(--t3);font-family:'DM Sans',sans-serif;font-weight:500}
+.price-cell-val{font-size:10px;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums;font-family:'DM Sans',sans-serif}
+
+/* FOLIO COMPACT MODE */
+.pcard-compact{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:6px 8px;display:flex;align-items:center;gap:9px;transition:border-color .15s}
+.pcard-compact:hover{border-color:var(--b2)}
+.pcard-compact.is-rare{border-color:rgba(201,168,76,0.2)}
+.pcard-compact.is-rare:hover{border-color:rgba(201,168,76,0.4)}
+.pcard-compact img{width:38px;height:54px;object-fit:cover;border-radius:4px;flex-shrink:0;background:var(--s2)}
+.pcard-compact-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.pcard-compact-name{font-size:10px;font-weight:600;color:var(--text);font-family:'DM Sans',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pcard-compact-sub{font-size:8px;color:var(--t3);font-family:'DM Sans',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pcard-compact-badge{font-size:8px;color:var(--t3);font-family:'DM Sans',sans-serif}
+.pcard-compact-badge span{color:var(--green);font-weight:700}
+.compact-grid{display:flex;flex-direction:column;gap:4px}
 </style>
 </head>
 <body>
@@ -654,6 +687,7 @@ body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);m
       <div class="ctrl-sep"></div>
       <span class="ctrl-label">Sort</span>
       <select class="ctrl-select" id="own-sort" onchange="applyOwnControls()">
+        <option value="bought">Date bought</option>
         <option value="added">Date added</option>
         <option value="name">Name A–Z</option>
         <option value="name-desc">Name Z–A</option>
@@ -662,6 +696,7 @@ body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);m
         <option value="set">Set A–Z</option>
         <option value="rarity">Rarity</option>
       </select>
+      <button id="own-compact-btn" class="toggle-btn" onclick="ownCompact=!ownCompact;this.textContent=ownCompact?'⊞ FULL':'⊟ COMPACT';this.style.borderColor=ownCompact?'var(--gold)':'var(--b1)';this.style.color=ownCompact?'var(--gold)':'var(--t3)';applyOwnControls()" style="white-space:nowrap;margin-left:auto">⊟ COMPACT</button>
     </div>
     <div id="owned-cards"></div>
     <div id="owned-pagination"></div>
@@ -733,6 +768,7 @@ body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);m
       <div class="ctrl-sep"></div>
       <span class="ctrl-label">Sort</span>
       <select class="ctrl-select" id="hist-sort" onchange="renderHistory()">
+        <option value="status-desc">Status updated ↓</option>
         <option value="wl-desc">Added ↓</option>
         <option value="own-desc">Acquired ↓</option>
         <option value="name">Name A–Z</option>
@@ -770,6 +806,7 @@ let ledger      =JSON.parse(localStorage.getItem('ptrkr_ledger')||'{}');
 let wlCharts={};
 let srRaw=[], srFiltered=[], srPage=1;
 let wlFiltered=[], wlPage=1;
+let ownCompact=false;
 let ownFiltered=[], ownPage=1;
 let soldPage=1, giftedPage=1, histPage=1;
 let exportMode='all', sgMode=null, sgCopyId=null;
@@ -888,6 +925,26 @@ function getPrice(card){
   return{market:null,low:null};
 }
 
+
+// Returns all condition prices for a card as a flat object
+function getAllPrices(card){
+  const p=card.tcgplayer?.prices;
+  if(!p) return null;
+  // Find the primary price type (same priority as getPrice)
+  const priority=['holofoil','1stEditionHolofoil','unlimitedHolofoil','reverseHolofoil','normal','1stEditionNormal','unlimited'];
+  let tier=null;
+  for(const t of priority){ if(p[t]?.market!=null){tier=p[t];break;} }
+  if(!tier){ for(const t of Object.keys(p)){ if(p[t]?.market!=null){tier=p[t];break;} } }
+  if(!tier) return null;
+  return{
+    nm:   tier.market??null,       // Near Mint market (TCGPlayer "market" = weighted NM avg)
+    nmLow:tier.low??null,          // Near Mint low listing
+    nmHigh:tier.high??null,        // Near Mint high listing
+    lp:   tier.directLow??null,    // Lightly Played proxy (directLow is closest available)
+    mid:  tier.mid??null,          // Mid price
+  };
+}
+
 function rarityOf(card){
   const sub=card.subtypes??[],rar=card.rarity??'';
   if(/special illustration/i.test(rar)||sub.some(s=>/special illustration/i.test(s))) return{label:'SPEC ILLUS RARE',cls:'r-ir',rank:0};
@@ -952,7 +1009,10 @@ function ledgerSetWl(snap){
   ledgerEnsure(snap);
   ledger[snap.id].wlAt=ledger[snap.id].wlAt||snap.addedAt||Date.now();
   ledger[snap.id].wlPrice=ledger[snap.id].wlPrice||snap.market;
-  if(!ledger[snap.id].status||ledger[snap.id].status==='watching') ledger[snap.id].status='watching';
+  if(!ledger[snap.id].status||ledger[snap.id].status==='watching'){
+    ledger[snap.id].status='watching';
+    ledger[snap.id].statusAt=Date.now();
+  }
 }
 function ledgerSetOwned(snap){
   ledgerEnsure(snap);
@@ -962,6 +1022,7 @@ function ledgerSetOwned(snap){
   ledger[snap.id].ownPrice=ledger[snap.id].ownPrice||snap.market;
   if(snap.purchasePrice!=null) ledger[snap.id].purchasePrice=snap.purchasePrice;
   ledger[snap.id].status='owned';
+  ledger[snap.id].statusAt=Date.now();
 }
 
 // PAGINATION HELPER
@@ -999,6 +1060,7 @@ function filterSort(list,ft,fr,so){
     if(so==='market-asc')  return(a.market??Infinity)-(b.market??Infinity);
     if(so==='rarity')      return raritySnap(a).rank-raritySnap(b).rank;
     if(so==='set')         return(a.set||'').localeCompare(b.set||'');
+    if(so==='bought')      return(b.boughtAt??b.addedAt??0)-(a.boughtAt??a.addedAt??0);
     return(b.addedAt??0)-(a.addedAt??0);
   });
 }
@@ -1145,7 +1207,8 @@ function renderSrPage(){
     const tcgIdMatch=tcgUrl2.match(/product\/(\d+)/);
     const tcgplayerId=tcgIdMatch?tcgIdMatch[1]:null;
     const releaseDate=c.set?.releaseDate??null;
-    const snap=JSON.stringify({id:c.id,name:c.name,set:c.set.name,setId:c.set.id,img:c.images.small,imgLg:c.images.large,number:c.number,total:c.set.printedTotal??c.set.total??'?',market,low,rarity:ri.label,addedAt:Date.now(),tcgplayerId,releaseDate}).replace(/'/g,"&#39;");
+    const ap=getAllPrices(c);
+    const snap=JSON.stringify({id:c.id,name:c.name,set:c.set.name,setId:c.set.id,img:c.images.small,imgLg:c.images.large,number:c.number,total:c.set.printedTotal??c.set.total??'?',market,low,nmMarket:ap?.nm??null,nmLow:ap?.nmLow??null,nmMid:ap?.mid??null,nmHigh:ap?.nmHigh??null,directLow:ap?.lp??null,rarity:ri.label,addedAt:Date.now(),tcgplayerId,releaseDate}).replace(/'/g,"&#39;");
     const favBorder=c.isFav?"border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)":"";
     return `<div class="pcard${ri.rank<=3?' is-rare':''}" style="${favBorder}">
       <img src="${c.images.small}" loading="lazy" onerror="this.src='${c.images.large||c.images.small}'"/>
@@ -1154,10 +1217,19 @@ function renderSrPage(){
       <div class="pcard-set">${c.set.name} · ${c.number}/${c.set.printedTotal??c.set.total??'?'}</div>
       ${setOwnershipBadge(c.set.id,c.set.printedTotal??c.set.total)}
       ${c.set.releaseDate?`<div class="pcard-set" style="color:var(--t3);font-size:7px">${c.set.releaseDate.replace(/\//g,'-')}</div>`:''}
-      <div class="price-rows">
-        <div class="price-row"><span class="price-label">MARKET</span><span class="price-val market">${fmt(market)}</span></div>
-        <div class="price-row"><span class="price-label">LOW LIST</span><span class="price-val list">${fmt(low)}</span></div>
-      </div>
+      <div class="cond-divider"></div>
+      ${(()=>{
+        const ap=getAllPrices(c);
+        if(!ap) return `<div class="price-rows"><div class="price-row"><span class="price-label">MARKET</span><span class="price-val market">${fmt(market)}</span></div><div class="price-row"><span class="price-label">LOW LIST</span><span class="price-val list">${fmt(low)}</span></div></div>`;
+        return `<table class="cond-table">
+          ${ap.nm!=null?`<tr><td style="font-weight:600;color:var(--text)">NM Market</td><td style="color:var(--gold2);font-weight:700">$${ap.nm.toFixed(2)}</td></tr>`:''}
+          ${ap.nmLow!=null?`<tr><td>NM Low</td><td style="color:var(--t2)">$${ap.nmLow.toFixed(2)}</td></tr>`:''}
+          ${ap.mid!=null?`<tr><td>Mid</td><td style="color:var(--t2)">$${ap.mid.toFixed(2)}</td></tr>`:''}
+          ${ap.nmHigh!=null?`<tr><td>High</td><td style="color:var(--t2)">$${ap.nmHigh.toFixed(2)}</td></tr>`:''}
+          ${ap.lp!=null?`<tr><td>Direct Low</td><td style="color:var(--t3)">$${ap.lp.toFixed(2)}</td></tr>`:''}
+        </table>`;
+      })()}
+      <div class="cond-divider"></div>
       <div class="card-btns">
         <button class="cbtn${inWl?' wl-added':''}" id="wlb-${c.id}" onclick='addToWl(${snap})'>${inWl?'✓ WATCHLIST':'+ WATCHLIST'}</button>
         <button class="cbtn${inOwn?' own-added':''}" id="ownb-${c.id}" onclick='addToOwned(${snap})'>${inOwn?'✓ OWNED':'+ MARK OWNED'}</button>
@@ -1426,6 +1498,12 @@ async function refreshWatchlist(){
       const{market,low}=getPrice(d.data??{});
       if(market!=null){watchlist[i].market=market;if(ledger[c.id])ledger[c.id].currentMarket=market;}
       if(low!=null) watchlist[i].low=low;
+      const ap2=getAllPrices(d.data??{});
+      if(ap2){watchlist[i].nmMarket=ap2.nm;watchlist[i].nmLow=ap2.nmLow;watchlist[i].nmMid=ap2.mid;watchlist[i].nmHigh=ap2.nmHigh;watchlist[i].directLow=ap2.lp;}
+      // Backfill fields that may be missing from old snaps
+      if(!watchlist[i].releaseDate&&d.data?.set?.releaseDate) watchlist[i].releaseDate=d.data.set.releaseDate;
+      if(!watchlist[i].setId&&d.data?.set?.id) watchlist[i].setId=d.data.set.id;
+      if(!watchlist[i].total&&d.data?.set?.printedTotal) watchlist[i].total=d.data.set.printedTotal??d.data.set.total;
       recordHistory(watchlist[i]);
     }catch(e){}
   }));
@@ -1481,9 +1559,18 @@ function confirmRemove(btn, label, fn){
 
 function removeWl(id){
   const c=watchlist.find(w=>w.id===id);
-  const snap=JSON.stringify(watchlist);
-  watchlist=watchlist.filter(w=>w.id!==id);save();refreshAllCounts();applyWlControls();
-  pushUndo(`Removed ${c?.name} from watchlist`,()=>{watchlist=JSON.parse(snap);refreshAllCounts();applyWlControls();});
+  const wlSnap=JSON.stringify(watchlist);
+  const ledgerSnap=JSON.stringify(ledger);
+  watchlist=watchlist.filter(w=>w.id!==id);
+  // Remove from ledger too unless the card exists in owned/sold/gifted
+  const stillTracked=owned.some(o=>o.id===id)||sold.some(s=>s.id===id)||gifted.some(g=>g.id===id);
+  if(!stillTracked) delete ledger[id];
+  save();refreshAllCounts();applyWlControls();
+  pushUndo(`Removed ${c?.name} from watchlist`,()=>{
+    watchlist=JSON.parse(wlSnap);
+    Object.assign(ledger,JSON.parse(ledgerSnap));
+    refreshAllCounts();applyWlControls();
+  });
 }
 function wlToOwned(id){
   const c=watchlist.find(w=>w.id===id);if(!c) return;
@@ -1538,19 +1625,45 @@ function renderWatchlist(){
     if(spread!=null){if(spread<-5)stag=`<span class="stag deal">↓ ${Math.abs(spread).toFixed(1)}% BELOW</span>`;else if(spread>5)stag=`<span class="stag premium">↑ ${spread.toFixed(1)}% ABOVE</span>`;else stag='<span class="stag neutral">≈ NEAR MKT</span>';}
     const ri=raritySnap(c);
     const favBorder=c.isFav?"border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)":"";
+    const wlSetBadge=setOwnershipBadge(c.setId||c.id.split('-').slice(0,-1).join('-'),c.total);
+    const wlRelDate=c.releaseDate
+      ?`<div class="pcard-set" style="color:var(--t3);font-size:8px">${c.releaseDate.replace(/\//g,'-')}</div>`
+      :'';
+    // Silently fetch missing releaseDate in background (only once per card)
+    if(!c.releaseDate&&!c._fetchingMeta){
+      c._fetchingMeta=true;
+      apiFetch(`https://api.pokemontcg.io/v2/cards/${c.id}`)
+        .then(r=>r.json()).then(d=>{
+          if(d.data?.set?.releaseDate){c.releaseDate=d.data.set.releaseDate;delete c._fetchingMeta;save();renderWatchlist();}
+        }).catch(()=>{delete c._fetchingMeta;});
+    }
+    const nmVal=c.nmMarket??c.market;
+    const hasDetails=c.nmLow!=null||c.nmMid!=null||c.nmHigh!=null||c.directLow!=null||c.low!=null;
+    const detailsId=`pd-${c.id.replace(/[^a-z0-9]/gi,'_')}`;
     return `<div class="pcard${ri.rank<=3?' is-rare':''}" style="${favBorder}">
       <img src="${c.img}" loading="lazy"/>
       <span class="rtag ${ri.cls}">${ri.label}</span>
       <div class="pcard-name">${c.name}</div>
       <div class="pcard-set">${c.set} · ${c.number}/${c.total}</div>
-      <div class="price-rows">
-        <div class="price-row"><span class="price-label">MARKET</span><span class="price-val market">${fmt(c.market)}</span></div>
-        <div class="price-row"><span class="price-label">LOW LIST</span><span class="price-val list">${fmt(c.low)}</span></div>
+      ${wlRelDate}
+      ${wlSetBadge}
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin:6px 0 2px">
+        <span style="font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif;font-weight:500">NM Market</span>
+        <span style="font-size:14px;font-weight:700;color:var(--gold2);font-variant-numeric:tabular-nums;font-family:'DM Sans',sans-serif">${nmVal!=null?'$'+nmVal.toFixed(2):'—'}</span>
       </div>
-      <div class="wl-extra">${priceAlertTag(c.id,c.market)}${stag}
+      ${priceAlertTag(c.id,c.market)}${stag}
+      <button class="wl-expand-btn" onclick="const p=document.getElementById('wx-${c.id}');p.classList.toggle('open');this.querySelector('.wx-arrow').textContent=p.classList.contains('open')?'▲':'▼';if(p.classList.contains('open')&&!wlCharts['${c.id}']){buildChart('${c.id}',document.getElementById('ca-${c.id}'))}">
+        <span>Prices &amp; History</span><span class="wx-arrow">▼</span>
+      </button>
+      <div class="wl-expand-panel" id="wx-${c.id}">
+        <div class="price-grid">
+          ${(c.nmLow??c.low)!=null?`<div class="price-cell"><span class="price-cell-label">NM Low</span><span class="price-cell-val">$${(c.nmLow??c.low).toFixed(2)}</span></div>`:''}
+          ${c.nmMid!=null?`<div class="price-cell"><span class="price-cell-label">Mid</span><span class="price-cell-val">$${c.nmMid.toFixed(2)}</span></div>`:''}
+          ${c.nmHigh!=null?`<div class="price-cell"><span class="price-cell-label">High</span><span class="price-cell-val">$${c.nmHigh.toFixed(2)}</span></div>`:''}
+          ${c.directLow!=null?`<div class="price-cell"><span class="price-cell-label">Direct Low</span><span class="price-cell-val">$${c.directLow.toFixed(2)}</span></div>`:''}
+        </div>
         ${wlPriceStats(c.id)}
-        <button class="chart-toggle" id="ct-${c.id}" onclick="toggleChart('${c.id}')">▼ HISTORY</button>
-        <div class="chart-area" id="ca-${c.id}"></div>
+        <div class="chart-area open" id="ca-${c.id}"></div>
       </div>
       <div class="card-btns" style="margin-top:7px">
         <a class="tcg-link" href="${tcgUrl(c.name)}" target="_blank">↗ BUY</a>
@@ -1589,7 +1702,7 @@ function applyOwnControls(){
   ownFiltered=filterSort(list,
     document.getElementById('own-filter')?.value||'',
     document.getElementById('own-rarity')?.value||'',
-    document.getElementById('own-sort')?.value||'added');
+    document.getElementById('own-sort')?.value||'bought');
   ownPage=1;renderOwned();
 }
 
@@ -1603,6 +1716,8 @@ async function refreshOwned(){
       const{market,low}=getPrice(d.data??{});
       if(market!=null){owned[i].market=market;if(ledger[c.id])ledger[c.id].currentMarket=market;}
       if(low!=null) owned[i].low=low;
+      if(!owned[i].releaseDate&&d.data?.set?.releaseDate) owned[i].releaseDate=d.data.set.releaseDate;
+      if(!owned[i].setId&&d.data?.set?.id) owned[i].setId=d.data.set.id;
     }catch(e){}
   }));
   save();btn.innerHTML='↻ REFRESH PRICES';btn.disabled=false;
@@ -1741,29 +1856,38 @@ function renderOwned(){
     const sugLabel=trend==='up'?`SUGGEST SELL ${fmt(suggest)}`:trend==='down'?'HOLD — TREND ↓':'FAIR VALUE';
     const pdVal=c.boughtAt?new Date(c.boughtAt).toISOString().slice(0,10):'';
     const favBorder=c.isFav?"border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)":"";
+    const setId=c.setId||c.id.split('-').slice(0,-1).join('-');
+    const relDate=c.releaseDate?c.releaseDate.replace(/\//g,'-'):'';
     return `<div class="pcard${ri.rank<=3?' is-rare':''}" style="${favBorder}">
       <img src="${c.img}" loading="lazy"/>
-      <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px"><span class="rtag ${ri.cls}" style="margin-bottom:0">${ri.label}${copyLbl?`<span class="copy-badge">${copyLbl.trim()}</span>`:''}</span><span style="font-size:7px;font-weight:700;padding:1px 5px;border-radius:3px;letter-spacing:0.06em;${c.isJP?'background:rgba(201,168,76,0.18);color:var(--gold2);border:1px solid rgba(201,168,76,0.35)':'background:var(--s3);color:var(--t3);border:1px solid var(--b1)'}">${c.isJP?'JP':'A'}</span></div>
+      <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px;min-width:0">
+        <span class="rtag ${ri.cls}" style="margin-bottom:0;flex-shrink:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ri.label}${copyLbl?`<span class="copy-badge">${copyLbl.trim()}</span>`:''}</span>
+        <span style="flex-shrink:0;font-size:7px;font-weight:700;padding:1px 5px;border-radius:3px;letter-spacing:0.04em;${c.isJP?'background:rgba(201,168,76,0.18);color:var(--gold2);border:1px solid rgba(201,168,76,0.35)':'background:var(--s3);color:var(--t3);border:1px solid var(--b1)'}">${c.isJP?'JP':'A'}</span>
+        <button class="cbtn" style="margin-left:auto;flex:0 0 16.6%;max-width:36px;padding:2px 0;${c.isFav?'color:var(--gold);border-color:var(--gold);background:var(--gold-dim)':'color:var(--t3)'}" onclick="ownAct(${i},'fav')" title="${c.isFav?'Unfavourite':'Favourite — locks from sale'}">★</button>
+      </div>
       <div class="pcard-name">${c.name}</div>
       <div class="pcard-set">${c.set} · ${c.number}/${c.total}</div>
-      ${setOwnershipBadge(c.setId||c.id.split('-').slice(0,-1).join('-'),c.total)}
-      <div class="price-rows">
-        <div class="price-row"><span class="price-label">${c.isJP?'JP MARKET':'MARKET'}</span><span class="price-val market">${fmt(displayMarket)}</span></div>
-        <div class="price-row"><span class="price-label">PAID</span><span class="price-val ${pnlCls}">${pp!=null?fmt(pp):'—'}</span></div>
-        ${pnl!=null?`<div class="price-row"><span class="price-label">P&L</span><span class="price-val ${pnlCls}">${(pnl>=0?'+':'')+fmt(pnl)}</span></div>`:''}
-        ${c.boughtAt?`<div class="price-row"><span class="price-label">BOUGHT</span><span class="price-val list" style="font-size:9px">${fmtDate(c.boughtAt)}</span></div>`:''}
-        ${c.boughtFrom?`<div class="price-row"><span class="price-label">FROM</span><span class="price-val list" style="font-size:9px;word-break:break-word">${c.boughtFrom}</span></div>`:''}
+      ${relDate?`<div style="font-size:8px;color:var(--t3);font-family:'DM Sans',sans-serif;margin-bottom:2px">${relDate}</div>`:''}
+      ${setOwnershipBadge(setId,c.total)}
+      <div class="cond-divider"></div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">
+        <span style="font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif;font-weight:500">${c.isJP?'JP MARKET':'MARKET'}</span>
+        <span style="font-size:14px;font-weight:700;color:var(--gold2);font-variant-numeric:tabular-nums;font-family:'DM Sans',sans-serif">${fmt(displayMarket)}</span>
       </div>
+      <div class="price-grid">
+        <div class="price-cell">${c.boughtAt?`<span class="price-cell-label">BOUGHT</span><span class="price-cell-val" style="font-size:9px">${fmtDate(c.boughtAt)}</span>`:''}</div>
+        <div class="price-cell right"><span class="price-cell-label">PAID</span><span class="price-cell-val">${pp!=null?fmt(pp):'—'}</span></div>
+        <div class="price-cell">${c.boughtFrom?`<span class="price-cell-label">FROM</span><span class="price-cell-val" style="font-size:9px;word-break:break-word">${c.boughtFrom}</span>`:''}</div>
+        <div class="price-cell right"><span class="price-cell-label">P&amp;L</span><span class="price-cell-val" style="${pnl==null?'':'color:'+(pnl>0?'var(--green)':'var(--red)')}">${pnl!=null?(pnl>=0?'+':'')+fmt(pnl):'—'}</span></div>
+      </div>
+      <div class="cond-divider"></div>
       <div class="card-btns">
         <div style="display:flex;gap:3px">
           <a class="tcg-link" href="${tcgUrl(c.name)}" target="_blank" style="flex:2">↗ TCG</a>
-          <button class="cbtn" style="flex:1;${c.isFav?'color:var(--gold);border-color:var(--gold);background:var(--gold-dim)':'color:var(--t3)'}" onclick="ownAct(${i},'fav')" title="${c.isFav?'Unfavourite':'Favourite — locks from sale'}">★</button>
+          ${c.isFav?'':
+          `<button class="cbtn" style="flex:1;color:var(--red);border-color:rgba(192,80,80,0.3)" onclick="ownAct(${i},'sell')">SELL</button>
+           <button class="cbtn" style="flex:1;color:var(--purple);border-color:rgba(196,181,253,0.3)" onclick="ownAct(${i},'gift')">GIFT</button>`}
         </div>
-        ${c.isFav?'':
-        `<div style="display:flex;gap:3px">
-          <button class="cbtn" style="flex:1;color:var(--red);border-color:rgba(192,80,80,0.3)" onclick="ownAct(${i},'sell')">💰 SELL</button>
-          <button class="cbtn" style="flex:1;color:var(--purple);border-color:rgba(196,181,253,0.3)" onclick="ownAct(${i},'gift')">🎁 GIFT</button>
-        </div>`}
         <button class="cbtn" id="oet-${i}" onclick="ownAct(${i},'edit')">▼ EDIT</button>
         <div class="own-edit-area" id="oe-${i}">
           <div class="edit-row"><span class="edit-label">Price paid (USD)</span><input class="edit-input" id="oe-pp-${i}" type="number" min="0" step="0.01" placeholder="${pp!=null?pp.toFixed(2):'0.00'}"/></div>
@@ -1786,7 +1910,33 @@ function renderOwned(){
       </div>
     </div>`;
   }).join('');
-  el.innerHTML=`<div class="sec-label">${ownFiltered.length} CARD${ownFiltered.length!==1?'S':''}</div><div class="card-grid">${grid}</div>`;
+  if(ownCompact){
+    const compactCards=slice.map((c,i)=>{
+      const ri=raritySnap(c);
+      const setId=c.setId||c.id.split('-').slice(0,-1).join('-');
+      const relDate=c.releaseDate?c.releaseDate.replace(/\//g,'-'):'';
+      const favBorder=c.isFav?"border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)":"";
+      const derive=x=>x.setId||x.id.split('-').slice(0,-1).join('-');
+      const ownedIds=new Set(owned.filter(x=>derive(x)===setId).map(x=>x.id));
+      const watchIds=new Set(watchlist.filter(x=>derive(x)===setId).map(x=>x.id));
+      const trackedOnly=new Set([...watchIds].filter(id=>!ownedIds.has(id)));
+      const badgeParts=[];
+      if(ownedIds.size) badgeParts.push(`<span style="color:var(--green);font-weight:700">${ownedIds.size} owned</span>`);
+      if(trackedOnly.size) badgeParts.push(`<span>${trackedOnly.size} tracked</span>`);
+      const badge=badgeParts.length?`${badgeParts.join(' · ')} <span style="color:var(--b3)">/ ${c.total}</span>`:'';
+      return `<div class="pcard${ri.rank<=3?' is-rare':''}" style="${favBorder};cursor:pointer" onclick="ownAct(${i},'edit')">
+        <img src="${c.img}" loading="lazy"/>
+        <span class="rtag ${ri.cls}" style="margin-bottom:2px">${ri.label}</span>
+        <div class="pcard-name">${c.name}</div>
+        <div class="pcard-set">${c.set} · ${c.number}/${c.total}</div>
+        ${relDate?`<div style="font-size:8px;color:var(--t3);font-family:'DM Sans',sans-serif;margin-top:1px">${relDate}</div>`:''}
+        ${badge?`<div class="set-own-badge" style="margin-top:2px">${badge}</div>`:''}
+      </div>`;
+    }).join('');
+    el.innerHTML=`<div class="sec-label">${ownFiltered.length} CARD${ownFiltered.length!==1?'S':''}</div><div class="card-grid">${compactCards}</div>`;
+  } else {
+    el.innerHTML=`<div class="sec-label">${ownFiltered.length} CARD${ownFiltered.length!==1?'S':''}</div><div class="card-grid">${grid}</div>`;
+  }
   pel.innerHTML=pagHTML(ownPage,ownFiltered.length,'goOwnPage');
 }
 function updateOwnedMetrics(){
@@ -1844,13 +1994,13 @@ function confirmSG(){
     const finalPrice=isNaN(salePrice)?c.market:salePrice;
     const entry={...c,soldAt:ts,soldPrice:finalPrice,soldTo:toField,notes,copyId:sgCopyId};
     sold.push(entry);
-    if(ledger[c.id]){ledger[c.id].soldAt=ts;ledger[c.id].soldPrice=finalPrice;ledger[c.id].status='sold';}
+    if(ledger[c.id]){ledger[c.id].soldAt=ts;ledger[c.id].soldPrice=finalPrice;ledger[c.id].status='sold';ledger[c.id].statusAt=ts;}
     owned=owned.filter(o=>o.copyId!==sgCopyId);
     pushUndo(`Reversed sale of ${c.name}`,()=>{owned=JSON.parse(ownedSnap);Object.assign(ledger,JSON.parse(ledgerSnap));sold=sold.filter(s=>s.copyId!==sgCopyId);refreshAllCounts();applyOwnControls();});
   } else {
     const entry={...c,giftedAt:ts,giftedTo:toField,notes,copyId:sgCopyId};
     gifted.push(entry);
-    if(ledger[c.id]){ledger[c.id].giftedAt=ts;ledger[c.id].giftedTo=toField;ledger[c.id].status='gifted';}
+    if(ledger[c.id]){ledger[c.id].giftedAt=ts;ledger[c.id].giftedTo=toField;ledger[c.id].status='gifted';ledger[c.id].statusAt=ts;}
     owned=owned.filter(o=>o.copyId!==sgCopyId);
     pushUndo(`Reversed gift of ${c.name}`,()=>{owned=JSON.parse(ownedSnap);Object.assign(ledger,JSON.parse(ledgerSnap));gifted=gifted.filter(g=>g.copyId!==sgCopyId);refreshAllCounts();applyOwnControls();});
   }
@@ -1925,7 +2075,7 @@ function restoreToOwned(from,idx){
   owned.push(entry);
   if(from==='sold') sold=sold.filter(s=>s.copyId!==copyId);
   else gifted=gifted.filter(g=>g.copyId!==copyId);
-  if(ledger[c.id]) ledger[c.id].status='owned';
+  if(ledger[c.id]){ledger[c.id].status='owned';ledger[c.id].statusAt=Date.now();}
   save();refreshAllCounts();
   from==='sold'?renderSold():renderGifted();
   pushUndo(`Restored ${c.name} to owned`,()=>{
@@ -2014,7 +2164,7 @@ function renderHistory(){
   const el=document.getElementById('history-list'),pel=document.getElementById('hist-pagination');
   const ft=(document.getElementById('hist-filter')?.value||'').toLowerCase();
   const st=document.getElementById('hist-status')?.value||'';
-  const so=document.getElementById('hist-sort')?.value||'wl-desc';
+  const so=document.getElementById('hist-sort')?.value||'status-desc';
 
   let entries=Object.values(ledger);
   if(ft) entries=entries.filter(e=>e.name.toLowerCase().includes(ft)||(e.set||'').toLowerCase().includes(ft));
@@ -2024,6 +2174,7 @@ function renderHistory(){
   if(st==='gifted')   entries=entries.filter(e=>e.status==='gifted');
 
   entries.sort((a,b)=>{
+    if(so==='status-desc') return(b.statusAt??b.ownAt??b.wlAt??0)-(a.statusAt??a.ownAt??a.wlAt??0);
     if(so==='wl-desc')     return(b.wlAt??0)-(a.wlAt??0);
     if(so==='own-desc')    return(b.ownAt??0)-(a.ownAt??0);
     if(so==='name')        return a.name.localeCompare(b.name);
@@ -2137,9 +2288,26 @@ function copyExport(){
   navigator.clipboard.writeText(data).then(()=>{const b=event.target;b.textContent='COPIED!';stampExport();setTimeout(()=>b.textContent='⎘ COPY JSON',2000);}).catch(()=>alert('Select the text above and copy manually.'));
 }
 function downloadExport(){
-  const data=buildExportData();document.getElementById('export-area').value=data;
-  const a=document.createElement('a');a.href='data:application/json;charset=utf-8,'+encodeURIComponent(data);a.download='pokefolio-'+new Date().toISOString().slice(0,10)+'.json';a.click();
-  stampExport();
+  const data=buildExportData();
+  document.getElementById('export-area').value=data;
+  try{
+    const blob=new Blob([data],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download='pokefolio-'+new Date().toISOString().slice(0,10)+'.json';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},1000);
+    stampExport();
+  }catch(e){
+    // Fallback: data URI
+    const a=document.createElement('a');
+    a.href='data:application/json;charset=utf-8,'+encodeURIComponent(data);
+    a.download='pokefolio-'+new Date().toISOString().slice(0,10)+'.json';
+    a.click();
+    stampExport();
+  }
 }
 function doImport(mode){
   const raw=document.getElementById('import-area').value.trim();
@@ -2327,12 +2495,16 @@ function priceAlertTag(cardId,currentMarket){
 function setOwnershipBadge(setId,setTotal){
   if(!setId) return '';
   const derive=c=>c.setId||c.id.split('-').slice(0,-1).join('-');
-  const ids=new Set([
-    ...owned.filter(c=>derive(c)===setId).map(c=>c.id),
-    ...watchlist.filter(c=>derive(c)===setId).map(c=>c.id)
-  ]);
-  if(!ids.size) return '';
-  return `<div class="set-own-badge"><span>${ids.size}</span>/${setTotal} from this set tracked</div>`;
+  const ownedIds=new Set(owned.filter(c=>derive(c)===setId).map(c=>c.id));
+  const watchIds=new Set(watchlist.filter(c=>derive(c)===setId).map(c=>c.id));
+  // tracked = in watchlist but NOT yet owned; owned = in folio
+  const trackedOnly=new Set([...watchIds].filter(id=>!ownedIds.has(id)));
+  const total=ownedIds.size+trackedOnly.size;
+  if(!total) return '';
+  const parts=[];
+  if(ownedIds.size) parts.push(`<span style="color:var(--green);font-weight:700">${ownedIds.size} owned</span>`);
+  if(trackedOnly.size) parts.push(`<span>${trackedOnly.size} tracked</span>`);
+  return `<div class="set-own-badge">${parts.join(' · ')} <span style="color:var(--b3)">/ ${setTotal}</span></div>`;
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────
@@ -2341,6 +2513,7 @@ owned=owned.map(c=>({...c,copyId:c.copyId||uid()}));
 
 watchlist.forEach(c=>{
   if(!ledger[c.id]) ledgerSetWl(c);
+  if(!ledger[c.id].statusAt) ledger[c.id].statusAt=c.addedAt||ledger[c.id].wlAt||Date.now();
 });
 
 owned.forEach(c=>{
@@ -2359,6 +2532,8 @@ owned.forEach(c=>{
   if(c.boughtAt!=null)      ledger[c.id].ownAt=c.boughtAt;
   // Backfill JP fields into ledger from owned card
   if(c.isJP){ledger[c.id].isJP=true;if(c.jpPrice!=null)ledger[c.id].jpPrice=c.jpPrice;}
+  // Backfill statusAt if missing — use boughtAt, then ownAt, then addedAt
+  if(!ledger[c.id].statusAt) ledger[c.id].statusAt=c.boughtAt||ledger[c.id].ownAt||c.addedAt||Date.now();
 });
 save();
 refreshAllCounts();
