@@ -443,13 +443,13 @@ body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);m
 .bottom-nav{
   position:fixed;bottom:0;left:0;right:0;z-index:300;
   display:flex;align-items:stretch;
-  background:rgba(10,10,10,0.97);
-  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-  border-top:1px solid var(--b1);
-  padding-bottom:env(safe-area-inset-bottom,0px);
-  height:calc(56px + env(safe-area-inset-bottom,0px));
+  background:rgba(8,8,8,0.72);
+  backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);
+  border-top:1px solid rgba(255,255,255,0.06);
+  padding-bottom:min(env(safe-area-inset-bottom,0px),16px);
+  height:calc(52px + min(env(safe-area-inset-bottom,0px),16px));
 }
-body.light .bottom-nav{background:rgba(245,244,241,0.97);}
+body.light .bottom-nav{background:rgba(245,244,241,0.78);}
 .bnav-btn{
   flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:3px;background:none;border:none;cursor:pointer;
@@ -477,6 +477,21 @@ body.light .bottom-nav{background:rgba(245,244,241,0.97);}
 
 /* Remove old top tabs */
 .tabs{display:none!important;}
+
+/* SHOWCASE */
+@keyframes prism{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+.pcard-showcase{animation:prism 3s ease infinite;background-size:300% 300%!important;
+  outline:2px solid transparent;
+  border-color:transparent!important;
+  position:relative;
+}
+.pcard-showcase::before{
+  content:'';position:absolute;inset:-2px;border-radius:calc(var(--rl) + 2px);
+  background:linear-gradient(135deg,#fff 0%,#c9a84c 20%,#fff 40%,#60a5fa 60%,#c4b5fd 80%,#fff 100%);
+  background-size:300% 300%;
+  animation:prism 3s ease infinite;
+  z-index:-1;
+}
 </style>
 </head>
 <body>
@@ -645,7 +660,7 @@ body.light .bottom-nav{background:rgba(245,244,241,0.97);}
     <div id="bulk-bar" style="display:none;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--b1);margin-bottom:10px">
       <input type="checkbox" id="bulk-select-all" onchange="toggleSelectAll(this.checked)" style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer"/>
       <span id="bulk-count" style="font-size:9px;color:var(--t3);letter-spacing:0.06em">0 selected</span>
-      <button class="btn btn-sm" onclick="bulkAddToWl()" style="margin-left:auto">+ ADD SELECTED TO WATCHLIST</button>
+      <button class="btn btn-sm" onclick="bulkAddToWl()" style="margin-left:auto">+ ADD SELECTED TO WATCH</button>
       <button class="btn-ghost btn-sm" onclick="bulkAddToOwned()">+ ADD TO FOLIO</button>
     </div>
     <div id="search-results"></div>
@@ -757,7 +772,7 @@ body.light .bottom-nav{background:rgba(245,244,241,0.97);}
           <input class="edit-input" id="bulk-price" type="number" min="0" step="0.01" placeholder="0.00" style="width:100%"/>
         </div>
         <div style="grid-column:span 2">
-          <div class="edit-label" style="margin-bottom:3px">Bought from</div>
+          <div class="edit-label" style="margin-bottom:3px">From</div>
           <input class="edit-input" id="bulk-from" type="text" placeholder="eBay, LGS, pack..." style="width:100%"/>
         </div>
       </div>
@@ -879,6 +894,7 @@ let wlFiltered=[], wlPage=1;
 let ownCompact=false;
 let ownHideStd=true;
 let ownSelected=new Set();
+let showcaseCopyId=null;
 let ownFiltered=[], ownPage=1;
 let soldPage=1, giftedPage=1, histPage=1;
 let exportMode='all', sgMode=null, sgCopyId=null;
@@ -1298,7 +1314,8 @@ function renderSrPage(){
     const tcgplayerId=tcgIdMatch?tcgIdMatch[1]:null;
     const releaseDate=c.set?.releaseDate??null;
     const ap=getAllPrices(c);
-    const snap=JSON.stringify({id:c.id,name:c.name,set:c.set.name,setId:c.set.id,img:c.images.small,imgLg:c.images.large,number:c.number,total:c.set.printedTotal??c.set.total??'?',market,low,nmMarket:ap?.nm??null,nmLow:ap?.nmLow??null,nmMid:ap?.mid??null,nmHigh:ap?.nmHigh??null,directLow:ap?.lp??null,rarity:ri.label,addedAt:Date.now(),tcgplayerId,releaseDate}).replace(/'/g,"&#39;");
+    const tcgDirectUrl=c.tcgplayer?.url||null;
+    const snap=JSON.stringify({id:c.id,name:c.name,set:c.set.name,setId:c.set.id,img:c.images.small,imgLg:c.images.large,number:c.number,total:c.set.printedTotal??c.set.total??'?',market,low,nmMarket:ap?.nm??null,nmLow:ap?.nmLow??null,nmMid:ap?.mid??null,nmHigh:ap?.nmHigh??null,directLow:ap?.lp??null,rarity:ri.label,addedAt:Date.now(),tcgplayerId,releaseDate,tcgUrl:tcgDirectUrl}).replace(/'/g,"&#39;");
     const favBorder=c.isFav?"border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)":"";
     return `<div class="pcard${ri.rank<=3?' is-rare':''}" style="${favBorder}">
       <img src="${c.images.small}" loading="lazy" onerror="this.src='${c.images.large||c.images.small}'"/>
@@ -1321,9 +1338,9 @@ function renderSrPage(){
       })()}
       <div class="cond-divider"></div>
       <div class="card-btns">
-        <button class="cbtn${inWl?' wl-added':''}" id="wlb-${c.id}" onclick='addToWl(${snap})'>${inWl?'✓ WATCHLIST':'+ WATCHLIST'}</button>
-        <button class="cbtn${inOwn?' own-added':''}" id="ownb-${c.id}" onclick='addToOwned(${snap})'>${inOwn?'✓ OWNED':'+ MARK OWNED'}</button>
-        <a class="tcg-link" href="${tcgUrl(c.name)}" target="_blank">↗ TCGPLAYER</a>
+        <button class="cbtn${inWl?' wl-added':''}" id="wlb-${c.id}" onclick='addToWl(${snap})' style="${inWl?'':'color:var(--gold);border-color:rgba(201,168,76,0.4)'}">${inWl?'✓ WATCH':'WATCH'}</button>
+        <button class="cbtn${inOwn?' own-added':''}" id="ownb-${c.id}" onclick='openAddToBINDR(${snap})' style="${inOwn?'':'color:var(--green);border-color:rgba(76,175,125,0.3)'}">${inOwn?'✓ IN BINDR':'+ ADD TO BINDR'}</button>
+        <a class="tcg-link" href="${c.tcgplayer?.url||tcgUrl(c.name)}" target="_blank">↗ TCG</a>
       </div>
     </div>`;
   }).join('');
@@ -1378,7 +1395,7 @@ function addToWl(snap){
   snap.addedAt=Date.now();
   watchlist.push(snap);recordHistory(snap);ledgerSetWl(snap);save();refreshAllCounts();
   const b=document.getElementById('wlb-'+snap.id);
-  if(b){b.textContent='✓ WATCHLIST';b.classList.add('wl-added');}
+  if(b){b.textContent='✓ WATCH';b.classList.add('wl-added');b.style.color='';b.style.borderColor='';}
   // Seed historical price data in the background — no await, silent
   }
 function addToOwned(snap){
@@ -1390,6 +1407,42 @@ function addToOwned(snap){
 }
 
 
+
+// ── QUICK ADD TO BINDR MODAL ───────────────────────────────────────────────
+let _qaSnap=null;
+function openAddToBINDR(snap){
+  _qaSnap=snap;
+  document.getElementById('qa-img').src=snap.img||'';
+  document.getElementById('qa-name').textContent=snap.name||'';
+  document.getElementById('qa-set').textContent=(snap.set||'')+(snap.number?(' · '+snap.number+'/'+(snap.total||'?')):'');
+  document.getElementById('qa-market').textContent=snap.market!=null?'$'+snap.market.toFixed(2):'';
+  // Set today as default date
+  document.getElementById('qa-date').value=new Date().toISOString().slice(0,10);
+  document.getElementById('qa-price').value='';
+  document.getElementById('qa-from').value='';
+  document.getElementById('qa-modal-bg').classList.add('open');
+  setTimeout(()=>document.getElementById('qa-price').focus(),100);
+}
+function closeQAModal(){
+  document.getElementById('qa-modal-bg').classList.remove('open');
+  _qaSnap=null;
+}
+function confirmQAAdd(){
+  if(!_qaSnap) return;
+  const snap={..._qaSnap};
+  snap.copyId=uid();snap.addedAt=Date.now();
+  const priceVal=parseFloat(document.getElementById('qa-price').value);
+  if(!isNaN(priceVal)&&priceVal>=0) snap.purchasePrice=priceVal;
+  const dateVal=document.getElementById('qa-date').value;
+  if(dateVal){const[dy,dm,dd]=dateVal.split('-').map(Number);snap.boughtAt=new Date(dy,dm-1,dd,12,0,0).getTime();}
+  const fromVal=document.getElementById('qa-from').value.trim();
+  if(fromVal) snap.boughtFrom=fromVal;
+  owned.push(snap);ledgerSetOwned(snap);save();refreshAllCounts();
+  closeQAModal();
+  const b=document.getElementById('ownb-'+(snap.id||''));
+  if(b){const orig=b.textContent;b.textContent='✓ IN BINDR';b.style.color='';b.style.borderColor='';}
+  showBriefToast('✓ Added '+snap.name+' to BINDR',3000);
+}
 // ── BULK EDIT ──────────────────────────────────────────────────────────────
 let bulkEditOpen=false;
 function toggleBulkEdit(){
@@ -1466,6 +1519,7 @@ function renderDashboard(){
   const wlVal=watchlist.reduce((s,c)=>s+(c.market??0),0);
   const top3=[...owned].sort((a,b)=>((b.isJP&&b.jpPrice?b.jpPrice:b.market)??0)-((a.isJP&&a.jpPrice?a.jpPrice:a.market)??0)).slice(0,3);
   const recentSold=[...sold].sort((a,b)=>(b.soldAt??0)-(a.soldAt??0))[0];
+  const showcaseCard=showcaseCopyId?owned.find(o=>o.copyId===showcaseCopyId):null;
 
   // Portfolio value over time
   const dayMap={};
@@ -1489,9 +1543,12 @@ function renderDashboard(){
     const setId=c.setId||c.id.split('-').slice(0,-1).join('-');
     const relDate=c.releaseDate?c.releaseDate.replace(/\//g,'-'):'';
     const fb=c.isFav?"border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)":"";
-    return `<div class="pcard${ri.rank<=3?' is-rare':''}" style="${fb}">
+    return `<div class="pcard${ri.rank<=3?' is-rare':''}${isShowcase?' pcard-showcase':''}" style="${fb}">
       <img src="${c.img}" loading="lazy"/>
-      <span class="rtag ${ri.cls}" style="margin-bottom:2px">${ri.label}</span>
+      <div style="display:flex;align-items:center;margin-bottom:3px;min-width:0">
+        <span class="rtag ${ri.cls}" style="margin-bottom:0;flex-shrink:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ri.label}</span>
+        <span style="flex-shrink:0;margin-left:auto;font-size:7px;font-weight:700;padding:1px 5px;border-radius:3px;letter-spacing:0.04em;${c.isJP?'background:rgba(220,80,80,0.15);color:#f87171;border:1px solid rgba(220,80,80,0.35)':c.isBL?'background:var(--purple-dim);color:var(--purple);border:1px solid rgba(196,181,253,0.35)':'background:rgba(59,130,246,0.12);color:#60a5fa;border:1px solid rgba(59,130,246,0.35)'}">${c.isJP?'JP':c.isBL?'BL':'US'}</span>
+      </div>
       <div class="pcard-name">${c.name}</div>
       <div class="pcard-set">${c.set} · ${c.number}/${c.total}</div>
       ${relDate?`<div class="set-own-badge" style="margin-bottom:2px">Set Release: ${relDate}</div>`:''}
@@ -1516,6 +1573,9 @@ function renderDashboard(){
     .db-chart-wrap{position:relative;width:100%}
     .db-4grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
     @media(max-width:900px){.db-4grid{grid-template-columns:repeat(2,1fr)}}
+    .db-5grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+    @media(max-width:1100px){.db-5grid{grid-template-columns:repeat(3,1fr)}}
+    @media(max-width:700px){.db-5grid{grid-template-columns:repeat(2,1fr)}}
     .db-legend{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
     .db-legend-item{display:flex;align-items:center;gap:4px;font-size:8px;color:var(--t2);font-family:'DM Sans',sans-serif;max-width:130px;overflow:hidden}
     .db-legend-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
@@ -1530,7 +1590,8 @@ function renderDashboard(){
 
   <div class="db-card">
     <div class="db-card-title">Highlights</div>
-    <div class="db-4grid">
+    <div class="db-5grid">
+      ${showcaseCard ? dashCard(showcaseCard,'Showcase',(showcaseCard.isJP&&showcaseCard.jpPrice?showcaseCard.jpPrice:showcaseCard.market),'var(--text)') : `<div class="pcard" style="border:1px dashed rgba(255,255,255,0.15);min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px"><span style="font-size:16px">◈</span><span style="font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif;text-align:center">No showcase<br>set yet</span></div>`}
       ${dashCard(top3[0],'#1 Most Valuable',(top3[0]?.isJP&&top3[0]?.jpPrice?top3[0].jpPrice:top3[0]?.market))}
       ${dashCard(top3[1],'#2 Most Valuable',(top3[1]?.isJP&&top3[1]?.jpPrice?top3[1].jpPrice:top3[1]?.market))}
       ${dashCard(top3[2],'#3 Most Valuable',(top3[2]?.isJP&&top3[2]?.jpPrice?top3[2].jpPrice:top3[2]?.market))}
@@ -1753,7 +1814,9 @@ function renderWatchlist(){
     const hasDetails=c.nmLow!=null||c.nmMid!=null||c.nmHigh!=null||c.directLow!=null||c.low!=null;
     const detailsId=`pd-${c.id.replace(/[^a-z0-9]/gi,'_')}`;
     const isSelected=ownSelected.has(c.copyId);
-    return `<div class="pcard${ri.rank<=3?' is-rare':''} pcard-bulk" data-copy="${c.copyId}" style="${favBorder}${isSelected?';outline:2px solid var(--gold);outline-offset:1px':''}">
+    const isShowcase=showcaseCopyId===c.copyId;
+    const cardBorder=isShowcase?'':(favBorder);
+    return `<div class="pcard${ri.rank<=3?' is-rare':''} pcard-bulk${isShowcase?' pcard-showcase':''}" data-copy="${c.copyId}" style="${cardBorder}${isSelected?';outline:2px solid var(--gold);outline-offset:1px':''}">
       ${bulkEditOpen?`<input type="checkbox" class="sr-checkbox" ${isSelected?'checked':''} onchange="toggleOwnSelect('${c.copyId}',this.checked)" onclick="event.stopPropagation()"/>`:''}      <img src="${c.img}" loading="lazy"/>
       <span class="rtag ${ri.cls}">${ri.label}</span>
       <div class="pcard-name">${c.name}</div>
@@ -1779,8 +1842,8 @@ function renderWatchlist(){
         <div class="chart-area open" id="ca-${c.id}"></div>
       </div>
       <div class="card-btns" style="margin-top:7px">
-        <a class="tcg-link" href="${tcgUrl(c.name)}" target="_blank">↗ BUY</a>
-        <button class="cbtn" style="color:var(--green);border-color:rgba(76,175,125,0.3)" onclick="wlToOwned('${c.id}')">✓ MARK OWNED</button>
+        <a class="tcg-link" href="${c.tcgUrl||tcgUrl(c.name)}" target="_blank">↗ TCG</a>
+        <button class="cbtn" style="color:var(--green);border-color:rgba(76,175,125,0.3)" onclick="wlToOwned('${c.id}')">+ ADD TO BINDR</button>
         <button class="cbtn del-btn" onclick="confirmRemove(this,'${c.name}',()=>removeWl('${c.id}'))">✕ REMOVE</button>
       </div>
     </div>`;
@@ -1801,6 +1864,16 @@ function updateWlMetrics(){
 }
 
 // ── OWNED ─────────────────────────────────────────────────────────────────
+
+function toggleShowcase(copyId){
+  const c=owned.find(o=>o.copyId===copyId);if(!c) return;
+  if(showcaseCopyId===copyId){
+    showcaseCopyId=null;
+  } else {
+    showcaseCopyId=copyId;
+  }
+  save();refreshOwnedInPlace();
+}
 function toggleFav(copyId){
   const c=owned.find(o=>o.copyId===copyId);if(!c) return;
   c.isFav=!c.isFav;
@@ -1865,6 +1938,7 @@ function ownAct(i,action){
   else if(action==='fav')    toggleFav(copyId);
   else if(action==='edit')   toggleOwnEdit(i);
   else if(action==='jp')     toggleJPMode(i);
+  else if(action==='showcase') toggleShowcase(window._ownedSlice?.[i]?.copyId);
   else if(action==='bl')     toggleBLMode(i);
   else if(action==='clone')  cloneCard(copyId);
   else if(action==='save')   saveOwnedEdit(i);
@@ -1999,7 +2073,9 @@ function renderOwned(){
     const setId=c.setId||c.id.split('-').slice(0,-1).join('-');
     const relDate=c.releaseDate?c.releaseDate.replace(/\//g,'-'):'';
     const isSelected=ownSelected.has(c.copyId);
-    return `<div class="pcard${ri.rank<=3?' is-rare':''} pcard-bulk" data-copy="${c.copyId}" style="${favBorder}${isSelected?';outline:2px solid var(--gold);outline-offset:1px':''}">
+    const isShowcase=showcaseCopyId===c.copyId;
+    const cardBorder=isShowcase?'':(favBorder);
+    return `<div class="pcard${ri.rank<=3?' is-rare':''} pcard-bulk${isShowcase?' pcard-showcase':''}" data-copy="${c.copyId}" style="${cardBorder}${isSelected?';outline:2px solid var(--gold);outline-offset:1px':''}">
       ${bulkEditOpen?`<input type="checkbox" class="sr-checkbox" ${isSelected?'checked':''} onchange="toggleOwnSelect('${c.copyId}',this.checked)" onclick="event.stopPropagation()"/>`:''}      <img src="${c.img}" loading="lazy"/>
       <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px;min-width:0">
         <span class="rtag ${ri.cls}" style="margin-bottom:0;flex-shrink:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ri.label}${copyLbl?`<span class="copy-badge">${copyLbl.trim()}</span>`:''}</span>
@@ -2024,8 +2100,8 @@ function renderOwned(){
       <div class="cond-divider"></div>
       <div class="card-btns">
         <div style="display:flex;gap:3px">
-          <a class="tcg-link" href="${tcgUrl(c.name)}" target="_blank" style="flex:2">↗ TCG</a>
-          ${c.isFav?'':
+          <a class="tcg-link" href="${c.tcgUrl||tcgUrl(c.name)}" target="_blank" style="flex:2">↗ TCG</a>
+          ${(c.isFav||showcaseCopyId===c.copyId)?'':
           `<button class="cbtn" style="flex:1;color:var(--red);border-color:rgba(192,80,80,0.3)" onclick="ownAct(${i},'sell')">SELL</button>
            <button class="cbtn" style="flex:1;color:var(--purple);border-color:rgba(196,181,253,0.3)" onclick="ownAct(${i},'gift')">GIFT</button>`}
         </div>
@@ -2033,7 +2109,7 @@ function renderOwned(){
         <div class="own-edit-area" id="oe-${i}">
           <div class="edit-row"><span class="edit-label">Price paid (USD)</span><input class="edit-input" id="oe-pp-${i}" type="number" min="0" step="0.01" placeholder="${pp!=null?pp.toFixed(2):'0.00'}"/></div>
           <div class="edit-row"><span class="edit-label">Date bought</span><input class="edit-input" id="oe-pd-${i}" type="date" value="${pdVal}"/></div>
-          <div class="edit-row"><span class="edit-label">Bought from</span><input class="edit-input" id="oe-bf-${i}" type="text" placeholder="eBay, LGS, friend..." value="${c.boughtFrom||''}"/></div>
+          <div class="edit-row"><span class="edit-label">From</span><input class="edit-input" id="oe-bf-${i}" type="text" placeholder="eBay, LGS, friend..." value="${c.boughtFrom||''}"/></div>
           <div class="edit-row" style="border-top:1px solid var(--b1);padding-top:6px;margin-top:4px">
             <span class="edit-label">Version</span>
             <div style="display:flex;gap:4px;margin-top:3px">
@@ -2069,7 +2145,10 @@ function renderOwned(){
       const badge=allTracked.size?`Set: <span style="font-weight:700;color:var(--text)">${allTracked.size} tracked</span> / ${c.total}`:'';
       return `<div class="pcard${ri.rank<=3?' is-rare':''}" style="${favBorder};cursor:pointer" onclick="ownAct(${i},'edit')">
         <img src="${c.img}" loading="lazy"/>
-        <span class="rtag ${ri.cls}" style="margin-bottom:2px">${ri.label}</span>
+        <div style="display:flex;align-items:center;margin-bottom:3px;min-width:0">
+          <span class="rtag ${ri.cls}" style="margin-bottom:0;flex-shrink:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ri.label}</span>
+          <span style="flex-shrink:0;margin-left:auto;font-size:7px;font-weight:700;padding:1px 5px;border-radius:3px;letter-spacing:0.04em;${c.isJP?'background:rgba(220,80,80,0.15);color:#f87171;border:1px solid rgba(220,80,80,0.35)':c.isBL?'background:var(--purple-dim);color:var(--purple);border:1px solid rgba(196,181,253,0.35)':'background:rgba(59,130,246,0.12);color:#60a5fa;border:1px solid rgba(59,130,246,0.35)'}">${c.isJP?'JP':c.isBL?'BL':'US'}</span>
+        </div>
         <div class="pcard-name">${c.name}</div>
         <div class="pcard-set">${c.set} · ${c.number}/${c.total}</div>
         ${relDate?`<div style="font-size:8px;color:var(--t3);font-family:'DM Sans',sans-serif;margin-top:1px">${relDate}</div>`:''}
@@ -2174,7 +2253,9 @@ function renderSold(){
     const pnlCls=pnl==null?'':pnl>=0?'pnl-pos':'pnl-neg';
     const favBorder=c.isFav?"border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)":"";
     const isSelected=ownSelected.has(c.copyId);
-    return `<div class="pcard${ri.rank<=3?' is-rare':''} pcard-bulk" data-copy="${c.copyId}" style="${favBorder}${isSelected?';outline:2px solid var(--gold);outline-offset:1px':''}">
+    const isShowcase=showcaseCopyId===c.copyId;
+    const cardBorder=isShowcase?'':(favBorder);
+    return `<div class="pcard${ri.rank<=3?' is-rare':''} pcard-bulk${isShowcase?' pcard-showcase':''}" data-copy="${c.copyId}" style="${cardBorder}${isSelected?';outline:2px solid var(--gold);outline-offset:1px':''}">
       ${bulkEditOpen?`<input type="checkbox" class="sr-checkbox" ${isSelected?'checked':''} onchange="toggleOwnSelect('${c.copyId}',this.checked)" onclick="event.stopPropagation()"/>`:''}      <img src="${c.img}" loading="lazy"/>
       <span class="rtag ${ri.cls}">${ri.label}</span>
       <div class="pcard-name">${c.name}</div>
@@ -2190,7 +2271,8 @@ function renderSold(){
         ${c.notes?`<div class="price-row"><span class="price-label">NOTE</span><span class="price-val list" style="font-size:9px;word-break:break-word">${c.notes}</span></div>`:''}
       </div>
       <div class="card-btns">
-        <button class="cbtn" style="color:var(--green);border-color:rgba(76,175,125,0.3)" onclick="restoreToOwned('sold',${i})">↩ RESTORE TO OWNED</button>
+        <button class="cbtn" style="color:var(--green);border-color:rgba(76,175,125,0.3)" onclick="restoreToOwned('sold',${i})">↩ RESTORE TO BINDR</button>
+        <a class="tcg-link" href="${c.tcgUrl||tcgUrl(c.name)}" target="_blank">↗ TCG</a>
         <button class="cbtn del-btn" onclick="confirmRemove(this,window._soldSlice?.[${i}]?.name,()=>removeSold(${i}))">✕ REMOVE</button>
       </div>
     </div>`;
@@ -2264,7 +2346,9 @@ function renderGifted(){
     const ri=raritySnap(c);
     const favBorder=c.isFav?"border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)":"";
     const isSelected=ownSelected.has(c.copyId);
-    return `<div class="pcard${ri.rank<=3?' is-rare':''} pcard-bulk" data-copy="${c.copyId}" style="${favBorder}${isSelected?';outline:2px solid var(--gold);outline-offset:1px':''}">
+    const isShowcase=showcaseCopyId===c.copyId;
+    const cardBorder=isShowcase?'':(favBorder);
+    return `<div class="pcard${ri.rank<=3?' is-rare':''} pcard-bulk${isShowcase?' pcard-showcase':''}" data-copy="${c.copyId}" style="${cardBorder}${isSelected?';outline:2px solid var(--gold);outline-offset:1px':''}">
       ${bulkEditOpen?`<input type="checkbox" class="sr-checkbox" ${isSelected?'checked':''} onchange="toggleOwnSelect('${c.copyId}',this.checked)" onclick="event.stopPropagation()"/>`:''}      <img src="${c.img}" loading="lazy"/>
       <span class="rtag ${ri.cls}">${ri.label}</span>
       <div class="pcard-name">${c.name}</div>
@@ -2278,7 +2362,8 @@ function renderGifted(){
         ${c.notes?`<div class="price-row"><span class="price-label">NOTE</span><span class="price-val list" style="font-size:9px;word-break:break-word">${c.notes}</span></div>`:''}
       </div>
       <div class="card-btns">
-        <button class="cbtn" style="color:var(--green);border-color:rgba(76,175,125,0.3)" onclick="restoreToOwned('gifted',${i})">↩ RESTORE TO OWNED</button>
+        <button class="cbtn" style="color:var(--green);border-color:rgba(76,175,125,0.3)" onclick="restoreToOwned('gifted',${i})">↩ RESTORE TO BINDR</button>
+        <a class="tcg-link" href="${c.tcgUrl||tcgUrl(c.name)}" target="_blank">↗ TCG</a>
         <button class="cbtn del-btn" onclick="confirmRemove(this,window._giftedSlice?.[${i}]?.name,()=>removeGifted(${i}))">✕ REMOVE</button>
       </div>
     </div>`;
@@ -2372,10 +2457,10 @@ function renderHistory(){
     const pnlStr=pnl!=null?(pnl>=0?'+':'')+fmt(pnl):'—';
     const pnlCls=pnl==null?'muted':pnl>0?'green':'red';
     const statusCls=isOwned?'owned-badge':isGifted?'gifted-badge':isSold?'sold-badge':'watching';
-    const statusLbl=isOwned?'OWNED':isGifted?'GIFTED':isSold?'SOLD':'WATCHING';
+    const statusLbl=isOwned?'ACQUIRED':isGifted?'GIFTED':isSold?'SOLD':'WATCHED';
     const events=[];
-    if(e.wlAt)     events.push(`<span class="hevent"><span class="hevent-dot wl"></span>WATCHLIST ${fmtDate(e.wlAt)}${e.wlPrice!=null?' · '+fmt(e.wlPrice):''}</span>`);
-    if(e.ownAt)    events.push(`<span class="hevent"><span class="hevent-dot own"></span>OWNED ${fmtDate(e.ownAt)}${e.ownPrice!=null?' · '+fmt(e.ownPrice):''}</span>`);
+    if(e.wlAt)     events.push(`<span class="hevent"><span class="hevent-dot wl"></span>WATCHED ${fmtDate(e.wlAt)}${e.wlPrice!=null?' · '+fmt(e.wlPrice):''}</span>`);
+    if(e.ownAt)    events.push(`<span class="hevent"><span class="hevent-dot own"></span>ACQUIRED ${fmtDate(e.ownAt)}${e.ownPrice!=null?' · '+fmt(e.ownPrice):''}</span>`);
     if(e.giftedAt) events.push(`<span class="hevent"><span class="hevent-dot" style="background:var(--purple)"></span>GIFTED ${fmtDate(e.giftedAt)}${e.giftedTo?' to '+e.giftedTo:''}</span>`);
     if(e.soldAt)   events.push(`<span class="hevent"><span class="hevent-dot" style="background:var(--red)"></span>SOLD ${fmtDate(e.soldAt)}${e.soldPrice!=null?' · '+fmt(e.soldPrice):''}</span>`);
 
@@ -2758,5 +2843,30 @@ if(localStorage.getItem('pf_theme')==='light'){document.body.classList.add('ligh
     <span class="bnav-badge" id="hist-count">0</span>
   </button>
 </nav>
+
+<!-- QUICK ADD TO BINDR MODAL -->
+<div class="modal-bg" id="qa-modal-bg" onclick="if(event.target===this)closeQAModal()">
+  <div class="modal-box">
+    <div class="modal-title">
+      <span>Add to BINDR</span>
+      <button class="modal-close" onclick="closeQAModal()">✕</button>
+    </div>
+    <div id="qa-card-preview" style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--b1)">
+      <img id="qa-img" src="" style="width:48px;height:68px;object-fit:cover;border-radius:5px;background:var(--s2);flex-shrink:0"/>
+      <div>
+        <div id="qa-name" style="font-size:11px;font-weight:600;color:var(--text);font-family:'DM Sans',sans-serif;margin-bottom:2px"></div>
+        <div id="qa-set" style="font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif"></div>
+        <div id="qa-market" style="font-size:13px;font-weight:700;color:var(--gold2);font-family:'DM Sans',sans-serif;margin-top:4px"></div>
+      </div>
+    </div>
+    <div class="edit-row"><span class="edit-label">Price paid (USD)</span><input class="edit-input" id="qa-price" type="number" min="0" step="0.01" placeholder="0.00" autofocus/></div>
+    <div class="edit-row"><span class="edit-label">Date bought</span><input class="edit-input" id="qa-date" type="date"/></div>
+    <div class="edit-row"><span class="edit-label">From</span><input class="edit-input" id="qa-from" type="text" placeholder="eBay, LGS, trade, pack..."/></div>
+    <div style="display:flex;gap:7px;margin-top:10px">
+      <button class="btn" style="flex:1" onclick="confirmQAAdd()">+ ADD TO BINDR</button>
+      <button class="btn-ghost" style="flex:0 0 auto" onclick="closeQAModal()">CANCEL</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
