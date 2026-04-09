@@ -618,6 +618,7 @@ body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);m
       <span class="rbar-left" id="updated-label">NOT YET REFRESHED</span>
       <div style="display:flex;gap:7px">
         <button class="btn-ghost btn-sm" onclick="seedAllWatchlist()" id="seed-btn" title="Seed 3-day price history for all watchlist cards (requires pokemonpricetracker.com key)">⟳ SEED HISTORY</button>
+        <button class="btn-ghost btn-sm" onclick="diagnosePPT()" title="Test PPT API with first watchlist card — check browser console for results">🔍 TEST PPT</button>
         <button class="btn-ghost" onclick="refreshWatchlist()" id="refresh-btn">↻ REFRESH PRICES</button>
       </div>
     </div>
@@ -696,7 +697,10 @@ body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);m
         <option value="set">Set A–Z</option>
         <option value="rarity">Rarity</option>
       </select>
-      <button id="own-compact-btn" class="toggle-btn" onclick="ownCompact=!ownCompact;this.textContent=ownCompact?'⊞ FULL':'⊟ COMPACT';this.style.borderColor=ownCompact?'var(--gold)':'var(--b1)';this.style.color=ownCompact?'var(--gold)':'var(--t3)';applyOwnControls()" style="white-space:nowrap;margin-left:auto">⊟ COMPACT</button>
+      <div style="display:flex;gap:4px;margin-left:auto">
+      <button id="own-hide-std-btn" class="toggle-btn" onclick="ownHideStd=!ownHideStd;this.textContent=ownHideStd?'⊙ STD HIDDEN':'⊙ HIDE STD';this.style.borderColor=ownHideStd?'var(--gold)':'var(--b1)';this.style.color=ownHideStd?'var(--gold)':'var(--t3)';applyOwnControls()" style="white-space:nowrap">⊙ HIDE STD</button>
+      <button id="own-compact-btn" class="toggle-btn" onclick="ownCompact=!ownCompact;this.textContent=ownCompact?'⊞ FULL':'⊟ COMPACT';this.style.borderColor=ownCompact?'var(--gold)':'var(--b1)';this.style.color=ownCompact?'var(--gold)':'var(--t3)';applyOwnControls()" style="white-space:nowrap">⊟ COMPACT</button>
+      </div>
     </div>
     <div id="owned-cards"></div>
     <div id="owned-pagination"></div>
@@ -807,6 +811,7 @@ let wlCharts={};
 let srRaw=[], srFiltered=[], srPage=1;
 let wlFiltered=[], wlPage=1;
 let ownCompact=false;
+let ownHideStd=false;
 let ownFiltered=[], ownPage=1;
 let soldPage=1, giftedPage=1, histPage=1;
 let exportMode='all', sgMode=null, sgCopyId=null;
@@ -1216,7 +1221,7 @@ function renderSrPage(){
       <div class="pcard-name">${c.name}</div>
       <div class="pcard-set">${c.set.name} · ${c.number}/${c.set.printedTotal??c.set.total??'?'}</div>
       ${setOwnershipBadge(c.set.id,c.set.printedTotal??c.set.total)}
-      ${c.set.releaseDate?`<div class="pcard-set" style="color:var(--t3);font-size:7px">${c.set.releaseDate.replace(/\//g,'-')}</div>`:''}
+      ${c.set.releaseDate?`<div class="set-own-badge" style="margin-bottom:2px">Set Release: ${c.set.releaseDate.replace(/\//g,'-')}</div>`:''}
       <div class="cond-divider"></div>
       ${(()=>{
         const ap=getAllPrices(c);
@@ -1380,7 +1385,53 @@ async function seedPriceHistory(snap){
   }
 }
 
-// Shared helper: take an array of price history entries and merge into local storage
+// Diagnostic: test PPT API with first watchlist card, log full response
+async function diagnosePPT(){
+  const pptKey=localStorage.getItem('ptrkr_ppt')||'';
+  if(!pptKey){alert('No PPT key set. Add your pokemonpricetracker.com key first.');return;}
+  const c=watchlist[0];
+  if(!c){alert('Watchlist is empty.');return;}
+
+  console.log('=== PPT DIAGNOSTIC ===');
+  console.log('Card:',c.name,'| ID:',c.id,'| tcgplayerId:',c.tcgplayerId);
+
+  // Test 1: pokemontcg.io lookup
+  console.log('\n--- Test 1: pokemontcg.io lookup ---');
+  try{
+    const apiKey=localStorage.getItem('ptrkr_apikey')||'';
+    const r=await fetch(`https://api.pokemontcg.io/v2/cards/${c.id}`,apiKey?{headers:{'X-Api-Key':apiKey}}:{});
+    const d=await r.json();
+    const tcgUrl=d.data?.tcgplayer?.url||'(none)';
+    console.log('TCGPlayer URL:',tcgUrl);
+    const m=tcgUrl.match(/\/product\/(\d+)/)||tcgUrl.match(/tcgplayer\/(\d+)/);
+    console.log('Numeric ID found:',m?m[1]:'NO — non-numeric URL');
+  }catch(e){console.error('pokemontcg.io failed:',e);}
+
+  // Test 2: PPT with tcgplayerId if we have one
+  const tcgId=c.tcgplayerId;
+  if(tcgId){
+    console.log('\n--- Test 2: PPT with tcgPlayerId =',tcgId,'---');
+    try{
+      const r=await fetch(`https://www.pokemonpricetracker.com/api/v2/cards?tcgPlayerId=${encodeURIComponent(tcgId)}&includeHistory=true&days=30`,{headers:{'Authorization':'Bearer '+pptKey}});
+      console.log('HTTP status:',r.status,r.statusText);
+      const raw=await r.json();
+      console.log('Full response:',JSON.stringify(raw,null,2));
+    }catch(e){console.error('PPT fetch failed:',e);}
+  }
+
+  // Test 3: PPT with days=30 and the card name to see if it's in the DB
+  console.log('\n--- Test 3: PPT direct fetch with card id as tcgPlayerId ---');
+  try{
+    const r=await fetch(`https://www.pokemonpricetracker.com/api/v2/cards?tcgPlayerId=${encodeURIComponent(c.id)}&includeHistory=true&days=30`,{headers:{'Authorization':'Bearer '+pptKey}});
+    console.log('HTTP status:',r.status,r.statusText);
+    const raw=await r.json();
+    console.log('Full response:',JSON.stringify(raw,null,2));
+  }catch(e){console.error('PPT fetch failed:',e);}
+
+  alert('Diagnostic done — open browser console (F12) to see full results.');
+}
+
+
 async function ingestHistory(snap, history){
   if(!priceHistory[snap.id]) priceHistory[snap.id]={name:snap.name,set:snap.set,img:snap.img,points:[]};
   const existing=new Set(priceHistory[snap.id].points.map(p=>p.t));
@@ -1604,7 +1655,7 @@ function renderWatchlist(){
     const favBorder=c.isFav?"border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)":"";
     const wlSetBadge=setOwnershipBadge(c.setId||c.id.split('-').slice(0,-1).join('-'),c.total);
     const wlRelDate=c.releaseDate
-      ?`<div class="pcard-set" style="color:var(--t3);font-size:8px">${c.releaseDate.replace(/\//g,'-')}</div>`
+      ?`<div class="set-own-badge" style="margin-bottom:2px">Set Release: ${c.releaseDate.replace(/\//g,'-')}</div>`
       :'';
     // Silently fetch missing releaseDate in background (only once per card)
     if(!c.releaseDate&&!c._fetchingMeta){
@@ -1673,6 +1724,8 @@ function toggleFav(copyId){
 
 function applyOwnControls(){
   let list=[...owned];
+  // Hide standard/rare (rank>=5) unless favourited
+  if(ownHideStd) list=list.filter(c=>raritySnap(c).rank<5||c.isFav);
   const favFilter=document.getElementById('own-fav')?.value||'';
   if(favFilter==='fav')   list=list.filter(c=>c.isFav);
   if(favFilter==='unfav') list=list.filter(c=>!c.isFav);
@@ -1711,6 +1764,7 @@ function ownAct(i,action){
   else if(action==='fav')    toggleFav(copyId);
   else if(action==='edit')   toggleOwnEdit(i);
   else if(action==='jp')     toggleJPMode(i);
+  else if(action==='bl')     toggleBLMode(i);
   else if(action==='clone')  cloneCard(copyId);
   else if(action==='save')   saveOwnedEdit(i);
   else if(action==='remove') removeOwned(copyId);
@@ -1754,9 +1808,37 @@ function saveOwnedEdit(i){
     const jpVal=parseFloat(jpInput.value);
     if(!isNaN(jpVal)&&jpVal>0){c.jpPrice=jpVal;if(ledger[c.id]){ledger[c.id].isJP=true;ledger[c.id].jpPrice=jpVal;}}
   } else if(!c.isJP&&ledger[c.id]){ledger[c.id].isJP=false;ledger[c.id].jpPrice=null;}
+  const blInput=document.getElementById('oe-blp-'+i);
+  if(blInput&&c.isBL){
+    const blVal=parseFloat(blInput.value);
+    if(!isNaN(blVal)&&blVal>0){c.blPrice=blVal;if(ledger[c.id]){ledger[c.id].isBL=true;ledger[c.id].blPrice=blVal;}}
+  } else if(!c.isBL&&ledger[c.id]){ledger[c.id].isBL=false;ledger[c.id].blPrice=null;}
   save();applyOwnControls();
   const area=document.getElementById('oe-'+i);if(area)area.classList.remove('open');
   const tog=document.getElementById('oet-'+i);if(tog)tog.textContent='▼ EDIT';
+}
+
+
+function toggleBLMode(i){
+  const c=window._ownedSlice?.[i];if(!c) return;
+  const blInput=document.getElementById('oe-blp-'+i);
+  const blPlaceholder=blInput?.nextElementSibling;
+  const blBtn=document.getElementById('oe-bl-'+i);
+  if(c.isBL){
+    c.isBL=false;c.blPrice=null;
+    if(ledger[c.id]){ledger[c.id].isBL=false;ledger[c.id].blPrice=null;}
+    if(blInput)blInput.style.display='none';
+    if(blPlaceholder)blPlaceholder.style.display='block';
+    if(blBtn){blBtn.textContent='BL';blBtn.style.color='';blBtn.style.borderColor='';blBtn.style.background='';}
+  } else {
+    c.isBL=true;
+    const val=parseFloat(blInput?.value);
+    if(!isNaN(val)&&val>0){c.blPrice=val;if(ledger[c.id]){ledger[c.id].isBL=true;ledger[c.id].blPrice=val;}}
+    if(blInput)blInput.style.display='block';
+    if(blPlaceholder)blPlaceholder.style.display='none';
+    if(blBtn){blBtn.textContent='✓ BL';blBtn.style.color='var(--purple)';blBtn.style.borderColor='rgba(196,181,253,0.4)';blBtn.style.background='var(--purple-dim)';}
+  }
+  save();applyOwnControls();
 }
 
 function toggleJPMode(i){
@@ -1824,7 +1906,7 @@ function renderOwned(){
       c.boughtAt=ledger[c.id].ownAt;
     }
     const pp=c.purchasePrice??null;
-    const displayMarket=c.isJP&&c.jpPrice!=null?c.jpPrice:c.market;
+    const displayMarket=c.isJP&&c.jpPrice!=null?c.jpPrice:c.isBL&&c.blPrice!=null?c.blPrice:c.market;
     const pnl=pp!=null&&displayMarket!=null?(displayMarket-pp):null;
     const pnlCls=pnl==null?'':pnl>0?'pnl-pos':'pnl-neg';
     const copyLbl=ownedCopyLabel(c);
@@ -1844,11 +1926,11 @@ function renderOwned(){
       </div>
       <div class="pcard-name">${c.name}</div>
       <div class="pcard-set">${c.set} · ${c.number}/${c.total}</div>
-      ${relDate?`<div style="font-size:8px;color:var(--t3);font-family:'DM Sans',sans-serif;margin-bottom:2px">${relDate}</div>`:''}
+      ${relDate?`<div class="set-own-badge" style="margin-bottom:2px">Set Release: ${relDate}</div>`:''}
       ${setOwnershipBadge(setId,c.total)}
       <div class="cond-divider"></div>
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">
-        <span style="font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif;font-weight:500">${c.isJP?'JP MARKET':'MARKET'}</span>
+        <span style="font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif;font-weight:500">${c.isJP?'JP MARKET':c.isBL?'BL MARKET':'MARKET'}</span>
         <span style="font-size:14px;font-weight:700;color:var(--gold2);font-variant-numeric:tabular-nums;font-family:'DM Sans',sans-serif">${fmt(displayMarket)}</span>
       </div>
       <div class="price-grid">
@@ -1871,11 +1953,16 @@ function renderOwned(){
           <div class="edit-row"><span class="edit-label">Date bought</span><input class="edit-input" id="oe-pd-${i}" type="date" value="${pdVal}"/></div>
           <div class="edit-row"><span class="edit-label">Bought from</span><input class="edit-input" id="oe-bf-${i}" type="text" placeholder="eBay, LGS, friend..." value="${c.boughtFrom||''}"/></div>
           <div class="edit-row" style="border-top:1px solid var(--b1);padding-top:6px;margin-top:4px">
-            <span class="edit-label">JP version</span>
+            <span class="edit-label">Version</span>
             <div style="display:flex;gap:4px;margin-top:3px">
               <button class="cbtn" id="oe-jp-${i}" style="flex:1;${c.isJP?'color:var(--gold);border-color:rgba(201,168,76,0.4);background:var(--gold-dim)':''}" onclick="ownAct(${i},'jp')">${c.isJP?'✓ JP':'JP'}</button>
+              <button class="cbtn" id="oe-bl-${i}" style="flex:1;${c.isBL?'color:var(--purple);border-color:rgba(196,181,253,0.4);background:var(--purple-dim)':''}" onclick="ownAct(${i},'bl')">${c.isBL?'✓ BL':'BL'}</button>
+            </div>
+            <div style="display:flex;gap:4px;margin-top:3px">
               <input class="edit-input" id="oe-jpp-${i}" type="number" min="0" step="0.01" placeholder="JP price" value="${c.jpPrice??''}" style="flex:1;display:${c.isJP?'block':'none'}"/>
               <div style="flex:1;display:${c.isJP?'none':'block'}"></div>
+              <input class="edit-input" id="oe-blp-${i}" type="number" min="0" step="0.01" placeholder="BL price" value="${c.blPrice??''}" style="flex:1;display:${c.isBL?'block':'none'}"/>
+              <div style="flex:1;display:${c.isBL?'none':'block'}"></div>
             </div>
           </div>
           <div style="display:flex;gap:4px;margin-top:6px">
@@ -1896,11 +1983,8 @@ function renderOwned(){
       const derive=x=>x.setId||x.id.split('-').slice(0,-1).join('-');
       const ownedIds=new Set(owned.filter(x=>derive(x)===setId).map(x=>x.id));
       const watchIds=new Set(watchlist.filter(x=>derive(x)===setId).map(x=>x.id));
-      const trackedOnly=new Set([...watchIds].filter(id=>!ownedIds.has(id)));
-      const badgeParts=[];
-      if(ownedIds.size) badgeParts.push(`<span style="color:var(--green);font-weight:700">${ownedIds.size} owned</span>`);
-      if(trackedOnly.size) badgeParts.push(`<span>${trackedOnly.size} tracked</span>`);
-      const badge=badgeParts.length?`${badgeParts.join(' · ')} <span style="color:var(--b3)">/ ${c.total}</span>`:'';
+      const allTracked=new Set([...ownedIds,...watchIds]);
+      const badge=allTracked.size?`Set: <span style="font-weight:700;color:var(--text)">${allTracked.size} tracked</span> / ${c.total}`:'';
       return `<div class="pcard${ri.rank<=3?' is-rare':''}" style="${favBorder};cursor:pointer" onclick="ownAct(${i},'edit')">
         <img src="${c.img}" loading="lazy"/>
         <span class="rtag ${ri.cls}" style="margin-bottom:2px">${ri.label}</span>
@@ -2475,14 +2559,9 @@ function setOwnershipBadge(setId,setTotal){
   const derive=c=>c.setId||c.id.split('-').slice(0,-1).join('-');
   const ownedIds=new Set(owned.filter(c=>derive(c)===setId).map(c=>c.id));
   const watchIds=new Set(watchlist.filter(c=>derive(c)===setId).map(c=>c.id));
-  // tracked = in watchlist but NOT yet owned; owned = in folio
-  const trackedOnly=new Set([...watchIds].filter(id=>!ownedIds.has(id)));
-  const total=ownedIds.size+trackedOnly.size;
-  if(!total) return '';
-  const parts=[];
-  if(ownedIds.size) parts.push(`<span style="color:var(--green);font-weight:700">${ownedIds.size} owned</span>`);
-  if(trackedOnly.size) parts.push(`<span>${trackedOnly.size} tracked</span>`);
-  return `<div class="set-own-badge">${parts.join(' · ')} <span style="color:var(--b3)">/ ${setTotal}</span></div>`;
+  const allTracked=new Set([...ownedIds,...watchIds]);
+  if(!allTracked.size) return '';
+  return `<div class="set-own-badge">Set: <span style="font-weight:700;color:var(--text)">${allTracked.size} tracked</span> / ${setTotal}</div>`;
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────
