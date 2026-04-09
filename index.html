@@ -444,8 +444,7 @@ body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);m
 <nav class="nav">
   <div class="nav-top">
     <div class="nav-left">
-      <input id="api-key-input" type="text" placeholder="pokemontcg.io key" title="Free API key at pokemontcg.io — unlocks full search results" style="background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);color:var(--t2);font-family:'Space Mono',monospace;font-size:8px;padding:5px 9px;outline:none;width:118px;letter-spacing:0.04em" oninput="localStorage.setItem('ptrkr_apikey',this.value)" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--b1)'"/>
-      <input id="ppt-key-input" type="text" placeholder="pricetracker.com key" title="Free API key at pokemonpricetracker.com — seeds price history" style="background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);color:var(--t2);font-family:'Space Mono',monospace;font-size:8px;padding:5px 9px;outline:none;width:126px;letter-spacing:0.04em" oninput="localStorage.setItem('ptrkr_ppt',this.value)" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--b1)'"/>
+
     </div>
     <a class="logo">
       <div class="logo-box">
@@ -617,8 +616,7 @@ body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);m
     <div class="rbar">
       <span class="rbar-left" id="updated-label">NOT YET REFRESHED</span>
       <div style="display:flex;gap:7px">
-        <button class="btn-ghost btn-sm" onclick="seedAllWatchlist()" id="seed-btn" title="Seed 3-day price history for all watchlist cards (requires pokemonpricetracker.com key)">⟳ SEED HISTORY</button>
-        <button class="btn-ghost btn-sm" onclick="diagnosePPT()" title="Test PPT API with first watchlist card — check browser console for results">🔍 TEST PPT</button>
+
         <button class="btn-ghost" onclick="refreshWatchlist()" id="refresh-btn">↻ REFRESH PRICES</button>
       </div>
     </div>
@@ -1295,208 +1293,6 @@ function goSrPage(p){if(p<1||p>Math.ceil(srFiltered.length/PER))return;srPage=p;
 
 // ── ADD TO WL / OWNED ─────────────────────────────────────────────────────
 // Seed history for all existing watchlist cards (useful after adding PPT key)
-async function seedAllWatchlist(){
-  const pptKey=localStorage.getItem('ptrkr_ppt')||'';
-  if(!pptKey){
-    alert('Add your pokemonpricetracker.com key to the field in the top-left first.');
-    return;
-  }
-  // CORS check — PPT blocks requests from file:// origins
-  if(location.protocol==='file:'){
-    alert('Price history seeding requires the app to be hosted on a web server (e.g. GitHub Pages).\n\nIt will not work when opening the HTML file directly from your computer due to browser security restrictions.\n\nDeploy to GitHub Pages first, then seed from there.');
-    return;
-  }
-  const btn=document.getElementById('seed-btn');
-  btn.textContent='SEEDING…';btn.disabled=true;
-
-  // Phase 1: pre-fetch all cards missing a numeric tcgplayerId
-  // pokemontcg.io has open CORS so this works from anywhere
-  const missing=watchlist.filter(c=>!c.tcgplayerId);
-  if(missing.length){
-    btn.textContent=`FETCHING IDs (0/${missing.length})…`;
-    await Promise.allSettled(missing.map(async(c,i)=>{
-      try{
-        const apiKey=localStorage.getItem('ptrkr_apikey')||'';
-        const headers=apiKey?{'X-Api-Key':apiKey}:{};
-        const r=await fetch(`https://api.pokemontcg.io/v2/cards/${c.id}`,{headers});
-        if(!r.ok) return;
-        const d=await r.json();
-        const url=d.data?.tcgplayer?.url||'';
-        // Try numeric product ID first: /product/12345/
-        let m=url.match(/\/product\/(\d+)/);
-        // Fallback: prices URL numeric segment
-        if(!m) m=url.match(/tcgplayer\/(\d+)/);
-        if(m){
-          c.tcgplayerId=m[1];
-          // also store on the matching owned copies
-          owned.filter(o=>o.id===c.id).forEach(o=>o.tcgplayerId=m[1]);
-        }
-      }catch(e){}
-    }));
-    save();
-    btn.textContent=`SEEDING HISTORY…`;
-  }
-
-  // Phase 2: seed history for all cards
-  let done=0, seeded=0, skipped=0;
-  for(const c of watchlist){
-    const before=Object.keys(priceHistory[c.id]?.points??{}).length||priceHistory[c.id]?.points?.length||0;
-    await seedPriceHistory(c);
-    const after=priceHistory[c.id]?.points?.length||0;
-    if(after>before) seeded++; else skipped++;
-    done++;
-    btn.textContent=`SEEDING… ${done}/${watchlist.length}`;
-    await new Promise(r=>setTimeout(r,300));
-  }
-  btn.textContent='⟳ SEED HISTORY';btn.disabled=false;
-  applyWlControls();
-  // Summary alert
-  const msg=`Seeding complete.\n✓ ${seeded} card${seeded!==1?'s':''} got price history.\n✗ ${skipped} card${skipped!==1?'s':''} skipped (not in PPT database or no numeric TCGPlayer ID).`;
-  if(skipped>0) console.info('[PPT]',msg);
-  showBriefToast(`⟳ Done — ${seeded} seeded, ${skipped} skipped`, 6000);
-}
-// Seeds historical price data from pokemonpricetracker.com when a card is added to watchlist.
-// Requires a free API key from pokemonpricetracker.com (100 credits/day, no card required).
-async function seedPriceHistory(snap){
-  const pptKey=localStorage.getItem('ptrkr_ppt')||'';
-  if(!pptKey) return;
-
-  let tcgId=snap.tcgplayerId||null;
-
-  // Attempt 1: fetch card from pokemontcg.io to extract numeric TCGPlayer product ID
-  if(!tcgId){
-    try{
-      const apiKey=localStorage.getItem('ptrkr_apikey')||'';
-      const headers=apiKey?{'X-Api-Key':apiKey}:{};
-      const r=await fetch(`https://api.pokemontcg.io/v2/cards/${snap.id}`,{headers});
-      if(r.ok){
-        const d=await r.json();
-        const url=d.data?.tcgplayer?.url||'';
-        let m=url.match(/\/product\/(\d+)/);
-        if(!m) m=url.match(/tcgplayer\/(\d+)/);
-        if(!m) m=url.match(/[?&]productId=(\d+)/);
-        if(m){ tcgId=m[1]; snap.tcgplayerId=m[1]; }
-        else if(url){ console.log('[PPT] No numeric ID in TCGPlayer URL for',snap.name,'—',url); }
-      }
-    }catch(e){ console.warn('[PPT] pokemontcg.io lookup failed for',snap.name,e); }
-  }
-
-  // Attempt 2: try the set-code ID directly with PPT (some cards are indexed this way)
-  // e.g. snap.id = "swsh9tg-TG16" → try tcgPlayerId=swsh9tg-TG16
-  if(!tcgId&&snap.id){
-    tcgId=snap.id; // use the pokemontcg.io card ID as a last resort
-    console.log('[PPT] Trying card ID as fallback tcgId:',tcgId,'for',snap.name);
-  }
-
-  if(!tcgId){ console.warn('[PPT] No ID available for',snap.name,'— skipping'); return; }
-
-  try{
-    const url=`https://www.pokemonpricetracker.com/api/v2/cards?tcgPlayerId=${encodeURIComponent(tcgId)}&includeHistory=true&days=3`;
-    const r=await fetch(url,{headers:{'Authorization':'Bearer '+pptKey}});
-
-    if(!r.ok){
-      // If the card ID fallback didn't work, log clearly and move on
-      console.warn('[PPT]',snap.name,'— HTTP',r.status,'with tcgId='+tcgId+'. This card may not be in PPT database.');
-      return;
-    }
-
-    const raw=await r.json();
-    console.log('[PPT] Response for',snap.name,'(tcgId='+tcgId+'):',raw);
-
-    const cardArr=Array.isArray(raw?.data)?raw.data:(raw?.data?[raw.data]:[raw]);
-    const cardObj=cardArr[0]??{};
-    let history=(cardObj.priceHistory??cardObj.price_history??cardObj.history??raw.priceHistory??[]);
-    if(history&&!Array.isArray(history)) history=Object.values(history);
-
-    console.log('[PPT]',snap.name,'— history entries:',history.length,'sample:',history[0]);
-
-    if(!history.length){
-      const mkt=cardObj.prices?.market??cardObj.marketPrice??null;
-      if(mkt!=null){
-        history=[{date:new Date().toISOString().slice(0,10),market:mkt,low:cardObj.prices?.low??null}];
-      } else {
-        console.warn('[PPT] No history data returned for',snap.name);
-        return;
-      }
-    }
-    await ingestHistory(snap, history);
-  }catch(e){
-    console.error('[PPT] Exception for',snap.name,':',e);
-  }
-}
-
-// Diagnostic: test PPT API with first watchlist card, log full response
-async function diagnosePPT(){
-  const pptKey=localStorage.getItem('ptrkr_ppt')||'';
-  if(!pptKey){alert('No PPT key set. Add your pokemonpricetracker.com key first.');return;}
-  const c=watchlist[0];
-  if(!c){alert('Watchlist is empty.');return;}
-
-  console.log('=== PPT DIAGNOSTIC ===');
-  console.log('Card:',c.name,'| ID:',c.id,'| tcgplayerId:',c.tcgplayerId);
-
-  // Test 1: pokemontcg.io lookup
-  console.log('\n--- Test 1: pokemontcg.io lookup ---');
-  try{
-    const apiKey=localStorage.getItem('ptrkr_apikey')||'';
-    const r=await fetch(`https://api.pokemontcg.io/v2/cards/${c.id}`,apiKey?{headers:{'X-Api-Key':apiKey}}:{});
-    const d=await r.json();
-    const tcgUrl=d.data?.tcgplayer?.url||'(none)';
-    console.log('TCGPlayer URL:',tcgUrl);
-    const m=tcgUrl.match(/\/product\/(\d+)/)||tcgUrl.match(/tcgplayer\/(\d+)/);
-    console.log('Numeric ID found:',m?m[1]:'NO — non-numeric URL');
-  }catch(e){console.error('pokemontcg.io failed:',e);}
-
-  // Test 2: PPT with tcgplayerId if we have one
-  const tcgId=c.tcgplayerId;
-  if(tcgId){
-    console.log('\n--- Test 2: PPT with tcgPlayerId =',tcgId,'---');
-    try{
-      const r=await fetch(`https://www.pokemonpricetracker.com/api/v2/cards?tcgPlayerId=${encodeURIComponent(tcgId)}&includeHistory=true&days=30`,{headers:{'Authorization':'Bearer '+pptKey}});
-      console.log('HTTP status:',r.status,r.statusText);
-      const raw=await r.json();
-      console.log('Full response:',JSON.stringify(raw,null,2));
-    }catch(e){console.error('PPT fetch failed:',e);}
-  }
-
-  // Test 3: PPT with days=30 and the card name to see if it's in the DB
-  console.log('\n--- Test 3: PPT direct fetch with card id as tcgPlayerId ---');
-  try{
-    const r=await fetch(`https://www.pokemonpricetracker.com/api/v2/cards?tcgPlayerId=${encodeURIComponent(c.id)}&includeHistory=true&days=30`,{headers:{'Authorization':'Bearer '+pptKey}});
-    console.log('HTTP status:',r.status,r.statusText);
-    const raw=await r.json();
-    console.log('Full response:',JSON.stringify(raw,null,2));
-  }catch(e){console.error('PPT fetch failed:',e);}
-
-  alert('Diagnostic done — open browser console (F12) to see full results.');
-}
-
-
-async function ingestHistory(snap, history){
-  if(!priceHistory[snap.id]) priceHistory[snap.id]={name:snap.name,set:snap.set,img:snap.img,points:[]};
-  const existing=new Set(priceHistory[snap.id].points.map(p=>p.t));
-  let added=0;
-  for(const entry of history){
-    const dateStr=entry.date??entry.day??entry.timestamp??entry.createdAt??null;
-    if(!dateStr) continue;
-    const ts=new Date(dateStr).getTime();
-    if(isNaN(ts)||existing.has(ts)) continue;
-    const market=Number(entry.market??entry.tcgplayer?.market??entry.prices?.market??entry.marketPrice??entry.price??NaN);
-    const low=Number(entry.low??entry.tcgplayer?.low??entry.prices?.low??entry.lowPrice??NaN);
-    if(!isNaN(market)){
-      priceHistory[snap.id].points.push({t:ts,market,low:isNaN(low)?null:low});
-      existing.add(ts);
-      added++;
-    }
-  }
-  if(added>0){
-    priceHistory[snap.id].points.sort((a,b)=>a.t-b.t);
-    save();
-    console.log('[PPT] ✓ Added',added,'history point(s) for',snap.name);
-  } else {
-    console.warn('[PPT] Parsed 0 valid points from',history.length,'entries for',snap.name);
-  }
-}
 
 
 // Price stats for watchlist cards: prev day change + lowest ever
@@ -1537,8 +1333,7 @@ function addToWl(snap){
   const b=document.getElementById('wlb-'+snap.id);
   if(b){b.textContent='✓ WATCHLIST';b.classList.add('wl-added');}
   // Seed historical price data in the background — no await, silent
-  seedPriceHistory(snap);
-}
+  }
 function addToOwned(snap){
   snap.copyId=uid();snap.addedAt=Date.now();
   owned.push(snap);ledgerSetOwned(snap);save();refreshAllCounts();
@@ -2615,7 +2410,7 @@ function bulkAddToWl(){
     const{market,low}=getPrice(c);const ri=rarityOf(c);
     const snap={id:c.id,name:c.name,set:c.set.name,setId:c.set.id,img:c.images.small,number:c.number,total:c.set.printedTotal??c.set.total??'?',market,low,rarity:ri.label,addedAt:Date.now()};
     const tu=c.tcgplayer?.url||'';const tm=tu.match(/product\/(\d+)/);if(tm)snap.tcgplayerId=tm[1];
-    watchlist.push(snap);recordHistory(snap);ledgerSetWl(snap);seedPriceHistory(snap);added++;
+    watchlist.push(snap);recordHistory(snap);ledgerSetWl(snap);added++;
   }
   if(added){save();refreshAllCounts();}
   srSelected.clear();const all=document.getElementById('bulk-select-all');if(all)all.checked=false;
@@ -2709,10 +2504,7 @@ document.getElementById('sg-date').value=todayVal();
 // Restore theme
 if(localStorage.getItem('pf_theme')==='light'){document.body.classList.add('light');document.getElementById('theme-btn').textContent='🌙';}
 
-const _savedKey=localStorage.getItem('ptrkr_apikey')||'';
-if(_savedKey) document.getElementById('api-key-input').value=_savedKey;
-const _savedPPT=localStorage.getItem('ptrkr_ppt')||'';
-if(_savedPPT) document.getElementById('ppt-key-input').value=_savedPPT;
+
 </script>
 </body>
 </html>
