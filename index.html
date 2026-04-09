@@ -1790,8 +1790,7 @@ function renderBinder(){
       const slot=document.createElement('div');
       slot.className='binder-card-slot';
       slot.style.cssText=`width:${actualSlotW}px;height:${actualSlotH}px;overflow:hidden;position:relative;flex-shrink:0;`;
-      slot.onclick=()=>openBinderEdit(c.copyId);
-      slot.style.cursor='pointer';
+      slot.style.cursor='default';
       const wrap=document.createElement('div');
       wrap.className='binder-card-wrap';
       const actualNaturalW=Math.round(actualSlotW/SCALE);
@@ -1827,12 +1826,24 @@ function renderBinder(){
 
 function updateBinderNav(){
   const totalPages=Math.max(1,Math.ceil(ownFiltered.length/binderPER));
-  const counter=document.getElementById('binder-counter');
-  const prev=document.getElementById('binder-prev');
-  const next=document.getElementById('binder-next');
-  if(counter) counter.textContent=`Page ${binderPage} / ${totalPages}`;
-  if(prev) prev.disabled=binderPage<=1;
-  if(next) next.disabled=binderPage>=totalPages;
+  const dotsEl=document.getElementById('binder-dots');
+  if(!dotsEl) return;
+  dotsEl.innerHTML='';
+  for(let i=1;i<=totalPages;i++){
+    const d=document.createElement('span');
+    d.className='binder-dot'+(i===binderPage?' active':'');
+    d.onclick=(function(pg){return function(){
+      const vp=document.getElementById('binder-viewport');
+      const tr=document.getElementById('binder-track');
+      if(!vp||!tr) return;
+      binderPage=pg;
+      tr.style.transition='transform 220ms cubic-bezier(.4,0,.2,1)';
+      tr.style.transform=`translate3d(-${(pg-1)*vp.offsetWidth}px,0,0)`;
+      setTimeout(()=>tr.style.transition='',230);
+      updateBinderNav();
+    };})(i);
+    dotsEl.appendChild(d);
+  }
 }
 
 function binderNav(dir){
@@ -1915,43 +1926,83 @@ function setupBinderSwipe(){
   });
 }
 
-// Edit modal for binder mode — reuses the existing edit drawer fields in a modal
-function openBinderEdit(copyId){
+window.addEventListener('resize',()=>{if(ownBinder&&document.getElementById('binder-overlay')?.classList.contains('open'))renderBinder();});
+
+// ── OWNED EDIT MODAL ───────────────────────────────────────────────────────
+function openOwnedEditModal(copyId){
   const c=owned.find(o=>o.copyId===copyId);if(!c) return;
-  const i=window._binderSlice?window._binderSlice.indexOf(c):ownFiltered.indexOf(c);
-  // Just switch to normal view and open the edit for this card
-  // Find which page this card is on in normal view and go there
-  const idx=ownFiltered.findIndex(o=>o.copyId===copyId);
-  if(idx===-1) return;
-  // Open a quick binder edit modal
   const pp=c.purchasePrice;
   const pdVal=c.boughtAt?new Date(c.boughtAt).toISOString().slice(0,10):'';
-  const modal=document.getElementById('binder-edit-modal');
-  if(!modal) return;
-  document.getElementById('be-name').textContent=c.name;
-  document.getElementById('be-set').textContent=c.set+' · '+c.number+'/'+c.total;
-  document.getElementById('be-img').src=c.img;
-  document.getElementById('be-pp').value=pp!=null?pp:'';
-  document.getElementById('be-pp').placeholder=pp!=null?pp.toFixed(2):'0.00';
-  document.getElementById('be-pd').value=pdVal;
-  document.getElementById('be-bf').value=c.boughtFrom||'';
-  document.getElementById('be-copyid').value=copyId;
-  modal.classList.add('open');
+  const dm=(c.isJP&&c.jpPrice!=null?c.jpPrice:c.isBL&&c.blPrice!=null?c.blPrice:c.market);
+  document.getElementById('oem-img').src=c.img;
+  document.getElementById('oem-name').textContent=c.name;
+  document.getElementById('oem-set').textContent=c.set+' · '+c.number+'/'+c.total;
+  document.getElementById('oem-market').textContent=dm!=null?'$'+dm.toFixed(2):'';
+  document.getElementById('oem-copyid').value=copyId;
+  document.getElementById('oem-pp').value=pp!=null?pp:'';
+  document.getElementById('oem-pp').placeholder=pp!=null?pp.toFixed(2):'0.00';
+  document.getElementById('oem-pd').value=pdVal;
+  document.getElementById('oem-bf').value=c.boughtFrom||'';
+  // JP
+  const jpBtn=document.getElementById('oem-jp');
+  const jpInp=document.getElementById('oem-jpp');
+  const jpSpc=document.getElementById('oem-jpp-spc');
+  jpBtn.textContent=c.isJP?'✓ JP':'JP';
+  jpBtn.style.cssText=c.isJP?'flex:1;color:var(--gold);border-color:rgba(201,168,76,0.4);background:var(--gold-dim)':'flex:1';
+  jpInp.style.display=c.isJP?'block':'none'; jpInp.value=c.jpPrice??'';
+  jpSpc.style.display=c.isJP?'none':'block';
+  // BL
+  const blBtn=document.getElementById('oem-bl');
+  const blInp=document.getElementById('oem-blp');
+  const blSpc=document.getElementById('oem-blp-spc');
+  blBtn.textContent=c.isBL?'✓ BL':'BL';
+  blBtn.style.cssText=c.isBL?'flex:1;color:var(--purple);border-color:rgba(196,181,253,0.4);background:var(--purple-dim)':'flex:1';
+  blInp.style.display=c.isBL?'block':'none'; blInp.value=c.blPrice??'';
+  blSpc.style.display=c.isBL?'none':'block';
+  document.getElementById('owned-edit-modal').classList.add('open');
 }
-function closeBinderEdit(){ document.getElementById('binder-edit-modal').classList.remove('open'); }
-function saveBinderEdit(){
-  const copyId=document.getElementById('be-copyid').value;
+function closeOwnedEditModal(){ document.getElementById('owned-edit-modal').classList.remove('open'); }
+function oemToggle(type){
+  const copyId=document.getElementById('oem-copyid').value;
   const c=owned.find(o=>o.copyId===copyId);if(!c) return;
-  const ppVal=parseFloat(document.getElementById('be-pp').value);
+  if(type==='jp'){
+    c.isJP=!c.isJP; if(!c.isJP) c.jpPrice=null;
+    const btn=document.getElementById('oem-jp'),inp=document.getElementById('oem-jpp'),spc=document.getElementById('oem-jpp-spc');
+    btn.textContent=c.isJP?'✓ JP':'JP';
+    btn.style.cssText=c.isJP?'flex:1;color:var(--gold);border-color:rgba(201,168,76,0.4);background:var(--gold-dim)':'flex:1';
+    inp.style.display=c.isJP?'block':'none'; spc.style.display=c.isJP?'none':'block';
+  } else {
+    c.isBL=!c.isBL; if(!c.isBL) c.blPrice=null;
+    const btn=document.getElementById('oem-bl'),inp=document.getElementById('oem-blp'),spc=document.getElementById('oem-blp-spc');
+    btn.textContent=c.isBL?'✓ BL':'BL';
+    btn.style.cssText=c.isBL?'flex:1;color:var(--purple);border-color:rgba(196,181,253,0.4);background:var(--purple-dim)':'flex:1';
+    inp.style.display=c.isBL?'block':'none'; spc.style.display=c.isBL?'none':'block';
+  }
+}
+function saveOwnedEditModal(){
+  const copyId=document.getElementById('oem-copyid').value;
+  const c=owned.find(o=>o.copyId===copyId);if(!c) return;
+  const ppVal=parseFloat(document.getElementById('oem-pp').value);
   if(!isNaN(ppVal)&&ppVal>=0){c.purchasePrice=ppVal;if(ledger[c.id])ledger[c.id].purchasePrice=ppVal;}
-  const dateVal=document.getElementById('be-pd').value;
-  if(dateVal){const[dy,dm,dd]=dateVal.split('-').map(Number);c.boughtAt=new Date(dy,dm-1,dd,12,0,0).getTime();}
-  const fromVal=document.getElementById('be-bf').value.trim();
+  else if(document.getElementById('oem-pp').value===''){c.purchasePrice=null;}
+  const dateVal=document.getElementById('oem-pd').value;
+  if(dateVal){const[dy,dm,dd]=dateVal.split('-').map(Number);c.boughtAt=new Date(dy,dm-1,dd,12,0,0).getTime();if(ledger[c.id]){ledger[c.id].ownAt=c.boughtAt;ledger[c.id].statusAt=c.boughtAt;}}
+  const fromVal=document.getElementById('oem-bf').value.trim();
   c.boughtFrom=fromVal||null;
-  save();closeBinderEdit();renderBinder();
+  if(c.isJP){const v=parseFloat(document.getElementById('oem-jpp').value);if(!isNaN(v)&&v>0){c.jpPrice=v;if(ledger[c.id]){ledger[c.id].isJP=true;ledger[c.id].jpPrice=v;}}}
+  else if(ledger[c.id]){ledger[c.id].isJP=false;ledger[c.id].jpPrice=null;}
+  if(c.isBL){const v=parseFloat(document.getElementById('oem-blp').value);if(!isNaN(v)&&v>0){c.blPrice=v;if(ledger[c.id]){ledger[c.id].isBL=true;ledger[c.id].blPrice=v;}}}
+  else if(ledger[c.id]){ledger[c.id].isBL=false;ledger[c.id].blPrice=null;}
+  save();closeOwnedEditModal();refreshOwnedInPlace();
   showBriefToast('✓ Saved '+c.name,2000);
 }
-window.addEventListener('resize',()=>{if(ownBinder&&document.getElementById('binder-overlay')?.classList.contains('open'))renderBinder();});
+function oemClone(){
+  const copyId=document.getElementById('oem-copyid').value;
+  const c=owned.find(o=>o.copyId===copyId);if(!c) return;
+  const clone={...c,copyId:uid(),addedAt:Date.now(),purchasePrice:null,boughtAt:null,boughtFrom:null};
+  owned.push(clone);save();refreshAllCounts();closeOwnedEditModal();refreshOwnedInPlace();
+  showBriefToast('✓ Cloned '+c.name,2000);
+}
 // ── WATCHLIST ─────────────────────────────────────────────────────────────
 function applyWlControls(){
   wlFiltered=filterSort([...watchlist],
@@ -2407,29 +2458,7 @@ function renderOwned(){
           `<button class="cbtn" style="flex:1;color:var(--red);border-color:rgba(192,80,80,0.3)" onclick="ownAct(${i},'sell')">SELL</button>
            <button class="cbtn" style="flex:1;color:var(--purple);border-color:rgba(196,181,253,0.3)" onclick="ownAct(${i},'gift')">GIFT</button>`}
         </div>
-        <button class="cbtn" id="oet-${i}" onclick="ownAct(${i},'edit')">▼ EDIT</button>
-        <div class="own-edit-area" id="oe-${i}">
-          <div class="edit-row"><span class="edit-label">Price paid (USD)</span><input class="edit-input" id="oe-pp-${i}" type="number" min="0" step="0.01" placeholder="${pp!=null?pp.toFixed(2):'0.00'}"/></div>
-          <div class="edit-row"><span class="edit-label">Date bought</span><input class="edit-input" id="oe-pd-${i}" type="date" value="${pdVal}"/></div>
-          <div class="edit-row"><span class="edit-label">From</span><input class="edit-input" id="oe-bf-${i}" type="text" placeholder="eBay, LGS, friend..." value="${c.boughtFrom||''}"/></div>
-          <div class="edit-row" style="border-top:1px solid var(--b1);padding-top:6px;margin-top:4px">
-            <span class="edit-label">Version</span>
-            <div style="display:flex;gap:4px;margin-top:3px">
-              <button class="cbtn" id="oe-jp-${i}" style="flex:1;${c.isJP?'color:var(--gold);border-color:rgba(201,168,76,0.4);background:var(--gold-dim)':''}" onclick="ownAct(${i},'jp')">${c.isJP?'✓ JP':'JP'}</button>
-              <button class="cbtn" id="oe-bl-${i}" style="flex:1;${c.isBL?'color:var(--purple);border-color:rgba(196,181,253,0.4);background:var(--purple-dim)':''}" onclick="ownAct(${i},'bl')">${c.isBL?'✓ BL':'BL'}</button>
-            </div>
-            <div style="display:flex;gap:4px;margin-top:3px">
-              <input class="edit-input" id="oe-jpp-${i}" type="number" min="0" step="0.01" placeholder="JP price" value="${c.jpPrice??''}" style="flex:1;min-width:0;display:${c.isJP?'block':'none'}"/>
-              <div id="oe-jpp-spc-${i}" style="flex:1;display:${c.isJP?'none':'block'}"></div>
-              <input class="edit-input" id="oe-blp-${i}" type="number" min="0" step="0.01" placeholder="BL price" value="${c.blPrice??''}" style="flex:1;min-width:0;display:${c.isBL?'block':'none'}"/>
-              <div id="oe-blp-spc-${i}" style="flex:1;display:${c.isBL?'none':'block'}"></div>
-            </div>
-          </div>
-          <div style="display:flex;gap:4px;margin-top:6px">
-            <button class="cbtn" style="flex:1;color:var(--t2);border-color:var(--b2)" onclick="ownAct(${i},'clone')">⧉ CLONE</button>
-            <button class="cbtn" style="flex:1;color:var(--gold);border-color:rgba(201,168,76,0.3)" onclick="ownAct(${i},'save')">✓ SAVE</button>
-          </div>
-        </div>
+        <button class="cbtn" onclick="openOwnedEditModal(window._ownedSlice?.[${i}]?.copyId)">▼ EDIT</button>
         <button class="cbtn del-btn" onclick="confirmRemove(this,window._ownedSlice?.[${i}]?.name,()=>removeOwned(window._ownedSlice?.[${i}]?.copyId))">✕ REMOVE</button>
       </div>
     </div>`;
@@ -3138,10 +3167,6 @@ if(localStorage.getItem('pf_theme')==='light'){document.body.classList.add('ligh
 <!-- BINDER OVERLAY -->
 <div class="binder-overlay" id="binder-overlay">
   <div class="binder-topbar">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-      <span class="binder-title">⧉ BINDER</span>
-      <button class="binder-close" onclick="closeBinderOverlay()">✕ CLOSE</button>
-    </div>
     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
       <span class="binder-ctrl-label">Filter</span>
       <input type="text" class="binder-ctrl" id="binder-filter" placeholder="Name..." oninput="binderApplyFilter()" style="width:80px"/>
@@ -3156,7 +3181,7 @@ if(localStorage.getItem('pf_theme')==='light'){document.body.classList.add('ligh
       <span class="binder-ctrl-label">Show</span>
       <select class="binder-ctrl" id="binder-fav" onchange="binderApplyFilter()">
         <option value="">All cards</option>
-        <option value="fav">⭐ Favourites</option>
+        <option value="fav">⭐ Fav</option>
         <option value="unfav">Non-fav</option>
       </select>
       <span class="binder-ctrl-label">Sort</span>
@@ -3168,6 +3193,7 @@ if(localStorage.getItem('pf_theme')==='light'){document.body.classList.add('ligh
         <option value="set">Set A–Z</option>
         <option value="rarity">Rarity</option>
       </select>
+      <button class="binder-close" onclick="closeBinderOverlay()" style="margin-left:auto">✕ CLOSE</button>
     </div>
   </div>
   <div class="binder-body">
@@ -3177,26 +3203,43 @@ if(localStorage.getItem('pf_theme')==='light'){document.body.classList.add('ligh
   </div>
   <div class="binder-page-dots" id="binder-dots"></div>
 </div>
-<!-- BINDER EDIT MODAL -->
-<div class="modal-bg" id="binder-edit-modal" onclick="if(event.target===this)closeBinderEdit()">
+
+
+<!-- OWNED EDIT MODAL -->
+<div class="modal-bg" id="owned-edit-modal" onclick="if(event.target===this)closeOwnedEditModal()">
   <div class="modal-box">
     <div class="modal-title">
       <div style="display:flex;align-items:center;gap:10px">
-        <img id="be-img" src="" style="width:40px;height:56px;object-fit:cover;border-radius:4px;background:var(--s2)"/>
+        <img id="oem-img" src="" style="width:48px;height:68px;object-fit:cover;border-radius:5px;background:var(--s2);flex-shrink:0"/>
         <div>
-          <div id="be-name" style="font-size:11px;font-weight:600;color:var(--text);font-family:'DM Sans',sans-serif;margin-bottom:2px"></div>
-          <div id="be-set" style="font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif"></div>
+          <div id="oem-name" style="font-size:11px;font-weight:600;color:var(--text);font-family:'DM Sans',sans-serif;margin-bottom:2px"></div>
+          <div id="oem-set" style="font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif"></div>
+          <div id="oem-market" style="font-size:13px;font-weight:700;color:var(--gold2);font-family:'DM Sans',sans-serif;margin-top:3px"></div>
         </div>
       </div>
-      <button class="modal-close" onclick="closeBinderEdit()">✕</button>
+      <button class="modal-close" onclick="closeOwnedEditModal()">✕</button>
     </div>
-    <input type="hidden" id="be-copyid"/>
-    <div class="edit-row"><span class="edit-label">Price paid (USD)</span><input class="edit-input" id="be-pp" type="number" min="0" step="0.01"/></div>
-    <div class="edit-row"><span class="edit-label">Date bought</span><input class="edit-input" id="be-pd" type="date"/></div>
-    <div class="edit-row"><span class="edit-label">From</span><input class="edit-input" id="be-bf" type="text" placeholder="eBay, LGS, trade, pack..."/></div>
+    <input type="hidden" id="oem-copyid"/>
+    <div class="edit-row"><span class="edit-label">Price paid (USD)</span><input class="edit-input" id="oem-pp" type="number" min="0" step="0.01" placeholder="0.00"/></div>
+    <div class="edit-row"><span class="edit-label">Date bought</span><input class="edit-input" id="oem-pd" type="date"/></div>
+    <div class="edit-row"><span class="edit-label">From</span><input class="edit-input" id="oem-bf" type="text" placeholder="eBay, LGS, trade, pack..."/></div>
+    <div class="edit-row" style="border-top:1px solid var(--b1);padding-top:6px;margin-top:4px">
+      <span class="edit-label">Version</span>
+      <div style="display:flex;gap:4px;margin-top:3px">
+        <button class="cbtn" id="oem-jp" style="flex:1" onclick="oemToggle('jp')">JP</button>
+        <button class="cbtn" id="oem-bl" style="flex:1" onclick="oemToggle('bl')">BL</button>
+      </div>
+      <div style="display:flex;gap:4px;margin-top:3px">
+        <input class="edit-input" id="oem-jpp" type="number" min="0" step="0.01" placeholder="JP price" style="flex:1;min-width:0;display:none"/>
+        <div id="oem-jpp-spc" style="flex:1"></div>
+        <input class="edit-input" id="oem-blp" type="number" min="0" step="0.01" placeholder="BL price" style="flex:1;min-width:0;display:none"/>
+        <div id="oem-blp-spc" style="flex:1"></div>
+      </div>
+    </div>
     <div style="display:flex;gap:7px;margin-top:10px">
-      <button class="btn" style="flex:1" onclick="saveBinderEdit()">✓ SAVE</button>
-      <button class="btn-ghost" style="flex:0 0 auto" onclick="closeBinderEdit()">CANCEL</button>
+      <button class="btn" style="flex:1" onclick="saveOwnedEditModal()">✓ SAVE</button>
+      <button class="btn-ghost" onclick="oemClone()">⧉ CLONE</button>
+      <button class="btn-ghost" onclick="closeOwnedEditModal()">CANCEL</button>
     </div>
   </div>
 </div>
