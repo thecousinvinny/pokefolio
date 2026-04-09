@@ -1,0 +1,2555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="POKÉFOLIO"/>
+<title>POKÉFOLIO</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#080808;--s1:#0f0f0f;--s2:#161616;--s3:#1e1e1e;--s4:#272727;
+  --b1:#2a2a2a;--b2:#3d3d3d;--b3:#505050;
+  --gold:#c9a84c;--gold2:#e2ba6a;--gold3:#f0d090;
+  --gold-dim:rgba(201,168,76,0.09);--gold-dim2:rgba(201,168,76,0.16);
+  --text:#ede8e0;--t2:#9a9288;--t3:#585250;
+  --green:#4caf7d;--green-dim:rgba(76,175,125,0.11);
+  --red:#c05050;--red-dim:rgba(192,80,80,0.11);
+  --purple:#c4b5fd;--purple-dim:rgba(196,181,253,0.11);
+  --r:7px;--rl:11px;
+}
+
+/* LIGHT MODE */
+body.light{
+  --bg:#f5f4f1;--s1:#ffffff;--s2:#f0ede8;--s3:#e8e4de;--s4:#ddd9d2;
+  --b1:#d4cfc8;--b2:#bfb9b1;--b3:#a8a19a;
+  --gold:#b8912e;--gold2:#9a7820;--gold3:#7a5e10;
+  --gold-dim:rgba(184,145,46,0.10);--gold-dim2:rgba(184,145,46,0.18);
+  --text:#1a1814;--t2:#5a544d;--t3:#8a837a;
+  --green:#2d8a5a;--green-dim:rgba(45,138,90,0.10);
+  --red:#b03030;--red-dim:rgba(176,48,48,0.10);
+  --purple:#7c3aed;--purple-dim:rgba(124,58,237,0.10);
+}
+body.light .nav{background:rgba(245,244,241,0.97);}
+body.light .pcard::after{background:radial-gradient(circle at 50% 0,rgba(184,145,46,0.06),transparent 65%);}
+body.light .modal-bg{background:rgba(0,0,0,0.5);}
+body.light .sell-modal-bg{background:rgba(0,0,0,0.5);}
+
+/* Theme toggle button */
+.theme-btn{background:none;border:1px solid var(--b1);border-radius:var(--r);color:var(--t3);font-family:'Space Mono',monospace;font-size:10px;font-weight:700;padding:4px 9px;cursor:pointer;transition:all .15s;letter-spacing:0.04em;line-height:1}
+.theme-btn:hover{border-color:var(--gold);color:var(--gold)}
+
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);min-height:100vh;font-size:13px}
+
+/* STICKY NAV — logo + tabs + actions all in one bar */
+.nav{
+  position:sticky;top:0;z-index:200;
+  background:rgba(8,8,8,0.97);backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--b1);
+  padding-left:env(safe-area-inset-left);
+  padding-right:env(safe-area-inset-right);
+}
+.nav-top{height:auto;min-height:48px;padding:5px 1.25rem;display:flex;align-items:center;gap:8px}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;flex-shrink:0;margin:0 auto}
+.logo-box{width:38px;height:38px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.logo-text{font-size:11px;font-weight:700;letter-spacing:0.16em;color:var(--gold2)}
+
+/* Pokeball SVG spinner */
+.pb-spin{animation:spin 1.4s linear infinite;display:inline-block;vertical-align:middle}
+.pb-spin-sm{animation:spin 1.4s linear infinite;display:inline-block;vertical-align:middle;width:18px;height:18px}
+
+/* Loading override — pokeball centered */
+.loading{text-align:center;padding:3rem;color:var(--t3);font-size:10px;letter-spacing:0.1em;display:flex;flex-direction:column;align-items:center;gap:12px}
+.loading::after{display:none}/* disable the dots when we use pokeball loader */
+
+.spinning{animation:spin .8s linear infinite;display:inline-block}.nav-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.hdr-meta{font-size:9px;color:var(--t3);letter-spacing:0.06em}
+.nav-left{display:flex;align-items:center;gap:7px;flex-shrink:1}
+.nav-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.hdr-btn{background:none;border:1px solid var(--b1);border-radius:var(--r);color:var(--t3);font-family:'Space Mono',monospace;font-size:9px;font-weight:700;letter-spacing:0.06em;padding:5px 10px;cursor:pointer;transition:all .15s}
+.hdr-btn:hover{border-color:var(--gold);color:var(--gold)}
+.auto-refresh-indicator{font-size:8px;color:var(--t3);letter-spacing:0.05em;display:flex;align-items:center;gap:4px}
+.ar-dot{width:5px;height:5px;border-radius:50%;background:var(--t3);transition:background .3s}
+.ar-dot.active{background:var(--green);box-shadow:0 0 4px var(--green)}
+
+/* TABS in nav */
+.tabs{display:flex;border-bottom:none;padding:0 2rem;gap:0;overflow-x:auto;scrollbar-width:none;justify-content:center}
+.tabs::-webkit-scrollbar{display:none}
+.tab{font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;padding:9px 14px;cursor:pointer;color:var(--t3);background:none;border:none;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;white-space:nowrap;flex-shrink:0}
+.tab:hover{color:var(--t2)}
+.tab.active{color:var(--gold2);border-bottom-color:var(--gold)}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:14px;height:14px;background:var(--gold-dim2);color:var(--gold);border:1px solid rgba(201,168,76,0.35);border-radius:3px;font-size:8px;padding:0 3px;margin-left:4px}
+.section{display:none}.section.active{display:block}
+
+.wrap{max-width:1340px;margin:0 auto;padding:1.5rem 2rem;padding-left:max(2rem,env(safe-area-inset-left));padding-right:max(2rem,env(safe-area-inset-right))}
+
+/* BUTTONS */
+.btn{background:var(--gold);color:#080808;border:none;border-radius:var(--r);font-family:'Space Mono',monospace;font-size:9px;font-weight:700;letter-spacing:0.1em;padding:9px 16px;cursor:pointer;transition:background .15s,transform .1s;white-space:nowrap}
+.btn:hover{background:var(--gold2)}.btn:active{transform:scale(0.97)}
+.btn-ghost{background:transparent;color:var(--t2);border:1px solid var(--b1);border-radius:var(--r);font-family:'Space Mono',monospace;font-size:9px;font-weight:700;letter-spacing:0.08em;padding:7px 12px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
+.btn-sm{font-size:8px;padding:4px 9px}
+
+/* RARITY TAGS */
+.rtag{display:inline-block;font-size:8px;font-weight:700;padding:2px 5px;border-radius:3px;margin-bottom:4px;letter-spacing:0.04em;font-family:'DM Sans',sans-serif}
+.r-ir{background:var(--gold-dim2);color:var(--gold2);border:1px solid rgba(201,168,76,0.28)}
+.r-fa{background:rgba(201,168,76,0.06);color:var(--gold);border:1px solid rgba(201,168,76,0.18)}
+.r-sr{background:rgba(255,255,255,0.03);color:var(--t2);border:1px solid var(--b2)}
+.r-std{background:transparent;color:var(--t3);border:1px solid var(--b1)}
+
+/* 5-COL CARD GRID */
+.card-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+@media(max-width:1100px){.card-grid{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:820px){.card-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:560px){.card-grid{grid-template-columns:repeat(2,1fr)}}
+
+.pcard{background:var(--s1);border:1px solid var(--b1);border-radius:var(--rl);padding:9px;transition:border-color .2s,transform .2s;position:relative;overflow:hidden;display:flex;flex-direction:column}
+.pcard::after{content:'';position:absolute;inset:0;border-radius:var(--rl);opacity:0;transition:opacity .2s;pointer-events:none;background:radial-gradient(circle at 50% 0,rgba(201,168,76,0.05),transparent 65%)}
+.pcard:hover{border-color:var(--b2);transform:translateY(-2px)}.pcard:hover::after{opacity:1}
+.pcard.is-rare{border-color:rgba(201,168,76,0.2)}.pcard.is-rare:hover{border-color:rgba(201,168,76,0.45)}
+.pcard img{width:100%;border-radius:5px;display:block;margin-bottom:6px;aspect-ratio:2.5/3.5;object-fit:cover;background:var(--s2)}
+.pcard-name{font-size:11px;font-weight:600;color:var(--text);margin-bottom:2px;line-height:1.3;letter-spacing:0;font-family:'DM Sans',sans-serif}
+.pcard-set{font-size:9px;color:var(--t3);margin-bottom:5px;letter-spacing:0;font-family:'DM Sans',sans-serif}
+.price-rows{margin-bottom:6px;border-top:1px solid var(--b1);padding-top:5px}
+.price-row{display:flex;justify-content:space-between;align-items:center;padding:2px 0}
+.price-label{font-size:9px;color:var(--t3);letter-spacing:0;font-family:'DM Sans',sans-serif;font-weight:500}
+.price-val{font-size:11px;font-weight:600;font-family:'DM Sans',sans-serif;font-variant-numeric:tabular-nums}
+.price-val.market{color:var(--gold2)}.price-val.list{color:var(--t2)}.price-val.pnl-pos{color:var(--green)}.price-val.pnl-neg{color:var(--red)}
+.card-btns{display:flex;flex-direction:column;gap:3px;margin-top:auto}
+.cbtn{width:100%;background:transparent;border:1px solid var(--b1);border-radius:4px;color:var(--t3);font-family:'DM Sans',sans-serif;font-size:9px;font-weight:600;letter-spacing:0;padding:5px;cursor:pointer;transition:all .15s}
+.cbtn:hover{border-color:var(--gold);color:var(--gold);background:var(--gold-dim)}
+.cbtn.wl-added{background:var(--gold-dim);border-color:var(--gold);color:var(--gold);cursor:default}
+.cbtn.own-added{background:var(--green-dim);border-color:var(--green);color:var(--green);cursor:default}
+.cbtn.del-btn:hover{border-color:var(--red);color:var(--red);background:var(--red-dim)}
+.tcg-link{display:block;text-align:center;font-size:9px;font-family:'DM Sans',sans-serif;color:var(--t3);text-decoration:none;padding:3px;border-radius:4px;border:1px solid var(--b1);transition:all .15s;letter-spacing:0;font-weight:600}
+.tcg-link:hover{color:var(--gold2);border-color:var(--gold)}
+
+/* SUGGEST BADGE */
+.suggest-badge{display:inline-block;font-size:7px;font-weight:700;font-family:'DM Sans',sans-serif;padding:2px 5px;border-radius:3px;letter-spacing:0.04em;margin-bottom:4px}
+.suggest-badge.up{background:var(--green-dim);color:var(--green);border:1px solid rgba(76,175,125,0.2)}
+.suggest-badge.down{background:var(--red-dim);color:var(--red);border:1px solid rgba(192,80,80,0.2)}
+.suggest-badge.flat{background:var(--s3);color:var(--t2);border:1px solid var(--b1)}
+
+/* OWNED EDIT DROPDOWN */
+.own-edit-area{display:none;margin-top:7px;border-top:1px solid var(--b1);padding-top:7px}
+.own-edit-area.open{display:block}
+.edit-row{display:flex;flex-direction:column;gap:4px;margin-bottom:5px}
+.edit-label{font-size:9px;color:var(--t3);letter-spacing:0;font-family:'DM Sans',sans-serif;font-weight:500;text-transform:uppercase}
+.edit-input{background:var(--s2);border:1px solid var(--b1);border-radius:4px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:10px;padding:4px 7px;outline:none;width:100%;transition:border-color .15s;font-variant-numeric:tabular-nums}
+.edit-input:focus{border-color:var(--gold)}
+.edit-input[type="date"]{color-scheme:dark;font-family:'Space Mono',monospace;font-size:9px}
+.copy-badge{font-size:8px;font-weight:700;padding:1px 5px;border-radius:3px;letter-spacing:0;background:var(--s3);color:var(--t2);border:1px solid var(--b1);margin-left:4px;font-family:'DM Sans',sans-serif}
+
+/* PAGINATION */
+.pagination{display:flex;align-items:center;justify-content:center;gap:5px;margin-top:1.5rem;padding-bottom:.5rem;flex-wrap:wrap}
+.page-btn{background:transparent;border:1px solid var(--b1);border-radius:5px;color:var(--t2);font-family:'Space Mono',monospace;font-size:9px;padding:5px 10px;cursor:pointer;transition:all .15s;min-width:34px;text-align:center}
+.page-btn:hover{border-color:var(--gold);color:var(--gold)}
+.page-btn.active{border-color:var(--gold);color:var(--gold);background:var(--gold-dim)}
+.page-btn:disabled{opacity:0.2;cursor:default;pointer-events:none}
+.page-ellipsis{color:var(--t3);font-size:9px;padding:5px 4px;font-family:'Space Mono',monospace}
+
+/* METRICS */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1.25rem}
+@media(max-width:700px){.metrics{grid-template-columns:repeat(2,1fr)}}
+.metric{background:var(--s1);border:1px solid var(--b1);border-radius:var(--rl);padding:12px 14px}
+.metric-label{font-size:8px;color:var(--t3);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:5px;font-family:'DM Sans',sans-serif;font-weight:600}
+.metric-val{font-size:20px;font-weight:700;font-family:'DM Sans',sans-serif;font-variant-numeric:tabular-nums;color:var(--text);letter-spacing:-0.02em}
+.metric-val.gold{color:var(--gold2)}.metric-val.muted{color:var(--t2)}.metric-val.green{color:var(--green)}
+
+/* CONTROLS */
+.controls-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem;align-items:center}
+.ctrl-label{font-size:8px;color:var(--t3);letter-spacing:0.1em;text-transform:uppercase;white-space:nowrap;align-self:center}
+.ctrl-sep{width:1px;height:18px;background:var(--b1);margin:0 3px}
+.ctrl-input{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);color:var(--text);font-family:'Space Mono',monospace;font-size:10px;padding:5px 10px;outline:none;transition:border-color .15s;width:130px}
+.ctrl-input::placeholder{color:var(--t3)}
+.ctrl-input:focus{border-color:var(--gold)}
+.ctrl-select{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);color:var(--t2);font-family:'Space Mono',monospace;font-size:9px;padding:5px 24px 5px 10px;outline:none;cursor:pointer;transition:border-color .15s,color .15s;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23585250'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center}
+.ctrl-select:hover,.ctrl-select:focus{border-color:var(--gold);color:var(--gold)}
+.toggle-btn{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);color:var(--t3);font-family:'Space Mono',monospace;font-size:8px;font-weight:700;padding:5px 10px;cursor:pointer;letter-spacing:0.05em;transition:all .15s}
+.toggle-btn.on{border-color:var(--gold);color:var(--gold);background:var(--gold-dim)}
+
+/* WATCHLIST */
+.wl-extra{border-top:1px solid var(--b1);padding-top:5px;margin-top:5px}
+.stag{display:inline-block;font-size:8px;padding:2px 5px;border-radius:3px;font-weight:700;letter-spacing:0;margin-bottom:4px;font-family:'DM Sans',sans-serif}
+.stag.deal{background:var(--green-dim);color:var(--green);border:1px solid rgba(76,175,125,0.18)}
+.stag.premium{background:var(--red-dim);color:#d47070;border:1px solid rgba(192,80,80,0.18)}
+.stag.neutral{background:var(--s3);color:var(--t3);border:1px solid var(--b1)}
+.chart-toggle{font-size:8px;color:var(--t3);cursor:pointer;letter-spacing:0;text-transform:uppercase;border:none;background:none;font-family:'DM Sans',sans-serif;padding:2px 0 0;font-weight:600;width:100%;text-align:left;transition:color .15s}
+.chart-toggle:hover{color:var(--gold)}
+.chart-area{display:none;margin-top:5px}.chart-area.open{display:block}
+.chart-wrap{position:relative;height:100px}
+.no-hist{font-size:7px;color:var(--t3);padding:3px 0;letter-spacing:0.04em}
+
+/* REFRESH BAR */
+.rbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem}
+.rbar-left{font-size:9px;color:var(--t3);letter-spacing:0.06em}
+
+/* SECTION LABEL */
+.sec-label{font-size:8px;color:var(--t3);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:10px}
+.sec-label::after{content:'';flex:1;height:1px;background:var(--b1)}
+
+/* HISTORY ROWS */
+.hist-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:900px){.hist-grid{grid-template-columns:1fr}}
+.hist-metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:1.25rem}
+@media(max-width:900px){.hist-metrics{grid-template-columns:repeat(3,1fr)}}
+.hist-row{background:var(--s1);border:1px solid var(--b1);border-radius:var(--rl);padding:10px 12px;display:flex;gap:9px;align-items:flex-start;transition:border-color .2s}
+.hist-row:hover{border-color:var(--b2)}
+.hist-row.is-rare{border-color:rgba(201,168,76,0.18)}.hist-row.is-rare:hover{border-color:rgba(201,168,76,0.36)}
+.hist-img{width:44px;flex-shrink:0;border-radius:5px;display:block;aspect-ratio:2.5/3.5;object-fit:cover;background:var(--s2)}
+.hist-body{flex:1;min-width:0}
+.hist-name{font-size:12px;font-weight:700;color:var(--text);margin-bottom:2px;letter-spacing:0;font-family:'DM Sans',sans-serif}
+.hist-set{font-size:9px;color:var(--t3);margin-bottom:7px;letter-spacing:0;font-family:'DM Sans',sans-serif}
+.hist-stats{display:flex;gap:0;flex-wrap:wrap;margin-bottom:7px}
+.hstat{flex:1;min-width:70px;padding-right:6px}
+.hstat-l{font-size:8px;color:var(--t3);letter-spacing:0;font-family:'DM Sans',sans-serif;font-weight:500;text-transform:uppercase;margin-bottom:2px}
+.hstat-v{font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-0.02em}
+.hstat-v.gold{color:var(--gold2)}.hstat-v.green{color:var(--green)}.hstat-v.red{color:var(--red)}.hstat-v.muted{color:var(--t2)}
+.hist-events{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:0}
+.hevent{display:flex;align-items:center;gap:4px;background:var(--s3);border:1px solid var(--b1);border-radius:4px;padding:3px 7px;font-size:9px;color:var(--t2);letter-spacing:0;font-family:'DM Sans',sans-serif}
+.hevent-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.hevent-dot.wl{background:var(--gold)}.hevent-dot.own{background:var(--green)}
+.hist-side{display:flex;flex-direction:column;gap:5px;align-items:flex-end;flex-shrink:0}
+.hist-status{font-size:8px;font-weight:700;letter-spacing:0.02em;padding:3px 6px;border-radius:3px;text-transform:uppercase;white-space:nowrap;font-family:'DM Sans',sans-serif}
+.hist-status.watching{background:var(--gold-dim2);color:var(--gold);border:1px solid rgba(201,168,76,0.3)}
+.hist-status.owned-badge{background:var(--green-dim);color:var(--green);border:1px solid rgba(76,175,125,0.25)}
+.hist-status.gifted-badge{background:var(--purple-dim);color:var(--purple);border:1px solid rgba(196,181,253,0.28)}
+.hist-status.sold-badge{background:var(--red-dim);color:#f87171;border:1px solid rgba(192,80,80,0.28)}
+.hist-action-btn{background:none;border:1px solid var(--b1);border-radius:4px;color:var(--t3);font-family:'DM Sans',sans-serif;font-size:9px;font-weight:600;padding:3px 7px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.hist-action-btn:hover{border-color:var(--gold);color:var(--gold)}
+.hist-action-btn.danger:hover{border-color:var(--red);color:var(--red)}
+.hist-action-btn.restore:hover{border-color:var(--green);color:var(--green)}
+
+/* SELL/GIFT MODAL */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:400;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rl);padding:22px;width:400px;max-width:92vw;max-height:90vh;overflow-y:auto}
+.modal-title{font-size:11px;font-weight:700;letter-spacing:0.12em;color:var(--gold2);margin-bottom:10px;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center}
+.modal-close{background:none;border:none;color:var(--t3);font-size:14px;cursor:pointer;transition:color .15s;line-height:1}
+.modal-close:hover{color:var(--gold)}
+.modal-card-preview{display:flex;gap:10px;align-items:center;background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:9px;margin-bottom:12px}
+.modal-card-img{width:44px;border-radius:4px;aspect-ratio:2.5/3.5;object-fit:cover}
+.modal-card-name{font-size:11px;font-weight:700;color:var(--text);margin-bottom:2px}
+.modal-card-sub{font-size:9px;color:var(--t3)}
+.modal-field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.modal-field label{font-size:8px;color:var(--t3);letter-spacing:0.1em;text-transform:uppercase}
+.modal-field input,.modal-field textarea{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);color:var(--text);font-family:'DM Sans',sans-serif;font-size:12px;padding:7px 10px;outline:none;transition:border-color .15s;width:100%;font-variant-numeric:tabular-nums}
+.modal-field input:focus,.modal-field textarea:focus{border-color:var(--gold)}
+.modal-field input[type="date"]{color-scheme:dark;font-family:'Space Mono',monospace;font-size:10px}
+.modal-field textarea{resize:none;height:56px;font-size:11px;line-height:1.4}
+.modal-suggest{font-size:9px;color:var(--t2);margin-top:3px}
+.modal-suggest span{color:var(--gold2);font-weight:600}
+.modal-btns{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
+
+/* IMPORT/EXPORT MODAL */
+.ie-modal{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rl);padding:22px;width:500px;max-width:92vw;max-height:85vh;overflow-y:auto}
+.ie-modal-title{font-size:11px;font-weight:700;letter-spacing:0.12em;color:var(--gold2);margin-bottom:4px;text-transform:uppercase}
+.ie-modal-sub{font-size:9px;color:var(--t3);letter-spacing:0.05em;margin-bottom:16px}
+.ie-section{margin-bottom:18px}
+.ie-section-title{font-size:8px;font-weight:700;letter-spacing:0.12em;color:var(--t2);text-transform:uppercase;margin-bottom:7px;padding-bottom:5px;border-bottom:1px solid var(--b1)}
+.ie-modal textarea{width:100%;background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);color:var(--text);font-family:'Space Mono',monospace;font-size:9px;padding:9px;outline:none;resize:vertical;min-height:80px;line-height:1.5;transition:border-color .15s}
+.ie-modal textarea:focus{border-color:var(--gold)}
+.ie-btns{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
+.ie-note{font-size:8px;color:var(--t3);letter-spacing:0.04em;margin-top:7px;line-height:1.6}
+.ie-status{font-size:9px;margin-top:7px;letter-spacing:0.04em;display:none}
+.ie-status.ok{color:var(--green);display:block}
+.ie-status.err{color:var(--red);display:block}
+.etab{font-size:8px;font-weight:700;letter-spacing:0.07em;padding:4px 9px;border-radius:4px;border:1px solid var(--b1);cursor:pointer;color:var(--t3);background:transparent;font-family:'Space Mono',monospace;transition:all .15s}
+.etab.active{border-color:var(--gold);color:var(--gold);background:var(--gold-dim)}
+.etab:hover:not(.active){border-color:var(--b2);color:var(--t2)}
+.etabs{display:flex;gap:4px;margin-bottom:9px;flex-wrap:wrap}
+
+/* UNDO TOAST */
+.undo-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(90px);background:var(--s2);border:1px solid var(--b2);border-radius:var(--rl);padding:9px 14px;display:flex;align-items:center;gap:12px;font-size:10px;color:var(--text);letter-spacing:0.05em;z-index:500;transition:transform .25s ease;box-shadow:0 8px 32px rgba(0,0,0,0.7);white-space:nowrap}
+.undo-toast.show{transform:translateX(-50%) translateY(0)}
+.undo-btn{background:var(--gold);color:#080808;border:none;border-radius:5px;font-family:'Space Mono',monospace;font-size:9px;font-weight:700;letter-spacing:0.07em;padding:4px 11px;cursor:pointer;transition:background .15s}
+.undo-btn:hover{background:var(--gold2)}
+
+/* EMPTY / LOADING / ERROR */
+.empty{text-align:center;padding:4rem 1rem;color:var(--t3)}
+.empty-glyph{font-size:24px;color:var(--b2);margin-bottom:10px}
+.empty-title{font-size:12px;color:var(--t2);margin-bottom:5px;font-weight:700;letter-spacing:0.06em}
+.empty-sub{font-size:10px;letter-spacing:0.04em}
+.loading{text-align:center;padding:3rem;color:var(--t3);font-size:10px;letter-spacing:0.1em}
+.loading::after{content:'';animation:dots 1.2s infinite}
+@keyframes dots{0%,20%{content:'.'}40%{content:'..'}60%,100%{content:'...'}}
+.err-box{background:var(--red-dim);border:1px solid var(--red);border-radius:var(--r);padding:11px 14px;color:var(--red);font-size:10px;margin-bottom:1rem;letter-spacing:0.04em;line-height:1.6}
+.spinning{animation:spin .8s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ═══════════════════════════════════════════════════════
+   TABLET / iPAD RESPONSIVE — 768px to 1024px
+   ═══════════════════════════════════════════════════════ */
+@media(max-width:1024px){
+
+  /* Nav: hide API key inputs behind a settings icon on tablet,
+     keep logo centred, keep theme + export visible */
+  .nav-top{padding:5px 1rem;gap:6px}
+  .nav-left input{display:none}              /* hide api key inputs — too cramped */
+  .logo-text{font-size:10px;letter-spacing:0.12em}
+  .hdr-btn{font-size:8px;padding:5px 9px}
+
+  /* Tabs: bigger touch targets */
+  .tab{padding:11px 12px;font-size:8px;letter-spacing:0.09em}
+
+  /* Content area */
+  .wrap{padding:1rem 1rem}
+
+  /* Cards: 3 cols on landscape iPad */
+  .card-grid{grid-template-columns:repeat(3,1fr);gap:8px}
+
+  /* Metrics: 2x2 instead of 4-across */
+  .metrics{grid-template-columns:repeat(2,1fr)}
+  .hist-metrics{grid-template-columns:repeat(3,1fr)}
+
+  /* History: 1 col on tablet portrait */
+  .hist-grid{grid-template-columns:1fr}
+
+  /* Modals: full-width on tablet */
+  .modal{width:92vw;max-width:500px}
+  .ie-modal{width:92vw;max-width:520px}
+}
+
+/* ═══════════════════════════════════════════════════════
+   MOBILE / IPAD PORTRAIT — under 768px
+   ═══════════════════════════════════════════════════════ */
+@media(max-width:768px){
+
+  /* Bigger base font for readability */
+  body{font-size:14px}
+
+  /* Nav: stack logo row + tabs */
+  .nav-top{padding:6px 0.75rem;gap:4px;min-height:44px}
+  .logo-text{font-size:10px}
+  .logo-box{width:32px;height:32px}
+  .auto-refresh-indicator{display:none}   /* too noisy on small screen */
+  #last-updated{display:none}
+
+  /* Tabs: full-width scroll, bigger tap area */
+  .tabs{padding:0 0.5rem;gap:0;justify-content:flex-start}
+  .tab{padding:12px 11px;font-size:8px;letter-spacing:0.08em}
+
+  /* Content */
+  .wrap{padding:0.75rem 0.75rem}
+
+  /* Cards: 2 cols on phone/portrait iPad */
+  .card-grid{grid-template-columns:repeat(2,1fr);gap:8px}
+
+  /* Metrics: 2-col */
+  .metrics{grid-template-columns:repeat(2,1fr);gap:6px}
+  .hist-metrics{grid-template-columns:repeat(2,1fr)}
+
+  /* Metric values slightly smaller */
+  .metric-val{font-size:16px}
+
+  /* History: 1 col */
+  .hist-grid{grid-template-columns:1fr}
+
+  /* Controls bar: wrap */
+  .controls-bar{flex-wrap:wrap;gap:5px}
+  .ctrl-input{width:100%;flex:unset}
+  .ctrl-sep{display:none}
+
+  /* Prevent Safari auto-zoom on input focus — must be 16px+ */
+  input,select,textarea{font-size:16px!important}
+
+  /* Buttons: min 44px tall for touch */
+  .btn,.btn-ghost,.cbtn,.hdr-btn,.page-btn{min-height:44px;display:flex;align-items:center;justify-content:center}
+  .cbtn{min-height:38px}   /* card buttons can be slightly smaller */
+  .tab{min-height:44px}
+
+  /* Undo toast: full width at bottom */
+  .undo-toast{left:0.75rem;right:0.75rem;transform:translateY(90px);width:auto}
+  .undo-toast.show{transform:translateY(0)}
+
+  /* Pagination: bigger numbers */
+  .page-btn{min-width:44px;min-height:44px}
+
+  /* Modals: truly full-screen on phone */
+  .modal,.ie-modal,.sell-modal{width:95vw;padding:18px;max-height:92vh}
+
+  /* Search input row */
+  #search-input{font-size:16px!important}   /* prevent zoom */
+}
+
+/* ═══════════════════════════════════════════════════════
+   iPAD LANDSCAPE — 1024px, special cases
+   ═══════════════════════════════════════════════════════ */
+@media(min-width:768px)and(max-width:1024px)and(orientation:landscape){
+  .card-grid{grid-template-columns:repeat(4,1fr)}
+  .hist-grid{grid-template-columns:1fr 1fr}
+}
+
+/* ═══════════════════════════════════════════════════════
+   TOUCH DEVICES — remove hover transforms (avoid sticky hover)
+   ═══════════════════════════════════════════════════════ */
+@media(hover:none){
+  .pcard:hover{transform:none}
+  .pcard:hover::after{opacity:0}
+  .btn:active{transform:scale(0.97)}
+}
+
+/* BULK SELECT */
+.sr-checkbox{position:absolute;top:7px;left:7px;width:16px;height:16px;accent-color:var(--gold);cursor:pointer;z-index:2}
+.pcard-bulk{position:relative}
+/* PRICE ALERT BADGE */
+.price-alert{display:inline-block;font-size:8px;font-weight:700;padding:2px 5px;border-radius:3px;letter-spacing:0;margin-bottom:3px;font-family:'DM Sans',sans-serif}
+.price-alert.up{background:rgba(76,175,125,0.15);color:var(--green);border:1px solid rgba(76,175,125,0.3)}
+.price-alert.down{background:rgba(192,80,80,0.12);color:var(--red);border:1px solid rgba(192,80,80,0.25)}
+/* SET OWNERSHIP BADGE */
+.set-own-badge{font-size:9px;color:var(--t3);letter-spacing:0;font-family:'DM Sans',sans-serif;margin-bottom:4px}
+.set-own-badge span{color:var(--gold2);font-weight:700}
+
+/* CONDITION PRICE TABLE in search results */
+.cond-table{width:100%;border-collapse:collapse;margin:4px 0;font-family:'DM Sans',sans-serif}
+.cond-table tr{border-bottom:1px solid var(--b1)}
+.cond-table tr:last-child{border-bottom:none}
+.cond-table td{padding:3px 0;font-size:9px;line-height:1.4;vertical-align:middle}
+.cond-table td:last-child{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.cond-table td:first-child{color:var(--t3);font-weight:500}
+.cond-divider{height:1px;background:var(--b1);margin:5px 0}
+
+/* WATCHLIST collapsible price details */
+.wl-expand-btn{width:100%;background:none;border:none;border-top:1px solid var(--b1);color:var(--t3);font-family:'DM Sans',sans-serif;font-size:9px;font-weight:600;padding:5px 0 3px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:color .15s}
+.wl-expand-btn:hover{color:var(--gold2)}
+.wl-expand-panel{display:none;padding-top:4px}
+.wl-expand-panel.open{display:block}
+.price-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 0;margin:4px 0}
+.price-cell{display:flex;flex-direction:column}
+.price-cell.right{align-items:flex-end;text-align:right}
+.price-cell-label{font-size:8px;color:var(--t3);font-family:'DM Sans',sans-serif;font-weight:500}
+.price-cell-val{font-size:10px;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums;font-family:'DM Sans',sans-serif}
+
+/* FOLIO COMPACT MODE */
+.pcard-compact{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:6px 8px;display:flex;align-items:center;gap:9px;transition:border-color .15s}
+.pcard-compact:hover{border-color:var(--b2)}
+.pcard-compact.is-rare{border-color:rgba(201,168,76,0.2)}
+.pcard-compact.is-rare:hover{border-color:rgba(201,168,76,0.4)}
+.pcard-compact img{width:38px;height:54px;object-fit:cover;border-radius:4px;flex-shrink:0;background:var(--s2)}
+.pcard-compact-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.pcard-compact-name{font-size:10px;font-weight:600;color:var(--text);font-family:'DM Sans',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pcard-compact-sub{font-size:8px;color:var(--t3);font-family:'DM Sans',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pcard-compact-badge{font-size:8px;color:var(--t3);font-family:'DM Sans',sans-serif}
+.pcard-compact-badge span{color:var(--green);font-weight:700}
+.compact-grid{display:flex;flex-direction:column;gap:4px}
+</style>
+</head>
+<body>
+
+<!-- STICKY NAV -->
+<nav class="nav">
+  <div class="nav-top">
+    <div class="nav-left">
+      <input id="api-key-input" type="text" placeholder="pokemontcg.io key" title="Free API key at pokemontcg.io — unlocks full search results" style="background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);color:var(--t2);font-family:'Space Mono',monospace;font-size:8px;padding:5px 9px;outline:none;width:118px;letter-spacing:0.04em" oninput="localStorage.setItem('ptrkr_apikey',this.value)" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--b1)'"/>
+      <input id="ppt-key-input" type="text" placeholder="pricetracker.com key" title="Free API key at pokemonpricetracker.com — seeds price history" style="background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);color:var(--t2);font-family:'Space Mono',monospace;font-size:8px;padding:5px 9px;outline:none;width:126px;letter-spacing:0.04em" oninput="localStorage.setItem('ptrkr_ppt',this.value)" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--b1)'"/>
+    </div>
+    <a class="logo">
+      <div class="logo-box">
+        <svg width="38" height="38" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- outer ring -->
+          <circle cx="19" cy="19" r="17" fill="#111" stroke="#c9a84c" stroke-width="1.5"/>
+          <!-- top half — gold -->
+          <path d="M2 19 A17 17 0 0 1 36 19 Z" fill="#c9a84c"/>
+          <!-- bottom half — black -->
+          <path d="M2 19 A17 17 0 0 0 36 19 Z" fill="#0f0f0f"/>
+          <!-- gold divider band -->
+          <line x1="2" y1="19" x2="36" y2="19" stroke="#c9a84c" stroke-width="2.5"/>
+          <!-- top highlight -->
+          <!-- center button ring -->
+          <circle cx="19" cy="19" r="5.5" fill="#0f0f0f" stroke="#c9a84c" stroke-width="1.8"/>
+          <!-- center button fill -->
+          <circle cx="19" cy="19" r="3.2" fill="#e2ba6a"/>
+          <!-- center button highlight -->
+          <circle cx="17.8" cy="17.8" r="1.1" fill="#f8e8b0" opacity="0.75"/>
+        </svg>
+      </div>
+      <span class="logo-text">POKÉFOLIO</span>
+      <span style="font-size:7px;font-weight:700;letter-spacing:0.1em;padding:2px 5px;border-radius:3px;background:var(--gold-dim2);color:var(--gold);border:1px solid rgba(201,168,76,0.35);align-self:center;margin-left:-4px">LITE</span>
+    </a>
+    <div class="nav-right">
+      <div class="auto-refresh-indicator"><div class="ar-dot" id="ar-dot"></div><span id="ar-label">AUTO-REFRESH OFF</span><span id="last-updated" style="margin-left:4px;color:var(--t3);font-size:8px"></span></div>
+      <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle light/dark mode">☀</button>
+      <button class="hdr-btn" onclick="openIEModal()">⇅ IMPORT / EXPORT</button>
+    </div>
+  </div>
+  <div class="tabs">
+    <button class="tab" onclick="switchTab('search')">Search</button>
+    <button class="tab" onclick="switchTab('watchlist')">Watchlist <span class="badge" id="wl-count">0</span></button>
+    <button class="tab active" onclick="switchTab('owned')">Folio <span class="badge" id="owned-count">0</span></button>
+    <button class="tab" onclick="switchTab('sold')">Sold <span class="badge" id="sold-count">0</span></button>
+    <button class="tab" onclick="switchTab('gifted')">Gifted <span class="badge" id="gifted-count">0</span></button>
+    <button class="tab" onclick="switchTab('history')">History <span class="badge" id="hist-count">0</span></button>
+  </div>
+</nav>
+
+
+<!-- IMPORT/EXPORT MODAL -->
+<div class="modal-bg" id="ie-modal-bg" onclick="if(event.target===this)closeIEModal()">
+  <div class="ie-modal">
+    <div class="ie-modal-title">Import / Export</div>
+    <div class="ie-modal-sub">Sync data across devices — all tabs, purchase prices, history<br><span id="ie-last-export" style="color:var(--t3);font-size:8px"></span></div>
+    <div class="ie-section">
+      <div class="ie-section-title">Export</div>
+      <div class="etabs">
+        <button class="etab active" onclick="setExportTab('all',this)">All data</button>
+        <button class="etab" onclick="setExportTab('watchlist',this)">Watchlist</button>
+        <button class="etab" onclick="setExportTab('owned',this)">Owned</button>
+        <button class="etab" onclick="setExportTab('history',this)">History</button>
+      </div>
+      <div class="ie-btns" style="flex-wrap:wrap">
+        <button class="btn" onclick="shareExport()" id="share-btn" style="display:none">⬆ SHARE</button>
+        <button class="btn-ghost" onclick="downloadExport()">⬇ DOWNLOAD</button>
+        <button class="btn-ghost" onclick="copyExport()">⎘ COPY JSON</button>
+      </div>
+      <textarea id="export-area" readonly onclick="this.select()" placeholder="Click Download or Copy to export..." style="margin-top:8px;min-height:60px"></textarea>
+      <div class="ie-note" id="ie-export-note">Download saves a .json file. On iPad, use Share to AirDrop or save to Files.</div>
+    </div>
+    <div class="ie-section">
+      <div class="ie-section-title">Import</div>
+      <div class="ie-btns" style="flex-wrap:wrap;margin-bottom:8px">
+        <label class="btn" style="cursor:pointer">⬆ CHOOSE FILE<input type="file" id="import-file-input" accept=".json,application/json" style="display:none" onchange="importFromFile(event)"/></label>
+        <span style="color:var(--t3);font-size:9px;align-self:center;padding:0 4px">or paste below</span>
+      </div>
+      <textarea id="import-area" placeholder="Paste exported JSON here..."></textarea>
+      <div class="ie-btns" style="margin-top:7px">
+        <button class="btn-ghost" onclick="doImport('merge')">MERGE</button>
+        <button class="btn-ghost" onclick="doImport('replace')">REPLACE ALL</button>
+      </div>
+      <div class="ie-note">MERGE adds without removing. REPLACE overwrites everything.</div>
+      <div class="ie-status" id="import-status"></div>
+    </div>
+    <div style="text-align:right;margin-top:4px">
+      <button class="btn-ghost btn-sm" onclick="closeIEModal()">CLOSE</button>
+    </div>
+  </div>
+</div>
+
+<!-- SELL / GIFT MODAL -->
+<div class="modal-bg" id="sg-modal-bg" onclick="if(event.target===this)closeSGModal()">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="sg-modal-title">SELL CARD</span>
+      <button class="modal-close" onclick="closeSGModal()">✕</button>
+    </div>
+    <div class="modal-card-preview">
+      <img class="modal-card-img" id="sg-img" src=""/>
+      <div><div class="modal-card-name" id="sg-name"></div><div class="modal-card-sub" id="sg-sub"></div></div>
+    </div>
+    <div id="sg-price-wrap" class="modal-field">
+      <label>Sale price</label>
+      <input type="number" id="sg-price" min="0" step="0.01" placeholder="0.00"/>
+      <div class="modal-suggest" id="sg-suggest"></div>
+    </div>
+    <div class="modal-field">
+      <label>Date</label>
+      <input type="date" id="sg-date"/>
+    </div>
+    <div class="modal-field">
+      <label id="sg-to-label">Sold to (optional)</label>
+      <input type="text" id="sg-to" placeholder="Name or note..."/>
+    </div>
+    <div class="modal-field">
+      <label>Notes</label>
+      <textarea id="sg-notes" placeholder="Optional notes..."></textarea>
+    </div>
+    <div class="modal-btns">
+      <button class="btn" id="sg-confirm" onclick="confirmSG()">CONFIRM</button>
+      <button class="btn-ghost" onclick="closeSGModal()">CANCEL</button>
+    </div>
+  </div>
+</div>
+
+<!-- UNDO TOAST -->
+<div class="undo-toast" id="undo-toast">
+  <span id="undo-msg">Action undone</span>
+  <button class="undo-btn" onclick="doUndo()">↩ UNDO</button>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="wrap">
+
+  <!-- SEARCH TAB -->
+  <div id="tab-search" class="section">
+    <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
+      <input type="text" id="search-input" class="ctrl-input" style="flex:1;width:auto" placeholder="Name, set code, number, artist... (e.g. Charizard ex, sv3pt5, 207/165, Arita)" onkeydown="if(event.key==='Enter')doSearch(1)"/>
+      <button class="btn" onclick="doSearch(1)">SEARCH</button>
+    </div>
+    <div class="controls-bar">
+      <span class="ctrl-label">Filter</span>
+      <input type="text" class="ctrl-input" id="sr-name-filter" placeholder="Name..." oninput="filterSrPage()"/>
+      <select class="ctrl-select" id="sr-rarity-filter" onchange="filterSrPage()">
+        <option value="">All rarities</option>
+        <option value="ILLUS">Illus Rare</option>
+        <option value="FULL|HYPER">Full Art / Hyper</option>
+        <option value="ULTRA|SPEC">Ultra Rare / Spec</option>
+        <option value="RARE">Rare+</option>
+        <option value="STANDARD">Standard</option>
+      </select>
+      <div class="ctrl-sep"></div>
+      <span class="ctrl-label">Sort</span>
+      <select class="ctrl-select" id="sr-sort" onchange="filterSrPage()">
+        <option value="rarity">Rarity (rare first)</option>
+        <option value="name">Name A–Z</option>
+        <option value="name-desc">Name Z–A</option>
+        <option value="market-desc">Market ↓</option>
+        <option value="market-asc">Market ↑</option>
+        <option value="set">Set A–Z</option>
+        <option value="number">Card number</option>
+      </select>
+    </div>
+    <div id="apikey-nag" style="display:none;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.25);border-radius:var(--r);padding:8px 12px;margin-bottom:10px;font-size:9px;color:var(--gold2);font-family:'DM Sans',sans-serif;line-height:1.5">⚠ No API key — results capped at 250. Get a free key at <a href="https://pokemontcg.io" target="_blank" style="color:var(--gold2);text-decoration:underline">pokemontcg.io</a> and paste it in the top-left field to unlock full results.</div>
+    <div id="bulk-bar" style="display:none;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--b1);margin-bottom:10px">
+      <input type="checkbox" id="bulk-select-all" onchange="toggleSelectAll(this.checked)" style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer"/>
+      <span id="bulk-count" style="font-size:9px;color:var(--t3);letter-spacing:0.06em">0 selected</span>
+      <button class="btn btn-sm" onclick="bulkAddToWl()" style="margin-left:auto">+ ADD SELECTED TO WATCHLIST</button>
+      <button class="btn-ghost btn-sm" onclick="bulkAddToOwned()">+ ADD TO FOLIO</button>
+    </div>
+    <div id="search-results"></div>
+    <div id="sr-pagination"></div>
+  </div>
+
+  <!-- WATCHLIST TAB -->
+  <div id="tab-watchlist" class="section">
+    <div class="rbar">
+      <span class="rbar-left" id="updated-label">NOT YET REFRESHED</span>
+      <div style="display:flex;gap:7px">
+        <button class="btn-ghost btn-sm" onclick="seedAllWatchlist()" id="seed-btn" title="Seed 3-day price history for all watchlist cards (requires pokemonpricetracker.com key)">⟳ SEED HISTORY</button>
+        <button class="btn-ghost" onclick="refreshWatchlist()" id="refresh-btn">↻ REFRESH PRICES</button>
+      </div>
+    </div>
+    <div class="metrics">
+      <div class="metric"><div class="metric-label">Watching</div><div class="metric-val" id="m-count">0</div></div>
+      <div class="metric"><div class="metric-label">Market value</div><div class="metric-val gold" id="m-market">—</div></div>
+      <div class="metric"><div class="metric-label">Avg spread</div><div class="metric-val muted" id="m-spread">—</div></div>
+      <div class="metric"><div class="metric-label">Rares</div><div class="metric-val gold" id="m-rares">0</div></div>
+    </div>
+    <div class="controls-bar">
+      <span class="ctrl-label">Filter</span>
+      <input type="text" class="ctrl-input" id="wl-filter" placeholder="Name..." oninput="applyWlControls()"/>
+      <select class="ctrl-select" id="wl-rarity" onchange="applyWlControls()">
+        <option value="">All rarities</option>
+        <option value="ILLUS">Illus Rare</option>
+        <option value="FULL|HYPER">Full Art / Hyper</option>
+        <option value="ULTRA|SPEC">Ultra / Spec</option>
+        <option value="RARE">Rare+</option>
+        <option value="STANDARD">Standard</option>
+      </select>
+      <div class="ctrl-sep"></div>
+      <span class="ctrl-label">Sort</span>
+      <select class="ctrl-select" id="wl-sort" onchange="applyWlControls()">
+        <option value="added">Date added</option>
+        <option value="name">Name A–Z</option>
+        <option value="name-desc">Name Z–A</option>
+        <option value="market-desc">Market ↓</option>
+        <option value="market-asc">Market ↑</option>
+        <option value="set">Set A–Z</option>
+        <option value="rarity">Rarity</option>
+      </select>
+    </div>
+    <div id="watchlist-cards"></div>
+    <div id="wl-pagination"></div>
+  </div>
+
+  <!-- OWNED TAB -->
+  <div id="tab-owned" class="section active">
+    <div class="rbar">
+      <div><div style="font-size:11px;font-weight:700;letter-spacing:0.1em;color:var(--text)">MY FOLIO</div><div id="folio-summary" style="font-size:9px;color:var(--t3);letter-spacing:0.06em;margin-top:2px"></div></div>
+      <button class="btn-ghost" onclick="refreshOwned()" id="owned-refresh-btn">↻ REFRESH PRICES</button>
+    </div>
+    <div class="metrics">
+      <div class="metric"><div class="metric-label">Cards owned</div><div class="metric-val" id="om-count">0</div></div>
+      <div class="metric"><div class="metric-label">Collection value</div><div class="metric-val gold" id="om-value">—</div></div>
+      <div class="metric"><div class="metric-label">Total paid</div><div class="metric-val muted" id="om-paid">—</div></div>
+      <div class="metric"><div class="metric-label">Unrealised P&amp;L</div><div class="metric-val" id="om-pnl">—</div></div>
+    </div>
+    <div class="controls-bar">
+      <span class="ctrl-label">Filter</span>
+      <input type="text" class="ctrl-input" id="own-filter" placeholder="Name..." oninput="applyOwnControls()"/>
+      <select class="ctrl-select" id="own-rarity" onchange="applyOwnControls()">
+        <option value="">All rarities</option>
+        <option value="ILLUS">Illus Rare</option>
+        <option value="FULL|HYPER">Full Art / Hyper</option>
+        <option value="ULTRA|SPEC">Ultra / Spec</option>
+        <option value="RARE">Rare+</option>
+        <option value="STANDARD">Standard</option>
+      </select>
+      <div class="ctrl-sep"></div>
+      <span class="ctrl-label">Show</span>
+      <select class="ctrl-select" id="own-fav" onchange="applyOwnControls()">
+        <option value="">All cards</option>
+        <option value="fav">⭐ Favourites</option>
+        <option value="unfav">Non-favourites</option>
+      </select>
+      <div class="ctrl-sep"></div>
+      <span class="ctrl-label">Sort</span>
+      <select class="ctrl-select" id="own-sort" onchange="applyOwnControls()">
+        <option value="bought">Date bought</option>
+        <option value="added">Date added</option>
+        <option value="name">Name A–Z</option>
+        <option value="name-desc">Name Z–A</option>
+        <option value="market-desc">Value ↓</option>
+        <option value="market-asc">Value ↑</option>
+        <option value="set">Set A–Z</option>
+        <option value="rarity">Rarity</option>
+      </select>
+      <button id="own-compact-btn" class="toggle-btn" onclick="ownCompact=!ownCompact;this.textContent=ownCompact?'⊞ FULL':'⊟ COMPACT';this.style.borderColor=ownCompact?'var(--gold)':'var(--b1)';this.style.color=ownCompact?'var(--gold)':'var(--t3)';applyOwnControls()" style="white-space:nowrap;margin-left:auto">⊟ COMPACT</button>
+    </div>
+    <div id="owned-cards"></div>
+    <div id="owned-pagination"></div>
+  </div>
+
+  <!-- SOLD TAB -->
+  <div id="tab-sold" class="section">
+    <div class="rbar"><span class="rbar-left">CARDS YOU'VE SOLD</span></div>
+    <div class="metrics">
+      <div class="metric"><div class="metric-label">Cards sold</div><div class="metric-val" id="sm-count">0</div></div>
+      <div class="metric"><div class="metric-label">Total revenue</div><div class="metric-val gold" id="sm-revenue">—</div></div>
+      <div class="metric"><div class="metric-label">Cost basis</div><div class="metric-val muted" id="sm-cost">—</div></div>
+      <div class="metric"><div class="metric-label">Realised P&amp;L</div><div class="metric-val" id="sm-pnl">—</div></div>
+    </div>
+    <div class="controls-bar">
+      <span class="ctrl-label">Sort</span>
+      <select class="ctrl-select" id="sold-sort" onchange="renderSold()">
+        <option value="date-desc">Date ↓</option>
+        <option value="name">Name A–Z</option>
+        <option value="set">Set A–Z</option>
+        <option value="price-desc">Sale price ↓</option>
+        <option value="pnl-desc">P&L ↓</option>
+      </select>
+    </div>
+    <div id="sold-cards"></div>
+    <div id="sold-pagination"></div>
+  </div>
+
+  <!-- GIFTED TAB -->
+  <div id="tab-gifted" class="section">
+    <div class="rbar"><span class="rbar-left">CARDS YOU'VE GIFTED</span></div>
+    <div class="metrics">
+      <div class="metric"><div class="metric-label">Cards gifted</div><div class="metric-val" id="gm-count">0</div></div>
+      <div class="metric"><div class="metric-label">Total value gifted</div><div class="metric-val muted" id="gm-value">—</div></div>
+      <div class="metric"><div class="metric-label">Rares gifted</div><div class="metric-val gold" id="gm-rares">0</div></div>
+      <div class="metric"><div class="metric-label">Most recent</div><div class="metric-val muted" id="gm-recent" style="font-size:11px;letter-spacing:0">—</div></div>
+    </div>
+    <div class="controls-bar">
+      <span class="ctrl-label">Sort</span>
+      <select class="ctrl-select" id="gifted-sort" onchange="renderGifted()">
+        <option value="date-desc">Date ↓</option>
+        <option value="name">Name A–Z</option>
+        <option value="set">Set A–Z</option>
+      </select>
+    </div>
+    <div id="gifted-cards"></div>
+    <div id="gifted-pagination"></div>
+  </div>
+
+  <!-- HISTORY TAB -->
+  <div id="tab-history" class="section">
+    <div class="hist-metrics">
+      <div class="metric"><div class="metric-label">Total tracked</div><div class="metric-val" id="hm-total">0</div></div>
+      <div class="metric"><div class="metric-label">Watching</div><div class="metric-val gold" id="hm-watching">0</div></div>
+      <div class="metric"><div class="metric-label">Owned</div><div class="metric-val green" id="hm-owned">0</div></div>
+      <div class="metric"><div class="metric-label">Total paid</div><div class="metric-val muted" id="hm-paid">—</div></div>
+      <div class="metric"><div class="metric-label">Unrealised P&amp;L</div><div class="metric-val" id="hm-pnl">—</div></div>
+    </div>
+    <div class="controls-bar">
+      <span class="ctrl-label">Filter</span>
+      <input type="text" class="ctrl-input" id="hist-filter" placeholder="Name..." oninput="renderHistory()"/>
+      <select class="ctrl-select" id="hist-status" onchange="renderHistory()">
+        <option value="">All status</option>
+        <option value="watching">Watching</option>
+        <option value="owned">Owned</option>
+        <option value="sold">Sold</option>
+        <option value="gifted">Gifted</option>
+      </select>
+      <div class="ctrl-sep"></div>
+      <span class="ctrl-label">Sort</span>
+      <select class="ctrl-select" id="hist-sort" onchange="renderHistory()">
+        <option value="status-desc">Status updated ↓</option>
+        <option value="wl-desc">Added ↓</option>
+        <option value="own-desc">Acquired ↓</option>
+        <option value="name">Name A–Z</option>
+        <option value="market-desc">Market ↓</option>
+        <option value="pnl-desc">P&amp;L ↓</option>
+      </select>
+    </div>
+    <div id="history-list"></div>
+    <div id="hist-pagination"></div>
+  </div>
+
+</div><!-- end .wrap -->
+
+<script>
+const API='https://api.pokemontcg.io/v2';
+function apiHeaders(){
+  const k=localStorage.getItem('ptrkr_apikey')||'';
+  return k?{'X-Api-Key':k}:{};
+}
+async function apiFetch(url){
+  return fetch(url,{headers:apiHeaders()});
+}
+const PER=20;
+// Card types to exclude from search (not individual cards)
+const EXCLUDE_SUBTYPES=['Trainer','Item','Stadium','Supporter','Tool','Energy','Special Energy','Basic Energy'];
+const EXCLUDE_SUPERTYPES=['Trainer','Energy'];
+
+let watchlist   =JSON.parse(localStorage.getItem('ptrkr_wl')   ||'[]');
+let owned       =JSON.parse(localStorage.getItem('ptrkr_own')  ||'[]');
+let gifted      =JSON.parse(localStorage.getItem('ptrkr_gifted')||'[]');
+let sold        =JSON.parse(localStorage.getItem('ptrkr_sold') ||'[]');
+let priceHistory=JSON.parse(localStorage.getItem('ptrkr_ph')   ||'{}');
+let ledger      =JSON.parse(localStorage.getItem('ptrkr_ledger')||'{}');
+
+let wlCharts={};
+let srRaw=[], srFiltered=[], srPage=1;
+let wlFiltered=[], wlPage=1;
+let ownCompact=false;
+let ownFiltered=[], ownPage=1;
+let soldPage=1, giftedPage=1, histPage=1;
+let exportMode='all', sgMode=null, sgCopyId=null;
+let undoStack=[], undoTimer=null;
+
+// AUTO-REFRESH
+let autoRefreshTimer=null;
+function startAutoRefresh(){
+  if(autoRefreshTimer) clearInterval(autoRefreshTimer);
+  autoRefreshTimer=setInterval(async()=>{
+    await silentRefreshAll();
+    document.getElementById('last-updated').textContent='· '+new Date().toLocaleTimeString();
+  },3600000); // 1 hour
+  document.getElementById('ar-dot').classList.add('active');
+  document.getElementById('ar-label').textContent='AUTO-REFRESH ON';
+}
+async function silentRefreshAll(){
+  const all=[...watchlist,...owned];
+  const ids=[...new Set(all.map(c=>c.id))];
+  await Promise.allSettled(ids.map(async id=>{
+    try{
+      const r=await apiFetch(`https://api.pokemontcg.io/v2/cards/${id}`);const d=await r.json();
+      const{market,low}=getPrice(d.data??{});
+      if(market!=null){
+        watchlist.filter(c=>c.id===id).forEach(c=>{c.market=market;});
+        owned.filter(c=>c.id===id).forEach(c=>{c.market=market;});
+        if(ledger[id]) ledger[id].currentMarket=market;
+      }
+      if(low!=null){
+        watchlist.filter(c=>c.id===id).forEach(c=>{c.low=low;});
+        owned.filter(c=>c.id===id).forEach(c=>{c.low=low;});
+      }
+    }catch(e){}
+  }));
+  save();
+  renderCurrentTab();
+}
+startAutoRefresh();
+
+function save(){
+  localStorage.setItem('ptrkr_wl',    JSON.stringify(watchlist));
+  localStorage.setItem('ptrkr_own',   JSON.stringify(owned));
+  localStorage.setItem('ptrkr_gifted',JSON.stringify(gifted));
+  localStorage.setItem('ptrkr_sold',  JSON.stringify(sold));
+  localStorage.setItem('ptrkr_ph',    JSON.stringify(priceHistory));
+  localStorage.setItem('ptrkr_ledger',JSON.stringify(ledger));
+}
+function refreshAllCounts(){
+  document.getElementById('wl-count').textContent=watchlist.length;
+  document.getElementById('owned-count').textContent=owned.length;
+  document.getElementById('gifted-count').textContent=gifted.length;
+  document.getElementById('sold-count').textContent=sold.length;
+  document.getElementById('hist-count').textContent=Object.keys(ledger).length;
+}
+
+const TABS=['search','watchlist','owned','sold','gifted','history'];
+function switchTab(t){
+  TABS.forEach((n,i)=>document.querySelectorAll('.tab')[i].classList.toggle('active',n===t));
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('active');
+  if(t==='owned'){ownPage=1;applyOwnControls();}
+  if(t==='watchlist'){wlPage=1;applyWlControls();}
+  if(t==='sold'){soldPage=1;renderSold();}
+  if(t==='gifted'){giftedPage=1;renderGifted();}
+  if(t==='history'){histPage=1;renderHistory();}
+}
+function renderCurrentTab(){
+  const idx=[...document.querySelectorAll('.tab')].findIndex(b=>b.classList.contains('active'));
+  const t=TABS[idx];
+  if(t==='watchlist') applyWlControls();
+  if(t==='owned')     applyOwnControls();
+  if(t==='sold')      renderSold();
+  if(t==='gifted')    renderGifted();
+  if(t==='history')   renderHistory();
+}
+
+// UNDO
+function pushUndo(msg,fn){
+  undoStack.push(fn);
+  document.getElementById('undo-msg').textContent=msg;
+  const t=document.getElementById('undo-toast');
+  t.classList.add('show');
+  clearTimeout(undoTimer);
+  undoTimer=setTimeout(()=>{t.classList.remove('show');undoStack=[];},7000);
+}
+function doUndo(){
+  const fn=undoStack.pop();
+  if(fn){fn();save();refreshAllCounts();renderCurrentTab();}
+  document.getElementById('undo-toast').classList.remove('show');
+  clearTimeout(undoTimer);undoStack=[];
+}
+
+// HELPERS
+const fmt=v=>v!=null?'$'+Number(v).toFixed(2):'—';
+const fmtDate=ts=>ts?new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';
+const todayVal=()=>new Date().toISOString().slice(0,10);
+const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36);
+
+function getPrice(card){
+  const p=card.tcgplayer?.prices;
+  if(!p) return{market:null,low:null};
+  // Priority order — holofoil first, then everything else
+  const priority=['holofoil','1stEditionHolofoil','unlimitedHolofoil','reverseHolofoil','normal','1stEditionNormal','unlimited'];
+  for(const t of priority){
+    if(p[t]?.market!=null) return{market:p[t].market,low:p[t].low??p[t].directLow??null};
+  }
+  // Fallback: any key with a market value
+  for(const t of Object.keys(p)){
+    if(p[t]?.market!=null) return{market:p[t].market,low:p[t].low??null};
+  }
+  // Last resort: use directLow or mid as proxy for market
+  for(const t of Object.keys(p)){
+    const mid=p[t]?.mid??p[t]?.directLow;
+    if(mid!=null) return{market:mid,low:p[t]?.low??null};
+  }
+  return{market:null,low:null};
+}
+
+
+// Returns all condition prices for a card as a flat object
+function getAllPrices(card){
+  const p=card.tcgplayer?.prices;
+  if(!p) return null;
+  // Find the primary price type (same priority as getPrice)
+  const priority=['holofoil','1stEditionHolofoil','unlimitedHolofoil','reverseHolofoil','normal','1stEditionNormal','unlimited'];
+  let tier=null;
+  for(const t of priority){ if(p[t]?.market!=null){tier=p[t];break;} }
+  if(!tier){ for(const t of Object.keys(p)){ if(p[t]?.market!=null){tier=p[t];break;} } }
+  if(!tier) return null;
+  return{
+    nm:   tier.market??null,       // Near Mint market (TCGPlayer "market" = weighted NM avg)
+    nmLow:tier.low??null,          // Near Mint low listing
+    nmHigh:tier.high??null,        // Near Mint high listing
+    lp:   tier.directLow??null,    // Lightly Played proxy (directLow is closest available)
+    mid:  tier.mid??null,          // Mid price
+  };
+}
+
+function rarityOf(card){
+  const sub=card.subtypes??[],rar=card.rarity??'';
+  if(/special illustration/i.test(rar)||sub.some(s=>/special illustration/i.test(s))) return{label:'SPEC ILLUS RARE',cls:'r-ir',rank:0};
+  if(/illustration rare/i.test(rar)||sub.some(s=>/illustration rare/i.test(s)))       return{label:'ILLUS RARE',cls:'r-ir',rank:1};
+  if(/hyper rare/i.test(rar)||sub.some(s=>/hyper rare/i.test(s)))                     return{label:'HYPER RARE',cls:'r-fa',rank:2};
+  if(sub.includes('Full Art')||/secret rare/i.test(rar))                               return{label:'FULL ART',cls:'r-fa',rank:3};
+  if(/ultra rare/i.test(rar)||/amazing rare/i.test(rar)||/rainbow/i.test(rar))         return{label:'ULTRA RARE',cls:'r-sr',rank:4};
+  const h=['VMAX','VSTAR','VUNION','ex','EX','GX','V'].find(s=>sub.includes(s));
+  if(h) return{label:h+' RARE',cls:'r-sr',rank:5};
+  if(/\bRare\b/i.test(rar)) return{label:'RARE',cls:'r-sr',rank:6};
+  return{label:'STANDARD',cls:'r-std',rank:10};
+}
+function raritySnap(c){
+  const ri=c.rarity??'STANDARD';
+  const cls=ri.includes('ILLUS')||ri.includes('SPEC')?'r-ir':ri.includes('FULL')||ri.includes('HYPER')?'r-fa':(ri.includes('RARE')&&!ri.includes('STANDARD'))?'r-sr':'r-std';
+  const rank=ri.includes('SPEC')?0:ri.includes('ILLUS')?1:ri.includes('HYPER')?2:ri.includes('FULL')?3:ri.includes('ULTRA')?4:(ri.includes('RARE')&&!ri.includes('STANDARD'))?5:10;
+  return{label:ri,cls,rank};
+}
+const tcgUrl=name=>`https://www.tcgplayer.com/search/pokemon/product?productLineName=pokemon&q=${encodeURIComponent(name)}&view=grid`;
+
+function recordHistory(snap){
+  if(!priceHistory[snap.id]) priceHistory[snap.id]={name:snap.name,set:snap.set,img:snap.img,points:[]};
+  const pts=priceHistory[snap.id].points;
+  const todayStr=new Date().toDateString();
+  // Find if we already have a point for today — if so, update it in place
+  const todayIdx=pts.findIndex(p=>new Date(p.t).toDateString()===todayStr);
+  const point={t:Date.now(),market:snap.market,low:snap.low??null};
+  if(todayIdx>=0){
+    pts[todayIdx]=point; // update today's reading
+  } else {
+    pts.push(point);
+  }
+  // Keep rolling 30-day window
+  priceHistory[snap.id].points=pts
+    .filter(p=>p.t>=Date.now()-30*24*3600*1000)
+    .sort((a,b)=>a.t-b.t);
+}
+
+function suggestSell(cardId,currentMarket){
+  const hist=priceHistory[cardId];
+  if(!hist?.points?.length||currentMarket==null) return{suggest:currentMarket,trend:'flat',pct:0};
+  const pts=hist.points.filter(p=>p.market!=null);
+  if(pts.length<2) return{suggest:currentMarket,trend:'flat',pct:0};
+  const pct=((pts[pts.length-1].market-pts[0].market)/pts[0].market)*100;
+  const suggest=pct>5?currentMarket*1.05:pct<-5?currentMarket*0.97:currentMarket;
+  return{suggest:Math.round(suggest*100)/100,trend:pct>3?'up':pct<-3?'down':'flat',pct};
+}
+
+// LEDGER
+function ledgerEnsure(snap){
+  if(!ledger[snap.id]) ledger[snap.id]={
+    id:snap.id,name:snap.name,set:snap.set,img:snap.img,
+    number:snap.number,total:snap.total,rarity:snap.rarity,
+    wlAt:null,wlPrice:null,
+    ownAt:null,ownPrice:null,purchasePrice:null,
+    soldAt:null,soldPrice:null,giftedAt:null,giftedTo:null,
+    currentMarket:snap.market,status:'watching'
+  };
+  if(snap.market!=null) ledger[snap.id].currentMarket=snap.market;
+}
+function ledgerSetWl(snap){
+  ledgerEnsure(snap);
+  ledger[snap.id].wlAt=ledger[snap.id].wlAt||snap.addedAt||Date.now();
+  ledger[snap.id].wlPrice=ledger[snap.id].wlPrice||snap.market;
+  if(!ledger[snap.id].status||ledger[snap.id].status==='watching'){
+    ledger[snap.id].status='watching';
+    ledger[snap.id].statusAt=Date.now();
+  }
+}
+function ledgerSetOwned(snap){
+  ledgerEnsure(snap);
+  // Always use the card's actual boughtAt if set, otherwise fall back to now
+  if(snap.boughtAt!=null) ledger[snap.id].ownAt=snap.boughtAt;
+  else ledger[snap.id].ownAt=ledger[snap.id].ownAt||Date.now();
+  ledger[snap.id].ownPrice=ledger[snap.id].ownPrice||snap.market;
+  if(snap.purchasePrice!=null) ledger[snap.id].purchasePrice=snap.purchasePrice;
+  ledger[snap.id].status='owned';
+  ledger[snap.id].statusAt=Date.now();
+}
+
+// PAGINATION HELPER
+function pagHTML(page,total,fn,perPage=PER){
+  const tp=Math.ceil(total/perPage);
+  if(tp<=1) return '';
+  const pages=[];
+  const show=new Set([1,tp,page,page-1,page+1].filter(p=>p>=1&&p<=tp));
+  let prev=0;
+  const sorted=[...show].sort((a,b)=>a-b);
+  let html='<div class="pagination">';
+  html+=`<button class="page-btn" onclick="${fn}(${page-1})" ${page<=1?'disabled':''}>← PREV</button>`;
+  for(const p of sorted){
+    if(prev&&p-prev>1) html+='<span class="page-ellipsis">…</span>';
+    html+=`<button class="page-btn${p===page?' active':''}" onclick="${fn}(${p})">${p}</button>`;
+    prev=p;
+  }
+  html+=`<button class="page-btn" onclick="${fn}(${page+1})" ${page>=tp?'disabled':''}>NEXT →</button>`;
+  html+='</div>';
+  return html;
+}
+
+// FILTER/SORT LIST
+function filterSort(list,ft,fr,so){
+  if(ft) list=list.filter(c=>c.name.toLowerCase().includes(ft.toLowerCase())||
+    (c.set&&c.set.toLowerCase().includes(ft.toLowerCase())));
+  if(fr){
+    const parts=fr.split('|');
+    list=list.filter(c=>{const ri=c.rarity??'STANDARD';return fr==='STANDARD'?ri.includes('STANDARD'):parts.some(p=>ri.includes(p));});
+  }
+  return [...list].sort((a,b)=>{
+    if(so==='name')        return a.name.localeCompare(b.name);
+    if(so==='name-desc')   return b.name.localeCompare(a.name);
+    if(so==='market-desc') return(b.market??-1)-(a.market??-1);
+    if(so==='market-asc')  return(a.market??Infinity)-(b.market??Infinity);
+    if(so==='rarity')      return raritySnap(a).rank-raritySnap(b).rank;
+    if(so==='set')         return(a.set||'').localeCompare(b.set||'');
+    if(so==='bought')      return(b.boughtAt??b.addedAt??0)-(a.boughtAt??a.addedAt??0);
+    return(b.addedAt??0)-(a.addedAt??0);
+  });
+}
+
+// ── SEARCH ──────────────────────────────────────────────────────────────────
+async function doSearch(page){
+  const raw=document.getElementById('search-input').value.trim();
+  if(!raw) return;
+  srPage=page; srRaw=[];
+  const el=document.getElementById('search-results');
+  el.innerHTML=`<div class="loading">
+    <svg class="pb-spin" width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="26" cy="26" r="24" fill="#111" stroke="#c9a84c" stroke-width="2"/>
+      <path d="M2 26 A24 24 0 0 1 50 26 Z" fill="#c9a84c"/>
+      <path d="M2 26 A24 24 0 0 0 50 26 Z" fill="#0f0f0f"/>
+      <line x1="2" y1="26" x2="50" y2="26" stroke="#c9a84c" stroke-width="3"/>
+      <circle cx="26" cy="26" r="7.5" fill="#0f0f0f" stroke="#c9a84c" stroke-width="2.2"/>
+      <circle cx="26" cy="26" r="4.5" fill="#e2ba6a"/>
+      <circle cx="24.2" cy="24.2" r="1.6" fill="#f8e8b0" opacity="0.75"/>
+    </svg>
+    <span>SEARCHING...</span>
+  </div>`;
+  document.getElementById('sr-pagination').innerHTML='';
+
+  // Show/hide API key nag
+  const hasKey=!!(localStorage.getItem('ptrkr_apikey')||'').trim();
+  const nagEl=document.getElementById('apikey-nag');
+  if(nagEl) nagEl.style.display=hasKey?'none':'block';
+
+  try{
+    const words=raw.split(/\s+/).filter(w=>w.length>1);
+    const seen=new Set();
+    let cards=[];
+    let apiTotalCount=0;
+    const queries=[];
+
+    // ── SMART QUERY DETECTION ──────────────────────────────────────────────
+    // 1. Card number pattern: "207/165", "SM241", "TG30/TG30"
+    const numMatch=raw.match(/^([A-Z]{0,4}\d+)(?:\/\d+)?$/i);
+    if(numMatch) queries.push(`number:${numMatch[1]}`);
+
+    // 2. Set code pattern: "sv3pt5", "swsh45", "base1", "mcd19"
+    const setCodeMatch=raw.match(/^([a-z]{1,4}\d+[a-z0-9]*)$/i);
+    if(setCodeMatch) queries.push(`set.id:${raw.toLowerCase()}`);
+
+    // 3. Pokédex number: "#25", "#006", or just "025"
+    const dexMatch=raw.match(/^#?0*(\d{1,3})$/);
+    if(dexMatch) queries.push(`nationalPokedexNumbers:${parseInt(dexMatch[1])}`);
+
+    // 4. Artist search — if input contains spaces and looks like a name, try artist
+    if(words.length>=2&&words.every(w=>/^[a-z]/i.test(w))){
+      queries.push(`artist:*${raw}*`);
+    }
+
+    // 5. Escape special chars for Lucene (& | ! ( ) { } [ ] ^ ~ ? : \)
+    const escapeLucene=s=>s.replace(/[&|!(){}^~?:\\]/g,c=>'\\'+c);
+
+    // 6. Primary name search — escape special chars
+    const safeName=escapeLucene(raw);
+    queries.push(`name:*${safeName}*`);
+
+    // 7. Set name search
+    queries.push(`set.name:*${safeName}*`);
+
+    // 8. Possessive strip: "N's Zekrom" → "Zekrom"
+    const stripped=raw.replace(/[''´`]\s*s/gi,'').replace(/[''´`]/g,'').trim();
+    if(stripped!==raw&&stripped.length>2) queries.push(`name:*${escapeLucene(stripped)}*`);
+
+    // 9. Per-word fallback for multi-word searches (catches "Mega Dragonite ex" → "Dragonite")
+    if(words.length>=2) words.filter(w=>w.length>3).forEach(w=>queries.push(`name:*${escapeLucene(w)}*`));
+
+    // Deduplicate queries
+    const uniqueQueries=[...new Set(queries)];
+
+    // Parallel fetch all queries
+    const fetches=uniqueQueries.map(q=>
+      apiFetch(`https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(q)}&pageSize=250&page=1`)
+        .then(r=>r.ok?r.json():null).catch(()=>null)
+    );
+    const results=await Promise.all(fetches);
+
+    for(const d of results){
+      if(!d?.data) continue;
+      if(d.totalCount>apiTotalCount) apiTotalCount=d.totalCount;
+      for(const c of d.data){
+        if(!seen.has(c.id)){seen.add(c.id);cards.push(c);}
+      }
+    }
+
+    // Exclude non-card products
+    cards=cards.filter(c=>{
+      if(c.supertype==='Trainer'||c.supertype==='Energy') return false;
+      const sn=c.set?.name??'';
+      if(/(Tin|Blister|Bundle|Kit|Collection Box|Gift Box|Promo Pack)/i.test(sn)) return false;
+      return true;
+    });
+
+    srRaw=cards;
+    srRaw._apiTotal=apiTotalCount;
+    filterSrPage();
+  }catch(e){
+    el.innerHTML=`<div class="err-box">⚠ ${e.message}<br>Open this file directly in your browser — it cannot reach the API from inside Claude.ai.</div>`;
+  }
+}
+
+function filterSrPage(){
+  const ft=document.getElementById('sr-name-filter')?.value||'';
+  const fr=document.getElementById('sr-rarity-filter')?.value||'';
+  const so=document.getElementById('sr-sort')?.value||'rarity';
+  let cards=srRaw;
+  if(ft) cards=cards.filter(c=>c.name.toLowerCase().includes(ft.toLowerCase())||(c.set?.name||'').toLowerCase().includes(ft.toLowerCase()));
+  if(fr){
+    const parts=fr.split('|');
+    cards=cards.filter(c=>{const ri=rarityOf(c);return fr==='STANDARD'?ri.rank>=7:parts.some(p=>ri.label.includes(p));});
+  }
+  cards=[...cards].sort((a,b)=>{
+    if(so==='rarity')      return rarityOf(a).rank-rarityOf(b).rank;
+    if(so==='name')        return a.name.localeCompare(b.name);
+    if(so==='name-desc')   return b.name.localeCompare(a.name);
+    if(so==='market-desc'){const ga=getPrice(a),gb=getPrice(b);return(gb.market??-1)-(ga.market??-1);}
+    if(so==='market-asc') {const ga=getPrice(a),gb=getPrice(b);return(ga.market??Infinity)-(gb.market??Infinity);}
+    if(so==='set')         return(a.set?.name||'').localeCompare(b.set?.name||'');
+    if(so==='number')      return parseInt(a.number||0)-parseInt(b.number||0);
+    return 0;
+  });
+  srFiltered=cards;
+  srPage=Math.max(1,Math.min(srPage,Math.ceil(cards.length/PER)||1));
+  renderSrPage();
+}
+
+function renderSrPage(){
+  const el=document.getElementById('search-results');
+  const pel=document.getElementById('sr-pagination');
+  if(!srFiltered.length){
+    el.innerHTML='<div class="empty"><div class="empty-glyph">◇</div><div class="empty-title">No cards found</div><div class="empty-sub">Try a different search term or name</div></div>';
+    pel.innerHTML='';return;
+  }
+  const slice=srFiltered.slice((srPage-1)*PER,srPage*PER);
+  const grid=slice.map(c=>{
+    const{market,low}=getPrice(c),ri=rarityOf(c);
+    const inWl=watchlist.some(w=>w.id===c.id),inOwn=owned.some(o=>o.id===c.id);
+    // Extract numeric TCGPlayer product ID from the tcgplayer URL for price history seeding
+    const tcgUrl2=c.tcgplayer?.url||'';
+    const tcgIdMatch=tcgUrl2.match(/product\/(\d+)/);
+    const tcgplayerId=tcgIdMatch?tcgIdMatch[1]:null;
+    const releaseDate=c.set?.releaseDate??null;
+    const ap=getAllPrices(c);
+    const snap=JSON.stringify({id:c.id,name:c.name,set:c.set.name,setId:c.set.id,img:c.images.small,imgLg:c.images.large,number:c.number,total:c.set.printedTotal??c.set.total??'?',market,low,nmMarket:ap?.nm??null,nmLow:ap?.nmLow??null,nmMid:ap?.mid??null,nmHigh:ap?.nmHigh??null,directLow:ap?.lp??null,rarity:ri.label,addedAt:Date.now(),tcgplayerId,releaseDate}).replace(/'/g,"&#39;");
+    const favBorder=c.isFav?"border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)":"";
+    return `<div class="pcard${ri.rank<=3?' is-rare':''}" style="${favBorder}">
+      <img src="${c.images.small}" loading="lazy" onerror="this.src='${c.images.large||c.images.small}'"/>
+      <span class="rtag ${ri.cls}">${ri.label}</span>
+      <div class="pcard-name">${c.name}</div>
+      <div class="pcard-set">${c.set.name} · ${c.number}/${c.set.printedTotal??c.set.total??'?'}</div>
+      ${setOwnershipBadge(c.set.id,c.set.printedTotal??c.set.total)}
+      ${c.set.releaseDate?`<div class="pcard-set" style="color:var(--t3);font-size:7px">${c.set.releaseDate.replace(/\//g,'-')}</div>`:''}
+      <div class="cond-divider"></div>
+      ${(()=>{
+        const ap=getAllPrices(c);
+        if(!ap) return `<div class="price-rows"><div class="price-row"><span class="price-label">MARKET</span><span class="price-val market">${fmt(market)}</span></div><div class="price-row"><span class="price-label">LOW LIST</span><span class="price-val list">${fmt(low)}</span></div></div>`;
+        return `<table class="cond-table">
+          ${ap.nm!=null?`<tr><td style="font-weight:600;color:var(--text)">NM Market</td><td style="color:var(--gold2);font-weight:700">$${ap.nm.toFixed(2)}</td></tr>`:''}
+          ${ap.nmLow!=null?`<tr><td>NM Low</td><td style="color:var(--t2)">$${ap.nmLow.toFixed(2)}</td></tr>`:''}
+          ${ap.mid!=null?`<tr><td>Mid</td><td style="color:var(--t2)">$${ap.mid.toFixed(2)}</td></tr>`:''}
+          ${ap.nmHigh!=null?`<tr><td>High</td><td style="color:var(--t2)">$${ap.nmHigh.toFixed(2)}</td></tr>`:''}
+          ${ap.lp!=null?`<tr><td>Direct Low</td><td style="color:var(--t3)">$${ap.lp.toFixed(2)}</td></tr>`:''}
+        </table>`;
+      })()}
+      <div class="cond-divider"></div>
+      <div class="card-btns">
+        <button class="cbtn${inWl?' wl-added':''}" id="wlb-${c.id}" onclick='addToWl(${snap})'>${inWl?'✓ WATCHLIST':'+ WATCHLIST'}</button>
+        <button class="cbtn${inOwn?' own-added':''}" id="ownb-${c.id}" onclick='addToOwned(${snap})'>${inOwn?'✓ OWNED':'+ MARK OWNED'}</button>
+        <a class="tcg-link" href="${tcgUrl(c.name)}" target="_blank">↗ TCGPLAYER</a>
+      </div>
+    </div>`;
+  }).join('');
+  const apiTotal=srRaw._apiTotal||0;
+  const truncated=apiTotal>srFiltered.length;
+  const countLabel=truncated
+    ? `${srFiltered.length} SHOWN · ${apiTotal} TOTAL IN DATABASE`
+    : `${srFiltered.length} RESULTS`;
+  el.innerHTML=`<div class="sec-label">${countLabel}</div><div class="card-grid">${grid}</div>`;
+  pel.innerHTML=pagHTML(srPage,srFiltered.length,'goSrPage');
+  updateBulkBar();
+}
+function goSrPage(p){if(p<1||p>Math.ceil(srFiltered.length/PER))return;srPage=p;renderSrPage();window.scrollTo({top:0,behavior:'smooth'});}
+
+// ── ADD TO WL / OWNED ─────────────────────────────────────────────────────
+// Seed history for all existing watchlist cards (useful after adding PPT key)
+async function seedAllWatchlist(){
+  const pptKey=localStorage.getItem('ptrkr_ppt')||'';
+  if(!pptKey){
+    alert('Add your pokemonpricetracker.com key to the field in the top-left first.');
+    return;
+  }
+  // CORS check — PPT blocks requests from file:// origins
+  if(location.protocol==='file:'){
+    alert('Price history seeding requires the app to be hosted on a web server (e.g. GitHub Pages).\n\nIt will not work when opening the HTML file directly from your computer due to browser security restrictions.\n\nDeploy to GitHub Pages first, then seed from there.');
+    return;
+  }
+  const btn=document.getElementById('seed-btn');
+  btn.textContent='SEEDING…';btn.disabled=true;
+
+  // Phase 1: pre-fetch all cards missing a numeric tcgplayerId
+  // pokemontcg.io has open CORS so this works from anywhere
+  const missing=watchlist.filter(c=>!c.tcgplayerId);
+  if(missing.length){
+    btn.textContent=`FETCHING IDs (0/${missing.length})…`;
+    await Promise.allSettled(missing.map(async(c,i)=>{
+      try{
+        const apiKey=localStorage.getItem('ptrkr_apikey')||'';
+        const headers=apiKey?{'X-Api-Key':apiKey}:{};
+        const r=await fetch(`https://api.pokemontcg.io/v2/cards/${c.id}`,{headers});
+        if(!r.ok) return;
+        const d=await r.json();
+        const url=d.data?.tcgplayer?.url||'';
+        // Try numeric product ID first: /product/12345/
+        let m=url.match(/\/product\/(\d+)/);
+        // Fallback: prices URL numeric segment
+        if(!m) m=url.match(/tcgplayer\/(\d+)/);
+        if(m){
+          c.tcgplayerId=m[1];
+          // also store on the matching owned copies
+          owned.filter(o=>o.id===c.id).forEach(o=>o.tcgplayerId=m[1]);
+        }
+      }catch(e){}
+    }));
+    save();
+    btn.textContent=`SEEDING HISTORY…`;
+  }
+
+  // Phase 2: seed history for all cards
+  let done=0;
+  for(const c of watchlist){
+    await seedPriceHistory(c);
+    done++;
+    btn.textContent=`SEEDING… ${done}/${watchlist.length}`;
+    await new Promise(r=>setTimeout(r,300)); // gentle rate limiting
+  }
+  btn.textContent='⟳ SEED HISTORY';btn.disabled=false;
+  applyWlControls();
+}
+// Seeds historical price data from pokemonpricetracker.com when a card is added to watchlist.
+// Requires a free API key from pokemonpricetracker.com (100 credits/day, no card required).
+async function seedPriceHistory(snap){
+  const pptKey=localStorage.getItem('ptrkr_ppt')||'';
+  if(!pptKey) return;
+
+  let tcgId=snap.tcgplayerId||null;
+
+  // Attempt 1: fetch card from pokemontcg.io to extract numeric TCGPlayer product ID
+  if(!tcgId){
+    try{
+      const apiKey=localStorage.getItem('ptrkr_apikey')||'';
+      const headers=apiKey?{'X-Api-Key':apiKey}:{};
+      const r=await fetch(`https://api.pokemontcg.io/v2/cards/${snap.id}`,{headers});
+      if(r.ok){
+        const d=await r.json();
+        // pokemontcg.io stores TCGPlayer URL as card.tcgplayer.url
+        const url=d.data?.tcgplayer?.url||'';
+        // Try all known numeric ID formats in the TCGPlayer URL
+        let m=url.match(/\/product\/(\d+)/);   // standard: /product/12345/
+        if(!m) m=url.match(/tcgplayer\/(\d+)/); // prices URL: /tcgplayer/12345
+        if(!m) m=url.match(/[?&]productId=(\d+)/); // query param format
+        if(m){ tcgId=m[1]; snap.tcgplayerId=m[1]; } // cache it on the snap for next time
+        if(!tcgId) console.log('[PPT] No numeric ID in URL:',url,'for',snap.name);
+      }
+    }catch(e){}
+  }
+
+  // Attempt 2: search PPT directly by card name + set number — no numeric ID needed
+  // This is the most reliable fallback for older watchlist cards
+  let pptCardId=null; // PPT's own internal ID, alternative to tcgPlayerId
+  if(!tcgId){
+    try{
+      const nameQuery=encodeURIComponent(snap.name);
+      const searchUrl=`https://www.pokemonpricetracker.com/api/v2/cards?search=${nameQuery}&includeHistory=true&days=3&limit=10`;
+      const sr=await fetch(searchUrl,{headers:{'Authorization':'Bearer '+pptKey}});
+      if(sr.ok){
+        const sd=await sr.json();
+        const results=Array.isArray(sd?.data)?sd.data:(sd?.data?[sd.data]:[]);
+        // Find the best match: same name and card number
+        const match=results.find(c=>{
+          const nameOk=c.name?.toLowerCase()===snap.name.toLowerCase();
+          const numOk=!snap.number||String(c.cardNumber||c.number||'').includes(String(snap.number));
+          return nameOk&&numOk;
+        })||results.find(c=>c.name?.toLowerCase()===snap.name.toLowerCase())
+          ||results[0];
+
+        if(match){
+          console.log('[PPT] Found by name search:',match.name,'tcgPlayerId=',match.tcgPlayerId);
+          // If search result already has history embedded, use it directly
+          const embeddedHistory=match.priceHistory??match.price_history??match.history??[];
+          if(Array.isArray(embeddedHistory)&&embeddedHistory.length){
+            await ingestHistory(snap, embeddedHistory);
+            return;
+          }
+          // Otherwise grab the tcgPlayerId for a targeted fetch
+          tcgId=match.tcgPlayerId??match.tcgplayer_id??null;
+        } else {
+          console.warn('[PPT] Name search returned no matches for',snap.name);
+        }
+      }
+    }catch(e){ console.warn('[PPT] Name search error:',e); }
+  }
+
+  if(!tcgId){ console.warn('[PPT] Could not resolve TCGPlayer ID for',snap.name,'— skipping'); return; }
+
+  try{
+    const url=`https://www.pokemonpricetracker.com/api/v2/cards?tcgPlayerId=${tcgId}&includeHistory=true&days=3`;
+    const r=await fetch(url,{headers:{'Authorization':'Bearer '+pptKey}});
+    const raw=await r.json();
+
+    console.log('[PPT] Response for',snap.name,'(tcgId='+tcgId+'):',raw);
+
+    if(!r.ok){
+      console.warn('[PPT] HTTP',r.status,'—',raw?.message||raw?.error||'unknown error');
+      return;
+    }
+
+    const cardArr=Array.isArray(raw?.data)?raw.data:(raw?.data?[raw.data]:[raw]);
+    const cardObj=cardArr[0]??{};
+    let history=(cardObj.priceHistory??cardObj.price_history??cardObj.history??raw.priceHistory??[]);
+    if(history&&!Array.isArray(history)) history=Object.values(history);
+
+    console.log('[PPT]',snap.name,'— history entries:',history.length,'sample:',history[0]);
+
+    if(!history.length){
+      const mkt=cardObj.prices?.market??cardObj.marketPrice??null;
+      if(mkt!=null){
+        history=[{date:new Date().toISOString().slice(0,10),market:mkt,low:cardObj.prices?.low??null}];
+      } else {
+        console.warn('[PPT] No history data returned for',snap.name);
+        return;
+      }
+    }
+    await ingestHistory(snap, history);
+  }catch(e){
+    console.error('[PPT] Exception for',snap.name,':',e);
+  }
+}
+
+// Shared helper: take an array of price history entries and merge into local storage
+async function ingestHistory(snap, history){
+  if(!priceHistory[snap.id]) priceHistory[snap.id]={name:snap.name,set:snap.set,img:snap.img,points:[]};
+  const existing=new Set(priceHistory[snap.id].points.map(p=>p.t));
+  let added=0;
+  for(const entry of history){
+    const dateStr=entry.date??entry.day??entry.timestamp??entry.createdAt??null;
+    if(!dateStr) continue;
+    const ts=new Date(dateStr).getTime();
+    if(isNaN(ts)||existing.has(ts)) continue;
+    const market=Number(entry.market??entry.tcgplayer?.market??entry.prices?.market??entry.marketPrice??entry.price??NaN);
+    const low=Number(entry.low??entry.tcgplayer?.low??entry.prices?.low??entry.lowPrice??NaN);
+    if(!isNaN(market)){
+      priceHistory[snap.id].points.push({t:ts,market,low:isNaN(low)?null:low});
+      existing.add(ts);
+      added++;
+    }
+  }
+  if(added>0){
+    priceHistory[snap.id].points.sort((a,b)=>a.t-b.t);
+    save();
+    console.log('[PPT] ✓ Added',added,'history point(s) for',snap.name);
+  } else {
+    console.warn('[PPT] Parsed 0 valid points from',history.length,'entries for',snap.name);
+  }
+}
+
+
+// Price stats for watchlist cards: prev day change + lowest ever
+function wlPriceStats(cardId){
+  const hist=priceHistory[cardId];
+  if(!hist?.points?.length) return '';
+  const pts=hist.points.filter(p=>p.market!=null).sort((a,b)=>a.t-b.t);
+  if(!pts.length) return '';
+
+  // Day-boundary comparison: today's price vs most recent previous-day price
+  let changeHtml='';
+  const todayStr=new Date().toDateString();
+  const todayPt=pts.slice().reverse().find(p=>new Date(p.t).toDateString()===todayStr);
+  const prevPt=pts.slice().reverse().find(p=>new Date(p.t).toDateString()!==todayStr);
+  if(todayPt&&prevPt){
+    const diff=todayPt.market-prevPt.market;
+    const pct=(diff/prevPt.market*100);
+    if(Math.abs(pct)>=0.01){ // only show if actually changed
+      const sign=diff>=0?'+':'';
+      const col=diff>0?'var(--green)':diff<0?'var(--red)':'var(--t3)';
+      const arrow=diff>0?'▲':diff<0?'▼':'—';
+      const prevDate=new Date(prevPt.t).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+      changeHtml=`<div class="price-row" style="margin-top:3px"><span class="price-label">VS ${prevDate}</span><span class="price-val" style="font-size:9px;color:${col}">${arrow} ${sign}${fmt(diff)} (${sign}${pct.toFixed(1)}%)</span></div>`;
+    }
+  }
+
+  // Lowest market + date
+  const lowest=pts.reduce((a,b)=>a.market<=b.market?a:b);
+  const lowestHtml=`<div class="price-row"><span class="price-label">LOWEST MARKET</span><span class="price-val list" style="font-size:9px">${fmt(lowest.market)} <span style="color:var(--t3);font-size:8px">${new Date(lowest.t).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'})}</span></span></div>`;
+
+  return `<div class="price-rows" style="margin-top:4px;margin-bottom:4px">${changeHtml}${lowestHtml}</div>`;
+}
+
+function addToWl(snap){
+  if(watchlist.some(w=>w.id===snap.id)) return;
+  snap.addedAt=Date.now();
+  watchlist.push(snap);recordHistory(snap);ledgerSetWl(snap);save();refreshAllCounts();
+  const b=document.getElementById('wlb-'+snap.id);
+  if(b){b.textContent='✓ WATCHLIST';b.classList.add('wl-added');}
+  // Seed historical price data in the background — no await, silent
+  seedPriceHistory(snap);
+}
+function addToOwned(snap){
+  snap.copyId=uid();snap.addedAt=Date.now();
+  owned.push(snap);ledgerSetOwned(snap);save();refreshAllCounts();
+  // Don't grey out the button — allow multiple copies
+  const b=document.getElementById('ownb-'+snap.id);
+  if(b){const orig=b.textContent;b.textContent='✓ ADDED';setTimeout(()=>b.textContent=orig,1200);}
+}
+
+// ── WATCHLIST ─────────────────────────────────────────────────────────────
+function applyWlControls(){
+  wlFiltered=filterSort([...watchlist],
+    document.getElementById('wl-filter')?.value||'',
+    document.getElementById('wl-rarity')?.value||'',
+    document.getElementById('wl-sort')?.value||'added');
+  wlPage=1;renderWatchlist();
+}
+
+async function refreshWatchlist(){
+  if(!watchlist.length) return;
+  const btn=document.getElementById('refresh-btn');
+  btn.innerHTML='<svg class="pb-spin-sm" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9" fill="#111" stroke="#c9a84c" stroke-width="1.5"/><path d="M1 10 A9 9 0 0 1 19 10 Z" fill="#c9a84c"/><path d="M1 10 A9 9 0 0 0 19 10 Z" fill="#0d0d0d"/><line x1="1" y1="10" x2="19" y2="10" stroke="#c9a84c" stroke-width="1.5"/><circle cx="10" cy="10" r="3" fill="#111" stroke="#c9a84c" stroke-width="1.5"/><circle cx="10" cy="10" r="1.5" fill="#e2ba6a"/></svg> REFRESHING…';btn.disabled=true;
+  await Promise.allSettled(watchlist.map(async(c,i)=>{
+    try{
+      const r=await apiFetch(`https://api.pokemontcg.io/v2/cards/${c.id}`);const d=await r.json();
+      const{market,low}=getPrice(d.data??{});
+      if(market!=null){watchlist[i].market=market;if(ledger[c.id])ledger[c.id].currentMarket=market;}
+      if(low!=null) watchlist[i].low=low;
+      const ap2=getAllPrices(d.data??{});
+      if(ap2){watchlist[i].nmMarket=ap2.nm;watchlist[i].nmLow=ap2.nmLow;watchlist[i].nmMid=ap2.mid;watchlist[i].nmHigh=ap2.nmHigh;watchlist[i].directLow=ap2.lp;}
+      // Backfill fields that may be missing from old snaps
+      if(!watchlist[i].releaseDate&&d.data?.set?.releaseDate) watchlist[i].releaseDate=d.data.set.releaseDate;
+      if(!watchlist[i].setId&&d.data?.set?.id) watchlist[i].setId=d.data.set.id;
+      if(!watchlist[i].total&&d.data?.set?.printedTotal) watchlist[i].total=d.data.set.printedTotal??d.data.set.total;
+      recordHistory(watchlist[i]);
+    }catch(e){}
+  }));
+  save();
+  const now=new Date();
+  document.getElementById('last-updated').textContent='· '+now.toLocaleTimeString();
+  document.getElementById('updated-label').textContent='LAST REFRESH: '+now.toLocaleTimeString();
+  btn.innerHTML='↻ REFRESH PRICES';btn.disabled=false;
+  applyWlControls();
+}
+
+// Inline confirmation: on first click button shows "SURE? YES / NO",
+// second click on YES executes, NO or anywhere else cancels.
+function confirmRemove(btn, label, fn){
+  // Already in confirm state — cancel
+  if(btn.dataset.confirming==='1'){return;}
+  btn.dataset.confirming='1';
+  const orig=btn.innerHTML;
+  const origStyle=btn.getAttribute('style')||'';
+  btn.innerHTML='SURE?';
+  btn.style.color='var(--red)';
+  btn.style.borderColor='var(--red)';
+
+  // Replace button with YES / NO pair
+  const yes=document.createElement('button');
+  yes.className='cbtn del-btn';
+  yes.textContent='YES';
+  yes.style.cssText='color:var(--red);border-color:var(--red);background:var(--red-dim);flex:1';
+
+  const no=document.createElement('button');
+  no.className='cbtn';
+  no.textContent='NO';
+  no.style.cssText='flex:1';
+
+  const row=document.createElement('div');
+  row.style.cssText='display:flex;gap:3px;margin-top:2px';
+  row.appendChild(yes);row.appendChild(no);
+
+  const parent=btn.parentNode;
+  btn.style.display='none';
+  parent.insertBefore(row,btn.nextSibling);
+
+  yes.onclick=()=>{row.remove();btn.style.display='';delete btn.dataset.confirming;fn();};
+  no.onclick=()=>{row.remove();btn.style.display='';delete btn.dataset.confirming;};
+
+  // Auto-cancel after 5 seconds
+  setTimeout(()=>{
+    if(btn.dataset.confirming==='1'){
+      row.remove();btn.style.display='';delete btn.dataset.confirming;
+    }
+  },5000);
+}
+
+function removeWl(id){
+  const c=watchlist.find(w=>w.id===id);
+  const wlSnap=JSON.stringify(watchlist);
+  const ledgerSnap=JSON.stringify(ledger);
+  watchlist=watchlist.filter(w=>w.id!==id);
+  // Remove from ledger too unless the card exists in owned/sold/gifted
+  const stillTracked=owned.some(o=>o.id===id)||sold.some(s=>s.id===id)||gifted.some(g=>g.id===id);
+  if(!stillTracked) delete ledger[id];
+  save();refreshAllCounts();applyWlControls();
+  pushUndo(`Removed ${c?.name} from watchlist`,()=>{
+    watchlist=JSON.parse(wlSnap);
+    Object.assign(ledger,JSON.parse(ledgerSnap));
+    refreshAllCounts();applyWlControls();
+  });
+}
+function wlToOwned(id){
+  const c=watchlist.find(w=>w.id===id);if(!c) return;
+  const newSnap={...c,copyId:uid(),addedAt:Date.now()};
+  const wlSnap=JSON.stringify(watchlist),ownSnap=JSON.stringify(owned);
+  owned.push(newSnap);ledgerSetOwned(newSnap);
+  watchlist=watchlist.filter(w=>w.id!==id);
+  save();refreshAllCounts();applyWlControls();
+  pushUndo(`Undone: moved ${c.name} to owned`,()=>{watchlist=JSON.parse(wlSnap);owned=JSON.parse(ownSnap);refreshAllCounts();applyWlControls();});
+}
+
+function toggleChart(copyId){
+  const area=document.getElementById('ca-'+copyId),tog=document.getElementById('ct-'+copyId);
+  if(!area) return;
+  const open=area.classList.toggle('open');
+  if(tog) tog.textContent=open?'▲ HIDE':'▼ HISTORY';
+  if(open&&!wlCharts[copyId]) buildChart(copyId,area);
+}
+function buildChart(id,area){
+  // id here is the card's api id (for watchlist items)
+  const hist=priceHistory[id]||priceHistory[id.split('-')[0]];
+  if(!hist?.points?.length){area.innerHTML='<p class="no-hist">NO DATA — REFRESH TO START</p>';return;}
+  const pts=hist.points;
+  const labels=pts.map(p=>new Date(p.t).toLocaleDateString('en-US',{month:'short',day:'numeric'}));
+  area.innerHTML='<div class="chart-wrap"><canvas id="cc-'+id+'"></canvas></div>';
+  const ctx=document.getElementById('cc-'+id).getContext('2d');
+  wlCharts[id]=new Chart(ctx,{type:'line',data:{labels,datasets:[
+    {label:'Market',data:pts.map(p=>p.market),borderColor:'#c9a84c',backgroundColor:'rgba(201,168,76,0.07)',tension:0.35,pointRadius:2,borderWidth:1.5},
+    {label:'Low',data:pts.map(p=>p.low),borderColor:'#3d3d3d',backgroundColor:'rgba(61,61,61,0.04)',tension:0.35,pointRadius:2,borderWidth:1.5}
+  ]},options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:'#585250',font:{size:9,family:'DM Sans'},boxWidth:8}}},
+    scales:{
+      y:{ticks:{color:'#585250',callback:v=>'$'+v.toFixed(2),font:{size:9,family:'DM Sans'}},grid:{color:'rgba(255,255,255,0.025)'},border:{color:'transparent'}},
+      x:{ticks:{color:'#585250',font:{size:9,family:'DM Sans'},maxTicksLimit:6},grid:{display:false},border:{color:'transparent'}}
+    }
+  }});
+}
+
+function goWlPage(p){if(p<1||p>Math.ceil(wlFiltered.length/PER))return;wlPage=p;renderWatchlist();window.scrollTo({top:0,behavior:'smooth'});}
+
+function renderWatchlist(){
+  document.getElementById('wl-count').textContent=watchlist.length;
+  const el=document.getElementById('watchlist-cards'),pel=document.getElementById('wl-pagination');
+  Object.values(wlCharts).forEach(ch=>ch.destroy());wlCharts={};
+  if(!watchlist.length){el.innerHTML='<div class="empty"><div class="empty-glyph">◇</div><div class="empty-title">Watchlist is empty</div><div class="empty-sub" style="margin-top:8px"><button class="btn" onclick="switchTab(\'search\')">→ Search for cards to watch</button></div></div>';pel.innerHTML='';updateWlMetrics();return;}
+  if(!wlFiltered.length){el.innerHTML='<div class="empty"><div class="empty-title">No cards match filters</div></div>';pel.innerHTML='';updateWlMetrics();return;}
+  const tp=Math.ceil(wlFiltered.length/PER);if(wlPage>tp)wlPage=tp;
+  const slice=wlFiltered.slice((wlPage-1)*PER,wlPage*PER);
+  const cards=slice.map(c=>{
+    const spread=(c.market!=null&&c.low!=null)?((c.low-c.market)/c.market*100):null;
+    let stag='';
+    if(spread!=null){if(spread<-5)stag=`<span class="stag deal">↓ ${Math.abs(spread).toFixed(1)}% BELOW</span>`;else if(spread>5)stag=`<span class="stag premium">↑ ${spread.toFixed(1)}% ABOVE</span>`;else stag='<span class="stag neutral">≈ NEAR MKT</span>';}
+    const ri=raritySnap(c);
+    const favBorder=c.isFav?"border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)":"";
+    const wlSetBadge=setOwnershipBadge(c.setId||c.id.split('-').slice(0,-1).join('-'),c.total);
+    const wlRelDate=c.releaseDate
+      ?`<div class="pcard-set" style="color:var(--t3);font-size:8px">${c.releaseDate.replace(/\//g,'-')}</div>`
+      :'';
+    // Silently fetch missing releaseDate in background (only once per card)
+    if(!c.releaseDate&&!c._fetchingMeta){
+      c._fetchingMeta=true;
+      apiFetch(`https://api.pokemontcg.io/v2/cards/${c.id}`)
+        .then(r=>r.json()).then(d=>{
+          if(d.data?.set?.releaseDate){c.releaseDate=d.data.set.releaseDate;delete c._fetchingMeta;save();renderWatchlist();}
+        }).catch(()=>{delete c._fetchingMeta;});
+    }
+    const nmVal=c.nmMarket??c.market;
+    const hasDetails=c.nmLow!=null||c.nmMid!=null||c.nmHigh!=null||c.directLow!=null||c.low!=null;
+    const detailsId=`pd-${c.id.replace(/[^a-z0-9]/gi,'_')}`;
+    return `<div class="pcard${ri.rank<=3?' is-rare':''}" style="${favBorder}">
+      <img src="${c.img}" loading="lazy"/>
+      <span class="rtag ${ri.cls}">${ri.label}</span>
+      <div class="pcard-name">${c.name}</div>
+      <div class="pcard-set">${c.set} · ${c.number}/${c.total}</div>
+      ${wlRelDate}
+      ${wlSetBadge}
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin:6px 0 2px">
+        <span style="font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif;font-weight:500">NM Market</span>
+        <span style="font-size:14px;font-weight:700;color:var(--gold2);font-variant-numeric:tabular-nums;font-family:'DM Sans',sans-serif">${nmVal!=null?'$'+nmVal.toFixed(2):'—'}</span>
+      </div>
+      ${priceAlertTag(c.id,c.market)}${stag}
+      <button class="wl-expand-btn" onclick="const p=document.getElementById('wx-${c.id}');p.classList.toggle('open');this.querySelector('.wx-arrow').textContent=p.classList.contains('open')?'▲':'▼';if(p.classList.contains('open')&&!wlCharts['${c.id}']){buildChart('${c.id}',document.getElementById('ca-${c.id}'))}">
+        <span>Prices &amp; History</span><span class="wx-arrow">▼</span>
+      </button>
+      <div class="wl-expand-panel" id="wx-${c.id}">
+        <div class="price-grid">
+          ${(c.nmLow??c.low)!=null?`<div class="price-cell"><span class="price-cell-label">NM Low</span><span class="price-cell-val">$${(c.nmLow??c.low).toFixed(2)}</span></div>`:''}
+          ${c.nmMid!=null?`<div class="price-cell"><span class="price-cell-label">Mid</span><span class="price-cell-val">$${c.nmMid.toFixed(2)}</span></div>`:''}
+          ${c.nmHigh!=null?`<div class="price-cell"><span class="price-cell-label">High</span><span class="price-cell-val">$${c.nmHigh.toFixed(2)}</span></div>`:''}
+          ${c.directLow!=null?`<div class="price-cell"><span class="price-cell-label">Direct Low</span><span class="price-cell-val">$${c.directLow.toFixed(2)}</span></div>`:''}
+        </div>
+        ${wlPriceStats(c.id)}
+        <div class="chart-area open" id="ca-${c.id}"></div>
+      </div>
+      <div class="card-btns" style="margin-top:7px">
+        <a class="tcg-link" href="${tcgUrl(c.name)}" target="_blank">↗ BUY</a>
+        <button class="cbtn" style="color:var(--green);border-color:rgba(76,175,125,0.3)" onclick="wlToOwned('${c.id}')">✓ MARK OWNED</button>
+        <button class="cbtn del-btn" onclick="confirmRemove(this,'${c.name}',()=>removeWl('${c.id}'))">✕ REMOVE</button>
+      </div>
+    </div>`;
+  }).join('');
+  el.innerHTML=`<div class="sec-label">${wlFiltered.length} CARD${wlFiltered.length!==1?'S':''}</div><div class="card-grid">${cards}</div>`;
+  pel.innerHTML=pagHTML(wlPage,wlFiltered.length,'goWlPage');
+  updateWlMetrics();
+}
+function updateWlMetrics(){
+  const n=watchlist.length,tot=watchlist.reduce((s,c)=>s+(c.market??0),0);
+  const valid=watchlist.filter(c=>c.market!=null&&c.low!=null);
+  const avgSp=valid.length?valid.reduce((s,c)=>s+((c.low-c.market)/c.market*100),0)/valid.length:null;
+  const rares=watchlist.filter(c=>c.rarity&&!c.rarity.includes('STANDARD')).length;
+  document.getElementById('m-count').textContent=n;
+  document.getElementById('m-market').textContent=n?'$'+tot.toFixed(2):'—';
+  document.getElementById('m-spread').textContent=avgSp!=null?(avgSp>0?'+':'')+avgSp.toFixed(1)+'%':'—';
+  document.getElementById('m-rares').textContent=rares;
+}
+
+// ── OWNED ─────────────────────────────────────────────────────────────────
+function toggleFav(copyId){
+  const c=owned.find(o=>o.copyId===copyId);if(!c) return;
+  c.isFav=!c.isFav;
+  save();applyOwnControls();
+}
+
+function applyOwnControls(){
+  let list=[...owned];
+  const favFilter=document.getElementById('own-fav')?.value||'';
+  if(favFilter==='fav')   list=list.filter(c=>c.isFav);
+  if(favFilter==='unfav') list=list.filter(c=>!c.isFav);
+  ownFiltered=filterSort(list,
+    document.getElementById('own-filter')?.value||'',
+    document.getElementById('own-rarity')?.value||'',
+    document.getElementById('own-sort')?.value||'bought');
+  ownPage=1;renderOwned();
+}
+
+async function refreshOwned(){
+  if(!owned.length) return;
+  const btn=document.getElementById('owned-refresh-btn');
+  btn.innerHTML='<svg class="pb-spin-sm" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9" fill="#111" stroke="#c9a84c" stroke-width="1.5"/><path d="M1 10 A9 9 0 0 1 19 10 Z" fill="#c9a84c"/><path d="M1 10 A9 9 0 0 0 19 10 Z" fill="#0d0d0d"/><line x1="1" y1="10" x2="19" y2="10" stroke="#c9a84c" stroke-width="1.5"/><circle cx="10" cy="10" r="3" fill="#111" stroke="#c9a84c" stroke-width="1.5"/><circle cx="10" cy="10" r="1.5" fill="#e2ba6a"/></svg> REFRESHING…';btn.disabled=true;
+  await Promise.allSettled(owned.map(async(c,i)=>{
+    try{
+      const r=await apiFetch(`https://api.pokemontcg.io/v2/cards/${c.id}`);const d=await r.json();
+      const{market,low}=getPrice(d.data??{});
+      if(market!=null){owned[i].market=market;if(ledger[c.id])ledger[c.id].currentMarket=market;}
+      if(low!=null) owned[i].low=low;
+      if(!owned[i].releaseDate&&d.data?.set?.releaseDate) owned[i].releaseDate=d.data.set.releaseDate;
+      if(!owned[i].setId&&d.data?.set?.id) owned[i].setId=d.data.set.id;
+    }catch(e){}
+  }));
+  save();btn.innerHTML='↻ REFRESH PRICES';btn.disabled=false;
+  document.getElementById('owned-updated').textContent='UPDATED '+new Date().toLocaleTimeString();
+  applyOwnControls();
+}
+
+// Central dispatcher — uses slice index, immune to copyId string escaping
+function ownAct(i,action){
+  const c=window._ownedSlice?.[i];if(!c) return;
+  const copyId=c.copyId;
+  if(action==='sell')   openSG(copyId,'sell');
+  else if(action==='gift')   openSG(copyId,'gift');
+  else if(action==='fav')    toggleFav(copyId);
+  else if(action==='edit')   toggleOwnEdit(i);
+  else if(action==='jp')     toggleJPMode(i);
+  else if(action==='clone')  cloneCard(copyId);
+  else if(action==='save')   saveOwnedEdit(i);
+  else if(action==='remove') removeOwned(copyId);
+}
+
+function toggleOwnEdit(i){
+  const area=document.getElementById('oe-'+i),tog=document.getElementById('oet-'+i);
+  if(!area) return;
+  area.classList.toggle('open');
+  if(tog) tog.textContent=area.classList.contains('open')?'▲ CLOSE EDIT':'▼ EDIT';
+}
+
+function saveOwnedEdit(i){
+  const c=window._ownedSlice?.[i];if(!c){console.warn('saveOwnedEdit: no card at index',i);return;}
+  const copyId=c.copyId;
+  const ppVal=document.getElementById('oe-pp-'+i)?.value?.trim();
+  const pdVal=document.getElementById('oe-pd-'+i)?.value;
+  const bfVal=document.getElementById('oe-bf-'+i)?.value?.trim();
+  if(ppVal!==''&&ppVal!=null){
+    const pp=parseFloat(ppVal);
+    if(!isNaN(pp)&&pp>=0){
+      c.purchasePrice=pp;
+      if(!ledger[c.id]) ledgerSetOwned(c);
+      ledger[c.id].purchasePrice=pp;
+      sold.filter(s=>s.copyId===copyId).forEach(s=>s.purchasePrice=pp);
+      gifted.filter(g=>g.copyId===copyId).forEach(g=>g.purchasePrice=pp);
+    }
+  }
+  if(pdVal){
+    const [dy,dm,dd]=pdVal.split('-').map(Number);
+    const ts=new Date(dy,dm-1,dd,12,0,0).getTime();
+    if(!isNaN(ts)){c.boughtAt=ts;if(ledger[c.id])ledger[c.id].ownAt=ts;}
+  }
+  if(bfVal!=null){
+    c.boughtFrom=bfVal||null;
+    sold.filter(s=>s.copyId===copyId).forEach(s=>s.boughtFrom=c.boughtFrom);
+    gifted.filter(g=>g.copyId===copyId).forEach(g=>g.boughtFrom=c.boughtFrom);
+  }
+  const jpInput=document.getElementById('oe-jpp-'+i);
+  if(jpInput&&c.isJP){
+    const jpVal=parseFloat(jpInput.value);
+    if(!isNaN(jpVal)&&jpVal>0){c.jpPrice=jpVal;if(ledger[c.id]){ledger[c.id].isJP=true;ledger[c.id].jpPrice=jpVal;}}
+  } else if(!c.isJP&&ledger[c.id]){ledger[c.id].isJP=false;ledger[c.id].jpPrice=null;}
+  save();applyOwnControls();
+  const area=document.getElementById('oe-'+i);if(area)area.classList.remove('open');
+  const tog=document.getElementById('oet-'+i);if(tog)tog.textContent='▼ EDIT';
+}
+
+function toggleJPMode(i){
+  const c=window._ownedSlice?.[i];if(!c) return;
+  const jpInput=document.getElementById('oe-jpp-'+i);
+  const jpPlaceholder=jpInput?.nextElementSibling;
+  const jpBtn=document.getElementById('oe-jp-'+i);
+  if(c.isJP){
+    c.isJP=false;c.jpPrice=null;
+    if(ledger[c.id]){ledger[c.id].isJP=false;ledger[c.id].jpPrice=null;}
+    if(jpInput)jpInput.style.display='none';
+    if(jpPlaceholder)jpPlaceholder.style.display='block';
+    if(jpBtn){jpBtn.textContent='JP';jpBtn.style.color='';jpBtn.style.borderColor='';jpBtn.style.background='';}
+  } else {
+    c.isJP=true;
+    const val=parseFloat(jpInput?.value);
+    if(!isNaN(val)&&val>0){c.jpPrice=val;if(ledger[c.id]){ledger[c.id].isJP=true;ledger[c.id].jpPrice=val;}}
+    else if(ledger[c.id])ledger[c.id].isJP=true;
+    if(jpInput)jpInput.style.display='block';
+    if(jpPlaceholder)jpPlaceholder.style.display='none';
+    if(jpBtn){jpBtn.textContent='✓ JP';jpBtn.style.color='var(--gold)';jpBtn.style.borderColor='rgba(201,168,76,0.4)';jpBtn.style.background='var(--gold-dim)';}
+  }
+  save();applyOwnControls();
+}
+
+function cloneCard(copyId){
+  const c=owned.find(o=>o.copyId===copyId);if(!c) return;
+  const clone={...c,copyId:uid(),addedAt:Date.now(),purchasePrice:null,boughtAt:null,boughtFrom:null};
+  owned.push(clone);save();refreshAllCounts();applyOwnControls();
+}
+
+function removeOwned(copyId){
+  const c=owned.find(o=>o.copyId===copyId);
+  const snap=JSON.stringify(owned);
+  owned=owned.filter(o=>o.copyId!==copyId);save();refreshAllCounts();applyOwnControls();
+  pushUndo(`Removed ${c?.name} from owned`,()=>{owned=JSON.parse(snap);refreshAllCounts();applyOwnControls();});
+}
+
+function goOwnPage(p){if(p<1||p>Math.ceil(ownFiltered.length/PER))return;ownPage=p;renderOwned();window.scrollTo({top:0,behavior:'smooth'});}
+
+// count owned copies with same card id
+function ownedCopyLabel(c){
+  const copies=owned.filter(o=>o.id===c.id);
+  if(copies.length<=1) return '';
+  const idx=copies.findIndex(o=>o.copyId===c.copyId)+1;
+  return ` #${idx}`;
+}
+
+function renderOwned(){
+  document.getElementById('owned-count').textContent=owned.length;
+  const el=document.getElementById('owned-cards'),pel=document.getElementById('owned-pagination');
+  updateOwnedMetrics();
+  if(!owned.length){el.innerHTML='<div class="empty"><div class="empty-glyph">★</div><div class="empty-title">Your Folio is empty</div><div class="empty-sub" style="margin-top:8px"><button class="btn" onclick="switchTab(\'search\')">→ Search for your first card</button></div></div>';pel.innerHTML='';return;}
+  if(!ownFiltered.length){el.innerHTML='<div class="empty"><div class="empty-title">No cards match filters</div></div>';pel.innerHTML='';return;}
+  const tp=Math.ceil(ownFiltered.length/PER);if(ownPage>tp)ownPage=tp;
+  const slice=ownFiltered.slice((ownPage-1)*PER,ownPage*PER);
+  window._ownedSlice=slice;
+  const grid=slice.map((c,i)=>{
+    const ri=raritySnap(c);
+    // Self-heal: pull purchasePrice/boughtAt from ledger if missing on card object
+    if(c.purchasePrice==null && ledger[c.id]?.purchasePrice!=null){
+      c.purchasePrice=ledger[c.id].purchasePrice;
+    }
+    if(c.boughtAt==null && ledger[c.id]?.ownAt!=null){
+      c.boughtAt=ledger[c.id].ownAt;
+    }
+    const pp=c.purchasePrice??null;
+    const displayMarket=c.isJP&&c.jpPrice!=null?c.jpPrice:c.market;
+    const pnl=pp!=null&&displayMarket!=null?(displayMarket-pp):null;
+    const pnlCls=pnl==null?'':pnl>0?'pnl-pos':'pnl-neg';
+    const copyLbl=ownedCopyLabel(c);
+    const{suggest,trend}=suggestSell(c.id,c.market);
+    const sugCls=trend==='up'?'up':trend==='down'?'down':'flat';
+    const sugLabel=trend==='up'?`SUGGEST SELL ${fmt(suggest)}`:trend==='down'?'HOLD — TREND ↓':'FAIR VALUE';
+    const pdVal=c.boughtAt?new Date(c.boughtAt).toISOString().slice(0,10):'';
+    const favBorder=c.isFav?"border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)":"";
+    const setId=c.setId||c.id.split('-').slice(0,-1).join('-');
+    const relDate=c.releaseDate?c.releaseDate.replace(/\//g,'-'):'';
+    return `<div class="pcard${ri.rank<=3?' is-rare':''}" style="${favBorder}">
+      <img src="${c.img}" loading="lazy"/>
+      <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px;min-width:0">
+        <span class="rtag ${ri.cls}" style="margin-bottom:0;flex-shrink:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ri.label}${copyLbl?`<span class="copy-badge">${copyLbl.trim()}</span>`:''}</span>
+        <span style="flex-shrink:0;font-size:7px;font-weight:700;padding:1px 5px;border-radius:3px;letter-spacing:0.04em;${c.isJP?'background:rgba(201,168,76,0.18);color:var(--gold2);border:1px solid rgba(201,168,76,0.35)':'background:var(--s3);color:var(--t3);border:1px solid var(--b1)'}">${c.isJP?'JP':'A'}</span>
+        <button class="cbtn" style="margin-left:auto;flex:0 0 16.6%;max-width:36px;padding:2px 0;${c.isFav?'color:var(--gold);border-color:var(--gold);background:var(--gold-dim)':'color:var(--t3)'}" onclick="ownAct(${i},'fav')" title="${c.isFav?'Unfavourite':'Favourite — locks from sale'}">★</button>
+      </div>
+      <div class="pcard-name">${c.name}</div>
+      <div class="pcard-set">${c.set} · ${c.number}/${c.total}</div>
+      ${relDate?`<div style="font-size:8px;color:var(--t3);font-family:'DM Sans',sans-serif;margin-bottom:2px">${relDate}</div>`:''}
+      ${setOwnershipBadge(setId,c.total)}
+      <div class="cond-divider"></div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">
+        <span style="font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif;font-weight:500">${c.isJP?'JP MARKET':'MARKET'}</span>
+        <span style="font-size:14px;font-weight:700;color:var(--gold2);font-variant-numeric:tabular-nums;font-family:'DM Sans',sans-serif">${fmt(displayMarket)}</span>
+      </div>
+      <div class="price-grid">
+        <div class="price-cell">${c.boughtAt?`<span class="price-cell-label">BOUGHT</span><span class="price-cell-val" style="font-size:9px">${fmtDate(c.boughtAt)}</span>`:''}</div>
+        <div class="price-cell right"><span class="price-cell-label">PAID</span><span class="price-cell-val">${pp!=null?fmt(pp):'—'}</span></div>
+        <div class="price-cell">${c.boughtFrom?`<span class="price-cell-label">FROM</span><span class="price-cell-val" style="font-size:9px;word-break:break-word">${c.boughtFrom}</span>`:''}</div>
+        <div class="price-cell right"><span class="price-cell-label">P&amp;L</span><span class="price-cell-val" style="${pnl==null?'':'color:'+(pnl>0?'var(--green)':'var(--red)')}">${pnl!=null?(pnl>=0?'+':'')+fmt(pnl):'—'}</span></div>
+      </div>
+      <div class="cond-divider"></div>
+      <div class="card-btns">
+        <div style="display:flex;gap:3px">
+          <a class="tcg-link" href="${tcgUrl(c.name)}" target="_blank" style="flex:2">↗ TCG</a>
+          ${c.isFav?'':
+          `<button class="cbtn" style="flex:1;color:var(--red);border-color:rgba(192,80,80,0.3)" onclick="ownAct(${i},'sell')">SELL</button>
+           <button class="cbtn" style="flex:1;color:var(--purple);border-color:rgba(196,181,253,0.3)" onclick="ownAct(${i},'gift')">GIFT</button>`}
+        </div>
+        <button class="cbtn" id="oet-${i}" onclick="ownAct(${i},'edit')">▼ EDIT</button>
+        <div class="own-edit-area" id="oe-${i}">
+          <div class="edit-row"><span class="edit-label">Price paid (USD)</span><input class="edit-input" id="oe-pp-${i}" type="number" min="0" step="0.01" placeholder="${pp!=null?pp.toFixed(2):'0.00'}"/></div>
+          <div class="edit-row"><span class="edit-label">Date bought</span><input class="edit-input" id="oe-pd-${i}" type="date" value="${pdVal}"/></div>
+          <div class="edit-row"><span class="edit-label">Bought from</span><input class="edit-input" id="oe-bf-${i}" type="text" placeholder="eBay, LGS, friend..." value="${c.boughtFrom||''}"/></div>
+          <div class="edit-row" style="border-top:1px solid var(--b1);padding-top:6px;margin-top:4px">
+            <span class="edit-label">JP version</span>
+            <div style="display:flex;gap:4px;margin-top:3px">
+              <button class="cbtn" id="oe-jp-${i}" style="flex:1;${c.isJP?'color:var(--gold);border-color:rgba(201,168,76,0.4);background:var(--gold-dim)':''}" onclick="ownAct(${i},'jp')">${c.isJP?'✓ JP':'JP'}</button>
+              <input class="edit-input" id="oe-jpp-${i}" type="number" min="0" step="0.01" placeholder="JP price" value="${c.jpPrice??''}" style="flex:1;display:${c.isJP?'block':'none'}"/>
+              <div style="flex:1;display:${c.isJP?'none':'block'}"></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:4px;margin-top:6px">
+            <button class="cbtn" style="flex:1;color:var(--t2);border-color:var(--b2)" onclick="ownAct(${i},'clone')">⧉ CLONE</button>
+            <button class="cbtn" style="flex:1;color:var(--gold);border-color:rgba(201,168,76,0.3)" onclick="ownAct(${i},'save')">✓ SAVE</button>
+          </div>
+        </div>
+        <button class="cbtn del-btn" onclick="confirmRemove(this,window._ownedSlice?.[${i}]?.name,()=>removeOwned(window._ownedSlice?.[${i}]?.copyId))">✕ REMOVE</button>
+      </div>
+    </div>`;
+  }).join('');
+  if(ownCompact){
+    const compactCards=slice.map((c,i)=>{
+      const ri=raritySnap(c);
+      const setId=c.setId||c.id.split('-').slice(0,-1).join('-');
+      const relDate=c.releaseDate?c.releaseDate.replace(/\//g,'-'):'';
+      const favBorder=c.isFav?"border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)":"";
+      const derive=x=>x.setId||x.id.split('-').slice(0,-1).join('-');
+      const ownedIds=new Set(owned.filter(x=>derive(x)===setId).map(x=>x.id));
+      const watchIds=new Set(watchlist.filter(x=>derive(x)===setId).map(x=>x.id));
+      const trackedOnly=new Set([...watchIds].filter(id=>!ownedIds.has(id)));
+      const badgeParts=[];
+      if(ownedIds.size) badgeParts.push(`<span style="color:var(--green);font-weight:700">${ownedIds.size} owned</span>`);
+      if(trackedOnly.size) badgeParts.push(`<span>${trackedOnly.size} tracked</span>`);
+      const badge=badgeParts.length?`${badgeParts.join(' · ')} <span style="color:var(--b3)">/ ${c.total}</span>`:'';
+      return `<div class="pcard${ri.rank<=3?' is-rare':''}" style="${favBorder};cursor:pointer" onclick="ownAct(${i},'edit')">
+        <img src="${c.img}" loading="lazy"/>
+        <span class="rtag ${ri.cls}" style="margin-bottom:2px">${ri.label}</span>
+        <div class="pcard-name">${c.name}</div>
+        <div class="pcard-set">${c.set} · ${c.number}/${c.total}</div>
+        ${relDate?`<div style="font-size:8px;color:var(--t3);font-family:'DM Sans',sans-serif;margin-top:1px">${relDate}</div>`:''}
+        ${badge?`<div class="set-own-badge" style="margin-top:2px">${badge}</div>`:''}
+      </div>`;
+    }).join('');
+    el.innerHTML=`<div class="sec-label">${ownFiltered.length} CARD${ownFiltered.length!==1?'S':''}</div><div class="card-grid">${compactCards}</div>`;
+  } else {
+    el.innerHTML=`<div class="sec-label">${ownFiltered.length} CARD${ownFiltered.length!==1?'S':''}</div><div class="card-grid">${grid}</div>`;
+  }
+  pel.innerHTML=pagHTML(ownPage,ownFiltered.length,'goOwnPage');
+}
+function updateOwnedMetrics(){
+  const n=owned.length,tot=owned.reduce((s,c)=>s+(c.market??0),0);
+  const paidCards=owned.filter(c=>c.purchasePrice!=null);
+  const totalPaid=paidCards.reduce((s,c)=>s+c.purchasePrice,0);
+  const pnl=paidCards.length?paidCards.reduce((s,c)=>s+((c.isJP&&c.jpPrice!=null?c.jpPrice:(c.market??0))-c.purchasePrice),0):null;
+  document.getElementById('om-count').textContent=n;
+  document.getElementById('om-value').textContent=n?'$'+tot.toFixed(2):'—';
+  document.getElementById('om-paid').textContent=paidCards.length?'$'+totalPaid.toFixed(2):'—';
+  const pnlEl=document.getElementById('om-pnl');
+  pnlEl.textContent=pnl!=null?(pnl>=0?'+':'')+fmt(pnl):'—';
+  pnlEl.className='metric-val '+(pnl==null?'muted':pnl>0?'green':'');
+  pnlEl.style.color=pnl!=null&&pnl<0?'var(--red)':'';
+  updateFolioSummary();
+}
+
+// ── SELL / GIFT MODAL ─────────────────────────────────────────────────────
+function openSG(copyId,mode){
+  const c=owned.find(o=>o.copyId===copyId);if(!c) return;
+  sgMode=mode;sgCopyId=copyId;
+  document.getElementById('sg-modal-title').textContent=mode==='sell'?'SELL CARD':'GIFT CARD';
+  document.getElementById('sg-img').src=c.img;
+  document.getElementById('sg-name').textContent=c.name+(ownedCopyLabel(c)?` ${ownedCopyLabel(c).trim()}`:'');
+  document.getElementById('sg-sub').textContent=c.set+' · '+c.number+'/'+c.total;
+  document.getElementById('sg-price-wrap').style.display=mode==='sell'?'flex':'none';
+  document.getElementById('sg-to-label').textContent=mode==='sell'?'Sold to (optional)':'Gifted to (optional)';
+  document.getElementById('sg-confirm').textContent=mode==='sell'?'CONFIRM SALE':'CONFIRM GIFT';
+  document.getElementById('sg-date').value=todayVal();
+  document.getElementById('sg-price').value='';
+  document.getElementById('sg-to').value='';
+  document.getElementById('sg-notes').value='';
+  if(mode==='sell'){
+    const{suggest,trend,pct}=suggestSell(c.id,c.market);
+    const arrow=trend==='up'?'↑':trend==='down'?'↓':'→';
+    const col=trend==='up'?'var(--green)':trend==='down'?'var(--red)':'var(--t2)';
+    document.getElementById('sg-suggest').innerHTML=`Suggested: <span>${fmt(suggest)}</span> &nbsp;<span style="color:${col}">${arrow} ${Math.abs(pct).toFixed(1)}% 30d trend</span>`;
+    document.getElementById('sg-price').placeholder=suggest?.toFixed(2)||'0.00';
+  }
+  document.getElementById('sg-modal-bg').classList.add('open');
+}
+function closeSGModal(){document.getElementById('sg-modal-bg').classList.remove('open');}
+
+function confirmSG(){
+  const c=owned.find(o=>o.copyId===sgCopyId);if(!c) return;
+  const ts=new Date(document.getElementById('sg-date').value||todayVal()).getTime();
+  const toField=document.getElementById('sg-to').value.trim()||null;
+  const notes=document.getElementById('sg-notes').value.trim()||null;
+  const ownedSnap=JSON.stringify(owned);
+  const ledgerSnap=JSON.stringify(ledger);
+
+  if(sgMode==='sell'){
+    const priceRaw=document.getElementById('sg-price').value;
+    const salePrice=parseFloat(priceRaw);
+    const finalPrice=isNaN(salePrice)?c.market:salePrice;
+    const entry={...c,soldAt:ts,soldPrice:finalPrice,soldTo:toField,notes,copyId:sgCopyId};
+    sold.push(entry);
+    if(ledger[c.id]){ledger[c.id].soldAt=ts;ledger[c.id].soldPrice=finalPrice;ledger[c.id].status='sold';ledger[c.id].statusAt=ts;}
+    owned=owned.filter(o=>o.copyId!==sgCopyId);
+    pushUndo(`Reversed sale of ${c.name}`,()=>{owned=JSON.parse(ownedSnap);Object.assign(ledger,JSON.parse(ledgerSnap));sold=sold.filter(s=>s.copyId!==sgCopyId);refreshAllCounts();applyOwnControls();});
+  } else {
+    const entry={...c,giftedAt:ts,giftedTo:toField,notes,copyId:sgCopyId};
+    gifted.push(entry);
+    if(ledger[c.id]){ledger[c.id].giftedAt=ts;ledger[c.id].giftedTo=toField;ledger[c.id].status='gifted';ledger[c.id].statusAt=ts;}
+    owned=owned.filter(o=>o.copyId!==sgCopyId);
+    pushUndo(`Reversed gift of ${c.name}`,()=>{owned=JSON.parse(ownedSnap);Object.assign(ledger,JSON.parse(ledgerSnap));gifted=gifted.filter(g=>g.copyId!==sgCopyId);refreshAllCounts();applyOwnControls();});
+  }
+  save();refreshAllCounts();closeSGModal();applyOwnControls();
+}
+
+// ── SOLD ──────────────────────────────────────────────────────────────────
+function renderSold(){
+  document.getElementById('sold-count').textContent=sold.length;
+  const el=document.getElementById('sold-cards'),pel=document.getElementById('sold-pagination');
+  updateSoldMetrics();
+  if(!sold.length){el.innerHTML='<div class="empty"><div class="empty-glyph">💰</div><div class="empty-title">No cards sold yet</div></div>';pel.innerHTML='';return;}
+  const so=document.getElementById('sold-sort')?.value||'date-desc';
+  const list=[...sold].sort((a,b)=>{
+    if(so==='name') return a.name.localeCompare(b.name);
+    if(so==='set')  return(a.set||'').localeCompare(b.set||'');
+    if(so==='price-desc') return(b.soldPrice??-1)-(a.soldPrice??-1);
+    if(so==='pnl-desc'){const pa=a.purchasePrice,pb=b.purchasePrice;const pla=pa!=null?(a.soldPrice??0)-pa:null,plb=pb!=null?(b.soldPrice??0)-pb:null;return(plb??-Infinity)-(pla??-Infinity);}
+    return(b.soldAt??0)-(a.soldAt??0);
+  });
+  const tp=Math.ceil(list.length/PER);if(soldPage>tp)soldPage=tp;
+  const slice=list.slice((soldPage-1)*PER,soldPage*PER);
+  window._soldSlice=slice;
+  const grid=slice.map((c,i)=>{
+    const ri=raritySnap(c);
+    const cost=c.purchasePrice??null;const rev=c.soldPrice??null;
+    const pnl=cost!=null&&rev!=null?(rev-cost):null;
+    const pnlCls=pnl==null?'':pnl>=0?'pnl-pos':'pnl-neg';
+    const favBorder=c.isFav?"border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)":"";
+    return `<div class="pcard${ri.rank<=3?' is-rare':''}" style="${favBorder}">
+      <img src="${c.img}" loading="lazy"/>
+      <span class="rtag ${ri.cls}">${ri.label}</span>
+      <div class="pcard-name">${c.name}</div>
+      <div class="pcard-set">${c.set} · ${c.number}/${c.total}</div>
+      <div class="price-rows">
+        ${c.boughtAt?`<div class="price-row"><span class="price-label">BOUGHT ON</span><span class="price-val list" style="font-size:9px">${fmtDate(c.boughtAt)}</span></div>`:''}
+        ${cost!=null?`<div class="price-row"><span class="price-label">BOUGHT FOR</span><span class="price-val list">${fmt(cost)}</span></div>`:''}
+        <div class="price-row"><span class="price-label">COST BASIS</span><span class="price-val list">${cost!=null?fmt(cost):'—'}</span></div>
+        <div class="price-row" style="border-top:1px solid var(--b1);margin-top:3px;padding-top:3px"><span class="price-label">SOLD ON</span><span class="price-val list" style="font-size:9px">${fmtDate(c.soldAt)}</span></div>
+        <div class="price-row"><span class="price-label">SOLD FOR</span><span class="price-val market">${fmt(rev)}</span></div>
+        ${c.soldTo?`<div class="price-row"><span class="price-label">SOLD TO</span><span class="price-val list" style="font-size:9px">${c.soldTo}</span></div>`:''}
+        ${pnl!=null?`<div class="price-row"><span class="price-label">P&L</span><span class="price-val ${pnlCls}">${(pnl>=0?'+':'')+fmt(pnl)}</span></div>`:''}
+        ${c.notes?`<div class="price-row"><span class="price-label">NOTE</span><span class="price-val list" style="font-size:9px;word-break:break-word">${c.notes}</span></div>`:''}
+      </div>
+      <div class="card-btns">
+        <button class="cbtn" style="color:var(--green);border-color:rgba(76,175,125,0.3)" onclick="restoreToOwned('sold',${i})">↩ RESTORE TO OWNED</button>
+        <button class="cbtn del-btn" onclick="confirmRemove(this,window._soldSlice?.[${i}]?.name,()=>removeSold(${i}))">✕ REMOVE</button>
+      </div>
+    </div>`;
+  }).join('');
+  el.innerHTML=`<div class="sec-label">${sold.length} CARD${sold.length!==1?'S':''} SOLD</div><div class="card-grid">${grid}</div>`;
+  pel.innerHTML=pagHTML(soldPage,sold.length,'goSoldPage');
+}
+function goSoldPage(p){if(p<1||p>Math.ceil(sold.length/PER))return;soldPage=p;renderSold();window.scrollTo({top:0,behavior:'smooth'});}
+function removeSold(idx){
+  const c=window._soldSlice?.[idx];if(!c) return;
+  const copyId=c.copyId;
+  const snap=JSON.stringify(sold);
+  sold=sold.filter(s=>s.copyId!==copyId);save();refreshAllCounts();renderSold();
+  pushUndo(`Removed ${c.name} from sold`,()=>{sold=JSON.parse(snap);refreshAllCounts();renderSold();});
+}
+function restoreToOwned(from,idx){
+  const slice=from==='sold'?window._soldSlice:window._giftedSlice;
+  const c=slice?.[idx];if(!c) return;
+  const copyId=c.copyId;
+  const entry={...c};
+  delete entry.soldAt;delete entry.soldPrice;delete entry.soldTo;
+  delete entry.giftedAt;delete entry.giftedTo;
+  entry.addedAt=Date.now();
+  const soldSnap=JSON.stringify(sold);
+  const giftedSnap=JSON.stringify(gifted);
+  owned.push(entry);
+  if(from==='sold') sold=sold.filter(s=>s.copyId!==copyId);
+  else gifted=gifted.filter(g=>g.copyId!==copyId);
+  if(ledger[c.id]){ledger[c.id].status='owned';ledger[c.id].statusAt=Date.now();}
+  save();refreshAllCounts();
+  from==='sold'?renderSold():renderGifted();
+  pushUndo(`Restored ${c.name} to owned`,()=>{
+    owned=owned.filter(o=>o.copyId!==copyId);
+    if(from==='sold') sold=JSON.parse(soldSnap);
+    else gifted=JSON.parse(giftedSnap);
+    if(ledger[c.id]) ledger[c.id].status=from;
+    save();refreshAllCounts();
+    from==='sold'?renderSold():renderGifted();
+  });
+}
+function updateSoldMetrics(){
+  const n=sold.length,rev=sold.reduce((s,c)=>s+(c.soldPrice??0),0);
+  const costCards=sold.filter(c=>c.purchasePrice!=null);
+  const cost=costCards.reduce((s,c)=>s+c.purchasePrice,0);
+  const pnl=costCards.length?sold.reduce((s,c)=>{const pp=c.purchasePrice;return s+(pp!=null?(c.soldPrice??0)-pp:0);},0):null;
+  document.getElementById('sm-count').textContent=n;
+  document.getElementById('sm-revenue').textContent=n?'$'+rev.toFixed(2):'—';
+  document.getElementById('sm-cost').textContent=costCards.length?'$'+cost.toFixed(2):'—';
+  const pnlEl=document.getElementById('sm-pnl');
+  pnlEl.textContent=pnl!=null?(pnl>=0?'+':'')+fmt(pnl):'—';
+  pnlEl.className='metric-val '+(pnl==null?'muted':pnl>=0?'green':'');
+  pnlEl.style.color=pnl!=null&&pnl<0?'var(--red)':'';
+}
+
+// ── GIFTED ────────────────────────────────────────────────────────────────
+function renderGifted(){
+  document.getElementById('gifted-count').textContent=gifted.length;
+  const el=document.getElementById('gifted-cards'),pel=document.getElementById('gifted-pagination');
+  updateGiftedMetrics();
+  if(!gifted.length){el.innerHTML='<div class="empty"><div class="empty-glyph">🎁</div><div class="empty-title">No cards gifted yet</div></div>';pel.innerHTML='';return;}
+  const so=document.getElementById('gifted-sort')?.value||'date-desc';
+  const list=[...gifted].sort((a,b)=>{
+    if(so==='name') return a.name.localeCompare(b.name);
+    if(so==='set')  return(a.set||'').localeCompare(b.set||'');
+    return(b.giftedAt??0)-(a.giftedAt??0);
+  });
+  const tp=Math.ceil(list.length/PER);if(giftedPage>tp)giftedPage=tp;
+  const slice=list.slice((giftedPage-1)*PER,giftedPage*PER);
+  window._giftedSlice=slice;
+  const grid=slice.map((c,i)=>{
+    const ri=raritySnap(c);
+    const favBorder=c.isFav?"border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)":"";
+    return `<div class="pcard${ri.rank<=3?' is-rare':''}" style="${favBorder}">
+      <img src="${c.img}" loading="lazy"/>
+      <span class="rtag ${ri.cls}">${ri.label}</span>
+      <div class="pcard-name">${c.name}</div>
+      <div class="pcard-set">${c.set} · ${c.number}/${c.total}</div>
+      <div class="price-rows">
+        ${c.boughtAt?`<div class="price-row"><span class="price-label">BOUGHT ON</span><span class="price-val list" style="font-size:9px">${fmtDate(c.boughtAt)}</span></div>`:''}
+        ${c.purchasePrice!=null?`<div class="price-row"><span class="price-label">BOUGHT FOR</span><span class="price-val list">${fmt(c.purchasePrice)}</span></div>`:''}
+        <div class="price-row" style="border-top:1px solid var(--b1);margin-top:3px;padding-top:3px"><span class="price-label">GIFTED ON</span><span class="price-val list" style="font-size:9px">${fmtDate(c.giftedAt)}</span></div>
+        ${c.giftedTo?`<div class="price-row"><span class="price-label">GIFTED TO</span><span class="price-val list" style="font-size:9px">${c.giftedTo}</span></div>`:''}
+        <div class="price-row"><span class="price-label">MKT AT TIME</span><span class="price-val market">${fmt(c.market)}</span></div>
+        ${c.notes?`<div class="price-row"><span class="price-label">NOTE</span><span class="price-val list" style="font-size:9px;word-break:break-word">${c.notes}</span></div>`:''}
+      </div>
+      <div class="card-btns">
+        <button class="cbtn" style="color:var(--green);border-color:rgba(76,175,125,0.3)" onclick="restoreToOwned('gifted',${i})">↩ RESTORE TO OWNED</button>
+        <button class="cbtn del-btn" onclick="confirmRemove(this,window._giftedSlice?.[${i}]?.name,()=>removeGifted(${i}))">✕ REMOVE</button>
+      </div>
+    </div>`;
+  }).join('');
+  el.innerHTML=`<div class="sec-label">${gifted.length} CARD${gifted.length!==1?'S':''} GIFTED</div><div class="card-grid">${grid}</div>`;
+  pel.innerHTML=pagHTML(giftedPage,gifted.length,'goGiftedPage');
+}
+function goGiftedPage(p){if(p<1||p>Math.ceil(gifted.length/PER))return;giftedPage=p;renderGifted();window.scrollTo({top:0,behavior:'smooth'});}
+function removeGifted(idx){
+  const c=window._giftedSlice?.[idx];if(!c) return;
+  const copyId=c.copyId;
+  const snap=JSON.stringify(gifted);
+  gifted=gifted.filter(g=>g.copyId!==copyId);save();refreshAllCounts();renderGifted();
+  pushUndo(`Removed ${c.name} from gifted`,()=>{gifted=JSON.parse(snap);refreshAllCounts();renderGifted();});
+}
+function updateGiftedMetrics(){
+  const n=gifted.length,tot=gifted.reduce((s,c)=>s+(c.market??0),0);
+  const rares=gifted.filter(c=>c.rarity&&!c.rarity.includes('STANDARD')).length;
+  const last=gifted.slice().sort((a,b)=>(b.giftedAt??0)-(a.giftedAt??0))[0];
+  document.getElementById('gm-count').textContent=n;
+  document.getElementById('gm-value').textContent=n?'$'+tot.toFixed(2):'—';
+  document.getElementById('gm-rares').textContent=rares;
+  document.getElementById('gm-recent').textContent=last?last.name:'—';
+}
+
+// ── HISTORY ───────────────────────────────────────────────────────────────
+function renderHistory(){
+  const el=document.getElementById('history-list'),pel=document.getElementById('hist-pagination');
+  const ft=(document.getElementById('hist-filter')?.value||'').toLowerCase();
+  const st=document.getElementById('hist-status')?.value||'';
+  const so=document.getElementById('hist-sort')?.value||'status-desc';
+
+  let entries=Object.values(ledger);
+  if(ft) entries=entries.filter(e=>e.name.toLowerCase().includes(ft)||(e.set||'').toLowerCase().includes(ft));
+  if(st==='watching') entries=entries.filter(e=>watchlist.some(w=>w.id===e.id));
+  if(st==='owned')    entries=entries.filter(e=>owned.some(o=>o.id===e.id));
+  if(st==='sold')     entries=entries.filter(e=>e.status==='sold');
+  if(st==='gifted')   entries=entries.filter(e=>e.status==='gifted');
+
+  entries.sort((a,b)=>{
+    if(so==='status-desc') return(b.statusAt??b.ownAt??b.wlAt??0)-(a.statusAt??a.ownAt??a.wlAt??0);
+    if(so==='wl-desc')     return(b.wlAt??0)-(a.wlAt??0);
+    if(so==='own-desc')    return(b.ownAt??0)-(a.ownAt??0);
+    if(so==='name')        return a.name.localeCompare(b.name);
+    if(so==='market-desc') return(b.currentMarket??-1)-(a.currentMarket??-1);
+    if(so==='pnl-desc'){const pnl=e=>e.purchasePrice!=null&&e.currentMarket!=null?(e.currentMarket-e.purchasePrice):null;return(pnl(b)??-Infinity)-(pnl(a)??-Infinity);}
+    return 0;
+  });
+
+  // Update history metrics
+  const allE=Object.values(ledger);
+  const watching=allE.filter(e=>watchlist.some(w=>w.id===e.id)).length;
+  const ownedN=allE.filter(e=>owned.some(o=>o.id===e.id)).length;
+  const paidAll=owned.filter(c=>c.purchasePrice!=null);
+  const totalPaidAll=paidAll.reduce((s,c)=>s+c.purchasePrice,0);
+  const pnlAll=paidAll.length?paidAll.reduce((s,c)=>s+((c.market??0)-c.purchasePrice),0):null;
+  document.getElementById('hm-total').textContent=allE.length;
+  document.getElementById('hm-watching').textContent=watching;
+  document.getElementById('hm-owned').textContent=ownedN;
+  document.getElementById('hm-paid').textContent=paidAll.length?'$'+totalPaidAll.toFixed(2):'—';
+  const pnlEl=document.getElementById('hm-pnl');
+  pnlEl.textContent=pnlAll!=null?(pnlAll>=0?'+':'')+fmt(pnlAll):'—';
+  pnlEl.className='metric-val '+(pnlAll==null?'muted':pnlAll>=0?'green':'');
+  pnlEl.style.color=pnlAll!=null&&pnlAll<0?'var(--red)':'';
+  document.getElementById('hist-count').textContent=allE.length;
+
+  if(!entries.length){el.innerHTML='<div class="empty"><div class="empty-glyph">◎</div><div class="empty-title">No history yet</div><div class="empty-sub">Add cards to start tracking</div></div>';pel.innerHTML='';return;}
+
+  const total=entries.length;
+  const tp=Math.ceil(total/PER);if(histPage>tp)histPage=tp;
+  const slice=entries.slice((histPage-1)*PER,histPage*PER);
+
+  const rows=slice.map(e=>{
+    const isWatching=watchlist.some(w=>w.id===e.id);
+    const isOwned=owned.some(o=>o.id===e.id);
+    const isGifted=e.status==='gifted',isSold=e.status==='sold';
+    const ri=raritySnap(e);
+
+    // Prefer JP copy if one exists, else first owned copy
+    const ownedCopies=owned.filter(o=>o.id===e.id);
+    const jpCopy=ownedCopies.find(o=>o.isJP&&o.jpPrice!=null);
+    const bestCopy=jpCopy??ownedCopies[0]??null;
+
+    const pp=bestCopy?.purchasePrice??e.purchasePrice??null;
+    const isJP=!!(jpCopy||e.isJP);
+    const jpPrice=jpCopy?.jpPrice??e.jpPrice??null;
+    const displayMkt=isJP&&jpPrice!=null?jpPrice:e.currentMarket;
+    const mktLabel=isJP?'JP MARKET':'CURRENT MARKET';
+
+    const pnl=pp!=null&&displayMkt!=null?(displayMkt-pp):null;
+    const pnlStr=pnl!=null?(pnl>=0?'+':'')+fmt(pnl):'—';
+    const pnlCls=pnl==null?'muted':pnl>0?'green':'red';
+    const statusCls=isOwned?'owned-badge':isGifted?'gifted-badge':isSold?'sold-badge':'watching';
+    const statusLbl=isOwned?'OWNED':isGifted?'GIFTED':isSold?'SOLD':'WATCHING';
+    const events=[];
+    if(e.wlAt)     events.push(`<span class="hevent"><span class="hevent-dot wl"></span>WATCHLIST ${fmtDate(e.wlAt)}${e.wlPrice!=null?' · '+fmt(e.wlPrice):''}</span>`);
+    if(e.ownAt)    events.push(`<span class="hevent"><span class="hevent-dot own"></span>OWNED ${fmtDate(e.ownAt)}${e.ownPrice!=null?' · '+fmt(e.ownPrice):''}</span>`);
+    if(e.giftedAt) events.push(`<span class="hevent"><span class="hevent-dot" style="background:var(--purple)"></span>GIFTED ${fmtDate(e.giftedAt)}${e.giftedTo?' to '+e.giftedTo:''}</span>`);
+    if(e.soldAt)   events.push(`<span class="hevent"><span class="hevent-dot" style="background:var(--red)"></span>SOLD ${fmtDate(e.soldAt)}${e.soldPrice!=null?' · '+fmt(e.soldPrice):''}</span>`);
+
+    return `<div class="hist-row${ri.rank<=3?' is-rare':''}">
+      <img class="hist-img" src="${e.img}" loading="lazy"/>
+      <div class="hist-body">
+        <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px">
+          <span class="rtag ${ri.cls}" style="margin-bottom:0">${ri.label}</span>
+          <span style="font-size:7px;font-weight:700;padding:1px 5px;border-radius:3px;letter-spacing:0.06em;${isJP?'background:rgba(201,168,76,0.18);color:var(--gold2);border:1px solid rgba(201,168,76,0.35)':'background:var(--s3);color:var(--t3);border:1px solid var(--b1)'}">${isJP?'JP':'A'}</span>
+        </div>
+        <div class="hist-name">${e.name}</div>
+        <div class="hist-set">${e.set||''}${e.number?' · '+e.number+(e.total?'/'+e.total:''):''}</div>
+        <div class="hist-stats">
+          <div class="hstat"><div class="hstat-l">${mktLabel}</div><div class="hstat-v gold">${fmt(displayMkt)}</div></div>
+          ${e.wlPrice!=null?`<div class="hstat"><div class="hstat-l">Added at</div><div class="hstat-v muted">${fmt(e.wlPrice)}</div></div>`:''}
+          ${pp!=null?`<div class="hstat"><div class="hstat-l">Purchased at</div><div class="hstat-v muted">${fmt(pp)}</div></div>`:''}
+          ${e.soldPrice!=null?`<div class="hstat"><div class="hstat-l">Sold for</div><div class="hstat-v green">${fmt(e.soldPrice)}</div></div>`:''}
+          ${pnl!=null?`<div class="hstat"><div class="hstat-l">P&amp;L</div><div class="hstat-v ${pnlCls}">${pnlStr}</div></div>`:''}
+        </div>
+        <div class="hist-events">${events.join('')}</div>
+      </div>
+      <div class="hist-side">
+        <span class="hist-status ${statusCls}">${statusLbl}</span>
+        <button class="hist-action-btn danger" onclick="confirmRemove(this,'${e.name}',()=>removeLedger('${e.id}'))">✕ REMOVE</button>
+      </div>
+    </div>`;
+  });
+  el.innerHTML=`<div class="hist-grid">${rows.join('')}</div>`;
+  pel.innerHTML=pagHTML(histPage,total,'goHistPage');
+}
+function goHistPage(p){if(p<1||p>Math.ceil(Object.keys(ledger).length/PER))return;histPage=p;renderHistory();window.scrollTo({top:0,behavior:'smooth'});}
+function removeLedger(id){delete ledger[id];save();refreshAllCounts();renderHistory();}
+
+// ── IMPORT / EXPORT ───────────────────────────────────────────────────────
+function openIEModal(){
+  document.getElementById('ie-modal-bg').classList.add('open');
+  document.getElementById('export-area').value='';
+  updateExportDateDisplay();
+  // Show Share button on devices that support it
+  const sb=document.getElementById('share-btn');
+  if(sb) sb.style.display=(navigator.share&&navigator.canShare)?'':'none';}
+function closeIEModal(){document.getElementById('ie-modal-bg').classList.remove('open');}
+function setExportTab(m,el){exportMode=m;document.querySelectorAll('.etab').forEach(b=>b.classList.remove('active'));el.classList.add('active');document.getElementById('export-area').value='';}
+function buildExportData(){
+  const d={_version:4,_exported:new Date().toISOString()};
+  if(exportMode==='all'||exportMode==='watchlist') d.watchlist=watchlist;
+  if(exportMode==='all'||exportMode==='owned')     d.owned=owned;
+  if(exportMode==='all'||exportMode==='history')   d.ledger=ledger;
+  if(exportMode==='all'){d.gifted=gifted;d.sold=sold;d.priceHistory=priceHistory;}
+  return JSON.stringify(d,null,2);
+}
+function doExport(){document.getElementById('export-area').value=buildExportData();}
+function copyExport(){
+  const data=buildExportData();document.getElementById('export-area').value=data;
+  navigator.clipboard.writeText(data).then(()=>{const b=event.target;b.textContent='COPIED!';stampExport();setTimeout(()=>b.textContent='⎘ COPY JSON',2000);}).catch(()=>alert('Select the text above and copy manually.'));
+}
+function downloadExport(){
+  const data=buildExportData();
+  document.getElementById('export-area').value=data;
+  try{
+    const blob=new Blob([data],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download='pokefolio-'+new Date().toISOString().slice(0,10)+'.json';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},1000);
+    stampExport();
+  }catch(e){
+    // Fallback: data URI
+    const a=document.createElement('a');
+    a.href='data:application/json;charset=utf-8,'+encodeURIComponent(data);
+    a.download='pokefolio-'+new Date().toISOString().slice(0,10)+'.json';
+    a.click();
+    stampExport();
+  }
+}
+function doImport(mode){
+  const raw=document.getElementById('import-area').value.trim();
+  const st=document.getElementById('import-status');
+  if(!raw){st.className='ie-status err';st.textContent='Nothing to import.';return;}
+  let d;try{d=JSON.parse(raw);}catch(e){st.className='ie-status err';st.textContent='Invalid JSON: '+e.message;return;}
+  let wlAdded=0,ownAdded=0,ledAdded=0;
+  if(mode==='replace'){
+    if(d.watchlist) watchlist=d.watchlist;if(d.owned) owned=d.owned;
+    if(d.gifted)    gifted=d.gifted||[];if(d.sold)  sold=d.sold||[];
+    if(d.priceHistory) priceHistory=d.priceHistory;if(d.ledger) ledger=d.ledger;
+    wlAdded=(d.watchlist||[]).length;ownAdded=(d.owned||[]).length;ledAdded=Object.keys(d.ledger||{}).length;
+  }else{
+    (d.watchlist||[]).forEach(c=>{if(!watchlist.some(w=>w.id===c.id)){watchlist.push(c);wlAdded++;}});
+    // MERGE owned: add new cards, AND update editable fields on existing cards
+    (d.owned||[]).forEach(c=>{
+      const existing=owned.find(o=>o.copyId===(c.copyId||''));
+      if(existing){
+        // update editable fields from import — always take the imported value if it exists
+        if(c.purchasePrice!=null) existing.purchasePrice=c.purchasePrice;
+        if(c.boughtAt!=null)     existing.boughtAt=c.boughtAt;
+        if(c.boughtFrom!=null)   existing.boughtFrom=c.boughtFrom;
+        if(c.market!=null)       existing.market=c.market;
+        if(c.low!=null)          existing.low=c.low;
+      } else {
+        owned.push({...c,copyId:c.copyId||uid()});
+        ownAdded++;
+      }
+    });
+    (d.gifted||[]).forEach(c=>{if(!gifted.some(g=>g.copyId===c.copyId))gifted.push(c);});
+    (d.sold||[]).forEach(c=>{if(!sold.some(s=>s.copyId===c.copyId))sold.push(c);});
+    if(d.priceHistory) Object.assign(priceHistory,d.priceHistory);
+    // MERGE ledger: add new entries AND update editable fields on existing ones
+    if(d.ledger){
+      Object.entries(d.ledger).forEach(([k,v])=>{
+        if(!ledger[k]){ledger[k]=v;ledAdded++;}
+        else{
+          // update purchase/date fields from imported ledger
+          if(v.purchasePrice!=null) ledger[k].purchasePrice=v.purchasePrice;
+          if(v.ownAt!=null)         ledger[k].ownAt=v.ownAt;
+        }
+      });
+    }
+  }
+  // ensure all owned cards have copyIds
+  owned=owned.map(c=>({...c,copyId:c.copyId||uid()}));
+  // Re-sync ledger from owned (owned card object is the source of truth for price/date)
+  owned.forEach(c=>{
+    if(!ledger[c.id]) return;
+    if(c.purchasePrice!=null) ledger[c.id].purchasePrice=c.purchasePrice;
+    if(c.boughtAt!=null)     ledger[c.id].ownAt=c.boughtAt;
+  });
+  save();refreshAllCounts();
+  // Re-render current tab so changes are immediately visible
+  renderCurrentTab();
+  st.className='ie-status ok';
+  st.textContent=`✓ Done — ${wlAdded} watchlist, ${ownAdded} owned, ${ledAdded} history entries.`;
+  document.getElementById('import-area').value='';
+}
+
+// ── THEME ────────────────────────────────────────────────────────────────
+function toggleTheme(){
+  const isLight=document.body.classList.toggle('light');
+  localStorage.setItem('pf_theme',isLight?'light':'dark');
+  document.getElementById('theme-btn').textContent=isLight?'🌙':'☀';
+}
+
+
+// ── EXPORT TRACKING ──────────────────────────────────────────────────────
+function stampExport(){
+  localStorage.setItem('pf_last_export',Date.now());
+  updateExportDateDisplay();
+}
+function updateExportDateDisplay(){
+  const ts=parseInt(localStorage.getItem('pf_last_export')||'0');
+  const el=document.getElementById('ie-last-export');if(!el) return;
+  if(!ts){el.textContent='Never exported — export now to protect your data';el.style.color='var(--red)';return;}
+  const days=Math.floor((Date.now()-ts)/86400000);
+  el.textContent=days===0?'Last exported: today ✓':days===1?'Last exported: yesterday':`Last exported: ${days} days ago${days>7?' ⚠':''}`;
+  el.style.color=days>7?'var(--red)':'var(--t3)';
+}
+window.addEventListener('beforeunload',e=>{
+  if(!owned.length&&!watchlist.length) return;
+  const ts=parseInt(localStorage.getItem('pf_last_export')||'0');
+  const days=Math.floor((Date.now()-ts)/86400000);
+  if(!ts||days>3){e.preventDefault();e.returnValue='Export your POKÉFOLIO data before closing!';}
+});
+
+// ── SHARE SHEET (iPad native) + FILE IMPORT ───────────────────────────────
+async function shareExport(){
+  const data=buildExportData();
+  document.getElementById('export-area').value=data;
+  const blob=new Blob([data],{type:'application/json'});
+  const file=new File([blob],`pokefolio-${new Date().toISOString().slice(0,10)}.json`,{type:'application/json'});
+  if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+    try{await navigator.share({files:[file],title:'POKÉFOLIO Export'});stampExport();}
+    catch(e){if(e.name!=='AbortError')downloadExport();}
+  } else downloadExport();
+}
+function importFromFile(event){
+  const file=event.target.files?.[0];if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{document.getElementById('import-area').value=e.target.result;doImport('merge');};
+  reader.readAsText(file);event.target.value='';
+}
+
+// ── FOLIO SUMMARY HEADER ──────────────────────────────────────────────────
+function updateFolioSummary(){
+  const el=document.getElementById('folio-summary');if(!el) return;
+  const n=owned.length;
+  if(!n){el.textContent='Add your first card via Search';return;}
+  const val=owned.reduce((s,c)=>s+((c.isJP&&c.jpPrice!=null?c.jpPrice:c.market)??0),0);
+  el.textContent=`${n} card${n!==1?'s':''} · $${val.toFixed(2)} market value`;
+}
+
+// ── BULK SELECT ───────────────────────────────────────────────────────────
+let srSelected=new Set();
+function toggleSelectAll(checked){
+  srSelected=checked?new Set(srFiltered.map(c=>c.id)):new Set();
+  renderSrPage();updateBulkBar();
+}
+function toggleCardSelect(id){
+  if(srSelected.has(id))srSelected.delete(id);else srSelected.add(id);
+  updateBulkBar();
+  const all=document.getElementById('bulk-select-all');
+  if(all)all.checked=srSelected.size===srFiltered.length&&srFiltered.length>0;
+}
+function updateBulkBar(){
+  const bar=document.getElementById('bulk-bar');
+  const cnt=document.getElementById('bulk-count');
+  if(bar)bar.style.display=srFiltered.length?'flex':'none';
+  if(cnt)cnt.textContent=`${srSelected.size} selected`;
+}
+function bulkAddToWl(){
+  let added=0;
+  for(const c of srFiltered){
+    if(!srSelected.has(c.id)||watchlist.some(w=>w.id===c.id)) continue;
+    const{market,low}=getPrice(c);const ri=rarityOf(c);
+    const snap={id:c.id,name:c.name,set:c.set.name,setId:c.set.id,img:c.images.small,number:c.number,total:c.set.printedTotal??c.set.total??'?',market,low,rarity:ri.label,addedAt:Date.now()};
+    const tu=c.tcgplayer?.url||'';const tm=tu.match(/product\/(\d+)/);if(tm)snap.tcgplayerId=tm[1];
+    watchlist.push(snap);recordHistory(snap);ledgerSetWl(snap);seedPriceHistory(snap);added++;
+  }
+  if(added){save();refreshAllCounts();}
+  srSelected.clear();const all=document.getElementById('bulk-select-all');if(all)all.checked=false;
+  updateBulkBar();renderSrPage();
+  if(added)showBriefToast(`✓ Added ${added} card${added!==1?'s':''} to Watchlist`);
+}
+function bulkAddToOwned(){
+  let added=0;
+  for(const c of srFiltered){
+    if(!srSelected.has(c.id)) continue;
+    const{market,low}=getPrice(c);const ri=rarityOf(c);
+    const snap={id:c.id,name:c.name,set:c.set.name,setId:c.set.id,img:c.images.small,number:c.number,total:c.set.printedTotal??c.set.total??'?',market,low,rarity:ri.label,addedAt:Date.now(),copyId:uid()};
+    owned.push(snap);ledgerSetOwned(snap);added++;
+  }
+  if(added){save();refreshAllCounts();}
+  srSelected.clear();const all=document.getElementById('bulk-select-all');if(all)all.checked=false;
+  updateBulkBar();renderSrPage();
+  if(added)showBriefToast(`✓ Added ${added} card${added!==1?'s':''} to Folio`);
+}
+function showBriefToast(msg){
+  const t=document.getElementById('undo-toast');
+  const ub=document.querySelector('.undo-btn');
+  document.getElementById('undo-msg').textContent=msg;
+  if(ub)ub.style.display='none';
+  t.classList.add('show');
+  setTimeout(()=>{t.classList.remove('show');if(ub)ub.style.display='';},2500);
+}
+
+// ── PRICE ALERT TAG (watchlist) ───────────────────────────────────────────
+function priceAlertTag(cardId,currentMarket){
+  const hist=priceHistory[cardId];
+  if(!hist?.points?.length||currentMarket==null) return '';
+  const pts=hist.points.filter(p=>p.market!=null).sort((a,b)=>a.t-b.t);
+  if(!pts.length) return '';
+  const todayStr=new Date().toDateString();
+  const prevPt=pts.slice().reverse().find(p=>new Date(p.t).toDateString()!==todayStr);
+  if(!prevPt) return '';
+  const pct=((currentMarket-prevPt.market)/prevPt.market)*100;
+  if(Math.abs(pct)<10) return '';
+  return `<span class="price-alert ${pct>0?'up':'down'}">${pct>0?'▲':'▼'} ${pct>0?'+':''}${pct.toFixed(1)}% VS ${new Date(prevPt.t).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>`;
+}
+
+// ── SET OWNERSHIP BADGE (search) ──────────────────────────────────────────
+function setOwnershipBadge(setId,setTotal){
+  if(!setId) return '';
+  const derive=c=>c.setId||c.id.split('-').slice(0,-1).join('-');
+  const ownedIds=new Set(owned.filter(c=>derive(c)===setId).map(c=>c.id));
+  const watchIds=new Set(watchlist.filter(c=>derive(c)===setId).map(c=>c.id));
+  // tracked = in watchlist but NOT yet owned; owned = in folio
+  const trackedOnly=new Set([...watchIds].filter(id=>!ownedIds.has(id)));
+  const total=ownedIds.size+trackedOnly.size;
+  if(!total) return '';
+  const parts=[];
+  if(ownedIds.size) parts.push(`<span style="color:var(--green);font-weight:700">${ownedIds.size} owned</span>`);
+  if(trackedOnly.size) parts.push(`<span>${trackedOnly.size} tracked</span>`);
+  return `<div class="set-own-badge">${parts.join(' · ')} <span style="color:var(--b3)">/ ${setTotal}</span></div>`;
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+// Ensure all owned have copyIds
+owned=owned.map(c=>({...c,copyId:c.copyId||uid()}));
+
+watchlist.forEach(c=>{
+  if(!ledger[c.id]) ledgerSetWl(c);
+  if(!ledger[c.id].statusAt) ledger[c.id].statusAt=c.addedAt||ledger[c.id].wlAt||Date.now();
+});
+
+owned.forEach(c=>{
+  if(!ledger[c.id]) ledgerSetWl(c);
+  ledgerSetOwned(c);
+  // sync purchasePrice and boughtAt: owned card is source of truth
+  // but if card is missing it, pull from ledger (handles old data)
+  if(c.purchasePrice==null && ledger[c.id]?.purchasePrice!=null){
+    c.purchasePrice=ledger[c.id].purchasePrice;
+  }
+  if(c.boughtAt==null && ledger[c.id]?.ownAt!=null){
+    c.boughtAt=ledger[c.id].ownAt;
+  }
+  // push back to ledger in case card had it and ledger didn't
+  if(c.purchasePrice!=null) ledger[c.id].purchasePrice=c.purchasePrice;
+  if(c.boughtAt!=null)      ledger[c.id].ownAt=c.boughtAt;
+  // Backfill JP fields into ledger from owned card
+  if(c.isJP){ledger[c.id].isJP=true;if(c.jpPrice!=null)ledger[c.id].jpPrice=c.jpPrice;}
+  // Backfill statusAt if missing — use boughtAt, then ownAt, then addedAt
+  if(!ledger[c.id].statusAt) ledger[c.id].statusAt=c.boughtAt||ledger[c.id].ownAt||c.addedAt||Date.now();
+});
+save();
+refreshAllCounts();
+// Render the default landing tab (Folio) immediately on load
+ownPage=1;applyOwnControls();
+updateFolioSummary();
+updateExportDateDisplay();
+document.getElementById('sg-date').value=todayVal();
+// Restore saved API key
+// Restore theme
+if(localStorage.getItem('pf_theme')==='light'){document.body.classList.add('light');document.getElementById('theme-btn').textContent='🌙';}
+
+const _savedKey=localStorage.getItem('ptrkr_apikey')||'';
+if(_savedKey) document.getElementById('api-key-input').value=_savedKey;
+const _savedPPT=localStorage.getItem('ptrkr_ppt')||'';
+if(_savedPPT) document.getElementById('ppt-key-input').value=_savedPPT;
+</script>
+</body>
+</html>
