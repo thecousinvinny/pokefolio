@@ -2461,9 +2461,12 @@ function setOwnershipBadge(setId,setTotal){
   const derive=c=>c.setId||c.id.split('-').slice(0,-1).join('-');
   const ownedIds=new Set(owned.filter(c=>derive(c)===setId).map(c=>c.id));
   const watchIds=new Set(watchlist.filter(c=>derive(c)===setId).map(c=>c.id));
-  const allTracked=new Set([...ownedIds,...watchIds]);
-  if(!allTracked.size) return '';
-  return `<div class="set-own-badge">Set: <span style="font-weight:700;color:var(--text)">${allTracked.size} tracked</span> / ${setTotal}</div>`;
+  const trackedOnly=new Set([...watchIds].filter(id=>!ownedIds.has(id)));
+  if(!ownedIds.size&&!trackedOnly.size) return '';
+  const parts=[];
+  if(ownedIds.size) parts.push(`<span style="color:var(--green);font-weight:700">${ownedIds.size} owned</span>`);
+  if(trackedOnly.size) parts.push(`<span style="color:var(--text)">${trackedOnly.size} tracked</span>`);
+  return `<div class="set-own-badge">Set: ${parts.join(' ')} <span style="color:var(--b3)">/ ${setTotal}</span></div>`;
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────
