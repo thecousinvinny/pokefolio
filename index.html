@@ -993,7 +993,19 @@ function rarityOf(card){
 function raritySnap(c){
   const ri=c.rarity??'STANDARD';
   const cls=ri.includes('ILLUS')||ri.includes('SPEC')?'r-ir':ri.includes('FULL')||ri.includes('HYPER')?'r-fa':(ri.includes('RARE')&&!ri.includes('STANDARD'))?'r-sr':'r-std';
-  const rank=ri.includes('SPEC')?0:ri.includes('ILLUS')?1:ri.includes('HYPER')?2:ri.includes('FULL')?3:ri.includes('ULTRA')?4:(ri.includes('RARE')&&!ri.includes('STANDARD'))?5:10;
+  // Rank: lower = rarer. Hide threshold is rank>=6.
+  // 0=Spec Illus, 1=Illus, 2=Hyper, 3=Full Art/Secret, 4=Ultra Rare/Rainbow/Amazing
+  // 5=VSTAR/VMAX/ex/EX/GX/V Rare  ← KEEP
+  // 6=plain Rare                   ← HIDE
+  // 10=Standard/Common/Uncommon    ← HIDE
+  let rank=10;
+  if(ri.includes('SPEC')) rank=0;
+  else if(ri.includes('ILLUS')) rank=1;
+  else if(ri.includes('HYPER')) rank=2;
+  else if(ri.includes('FULL')||ri.includes('SECRET')) rank=3;
+  else if(/ultra rare|rainbow|amazing rare/i.test(ri)) rank=4;
+  else if(/VSTAR|VMAX|VUNION|\bex\b|\bEX\b|\bGX\b|\bV\b/i.test(ri)) rank=5;
+  else if(ri.includes('RARE')&&!ri.includes('STANDARD')) rank=6;
   return{label:ri,cls,rank};
 }
 const tcgUrl=name=>`https://www.tcgplayer.com/search/pokemon/product?productLineName=pokemon&q=${encodeURIComponent(name)}&view=grid`;
