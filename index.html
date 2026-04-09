@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-<meta name="apple-mobile-web-app-title" content="POKÉFOLIO"/>
-<title>POKÉFOLIO</title>
+<meta name="apple-mobile-web-app-title" content="BINDR"/>
+<title>BINDR</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -438,6 +438,45 @@ body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);m
 .pcard-compact-badge{font-size:8px;color:var(--t3);font-family:'DM Sans',sans-serif}
 .pcard-compact-badge span{color:var(--green);font-weight:700}
 .compact-grid{display:flex;flex-direction:column;gap:4px}
+
+/* ── BOTTOM TAB BAR ──────────────────────────────────────────────────── */
+.bottom-nav{
+  position:fixed;bottom:0;left:0;right:0;z-index:300;
+  display:flex;align-items:stretch;
+  background:rgba(10,10,10,0.97);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-top:1px solid var(--b1);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  height:calc(56px + env(safe-area-inset-bottom,0px));
+}
+body.light .bottom-nav{background:rgba(245,244,241,0.97);}
+.bnav-btn{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;background:none;border:none;cursor:pointer;
+  color:var(--t3);padding:6px 4px 4px;
+  transition:color .15s;position:relative;
+  -webkit-tap-highlight-color:transparent;
+  min-width:0;
+}
+.bnav-btn:active{opacity:0.7;}
+.bnav-btn.active{color:var(--gold2);}
+.bnav-btn svg{width:22px;height:22px;flex-shrink:0;}
+.bnav-btn span:not(.bnav-badge){font-size:9px;font-family:'DM Sans',sans-serif;font-weight:600;letter-spacing:0;line-height:1;white-space:nowrap}
+.bnav-badge{
+  position:absolute;top:4px;right:calc(50% - 18px);
+  min-width:14px;height:14px;
+  background:var(--gold-dim2);color:var(--gold);
+  border:1px solid rgba(201,168,76,0.4);
+  border-radius:7px;font-size:8px;font-family:'DM Sans',sans-serif;font-weight:700;
+  display:flex;align-items:center;justify-content:center;padding:0 3px;
+  pointer-events:none;
+}
+.bnav-badge:empty,.bnav-badge[data-empty]{display:none}
+/* Offset page content so cards don't hide behind bottom nav */
+.wrap{padding-bottom:calc(72px + env(safe-area-inset-bottom,0px))!important;}
+
+/* Remove old top tabs */
+.tabs{display:none!important;}
 </style>
 </head>
 <body>
@@ -468,7 +507,7 @@ body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);m
           <circle cx="17.8" cy="17.8" r="1.1" fill="#f8e8b0" opacity="0.75"/>
         </svg>
       </div>
-      <span class="logo-text">POKÉFOLIO</span>
+      <span class="logo-text">BINDR</span>
       <span style="font-size:7px;font-weight:700;letter-spacing:0.1em;padding:2px 5px;border-radius:3px;background:var(--gold-dim2);color:var(--gold);border:1px solid rgba(201,168,76,0.35);align-self:center;margin-left:-4px">LITE</span>
     </a>
     <div class="nav-right">
@@ -477,14 +516,7 @@ body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);m
       <button class="hdr-btn" onclick="openIEModal()">⇅ IMPORT / EXPORT</button>
     </div>
   </div>
-  <div class="tabs">
-    <button class="tab" onclick="switchTab('search')">Search</button>
-    <button class="tab" onclick="switchTab('watchlist')">Watchlist <span class="badge" id="wl-count">0</span></button>
-    <button class="tab active" onclick="switchTab('owned')">Folio <span class="badge" id="owned-count">0</span></button>
-    <button class="tab" onclick="switchTab('sold')">Sold <span class="badge" id="sold-count">0</span></button>
-    <button class="tab" onclick="switchTab('gifted')">Gifted <span class="badge" id="gifted-count">0</span></button>
-    <button class="tab" onclick="switchTab('history')">History <span class="badge" id="hist-count">0</span></button>
-  </div>
+
 </nav>
 
 
@@ -572,6 +604,13 @@ body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);m
 
 <!-- MAIN CONTENT -->
 <div class="wrap">
+
+  <!-- DASHBOARD TAB -->
+  <div id="tab-dashboard" class="section">
+    <div class="wrap" id="dashboard-wrap">
+      <div id="dashboard-content"></div>
+    </div>
+  </div>
 
   <!-- SEARCH TAB -->
   <div id="tab-search" class="section">
@@ -888,19 +927,25 @@ function save(){
   localStorage.setItem('ptrkr_ledger',JSON.stringify(ledger));
 }
 function refreshAllCounts(){
-  document.getElementById('wl-count').textContent=watchlist.length;
-  document.getElementById('owned-count').textContent=owned.length;
-  document.getElementById('gifted-count').textContent=gifted.length;
-  document.getElementById('sold-count').textContent=sold.length;
-  document.getElementById('hist-count').textContent=Object.keys(ledger).length;
+  const wlEl=document.getElementById('wl-count');if(wlEl){wlEl.textContent=watchlist.length||'';wlEl.style.display=watchlist.length?'flex':'none';}
+  const ownEl=document.getElementById('owned-count');if(ownEl){ownEl.textContent=owned.length||'';ownEl.style.display=owned.length?'flex':'none';}
+  const gEl=document.getElementById('gifted-count');if(gEl){gEl.textContent=gifted.length||'';gEl.style.display=gifted.length?'flex':'none';}
+  const sEl=document.getElementById('sold-count');if(sEl){sEl.textContent=sold.length||'';sEl.style.display=sold.length?'flex':'none';}
+  const hEl=document.getElementById('hist-count');if(hEl){hEl.textContent=Object.keys(ledger).length||'';hEl.style.display=Object.keys(ledger).length?'flex':'none';}
 }
 
-const TABS=['search','watchlist','owned','sold','gifted','history'];
+const TABS=['dashboard','search','watchlist','owned','sold','gifted','history'];
 function switchTab(t){
-  TABS.forEach((n,i)=>document.querySelectorAll('.tab')[i].classList.toggle('active',n===t));
+  // Update bottom nav active state
+  document.querySelectorAll('.bnav-btn').forEach(b=>b.classList.remove('active'));
+  const activeBtn=document.getElementById('bnav-'+t);
+  if(activeBtn) activeBtn.classList.add('active');
+
+  TABS.forEach((n,i)=>{const tab=document.querySelectorAll('.tab')[i];if(tab)tab.classList.toggle('active',n===t);});
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.getElementById('tab-'+t).classList.add('active');
   if(t==='owned'){ownPage=1;applyOwnControls();}
+  if(t==='dashboard') renderDashboard();
   if(t==='watchlist'){wlPage=1;applyWlControls();}
   if(t==='sold'){soldPage=1;renderSold();}
   if(t==='gifted'){giftedPage=1;renderGifted();}
@@ -1410,6 +1455,184 @@ function applyBulkEdit(){
   refreshOwnedInPlace();
 }
 
+
+// ── DASHBOARD ──────────────────────────────────────────────────────────────
+function renderDashboard(){
+  const el=document.getElementById('dashboard-content');
+  if(!el) return;
+
+  // ── Stats ──
+  const totalVal=owned.reduce((s,c)=>s+((c.isJP&&c.jpPrice!=null?c.jpPrice:c.market)??0),0);
+  const totalPaid=owned.filter(c=>c.purchasePrice!=null).reduce((s,c)=>s+c.purchasePrice,0);
+  const pnl=totalVal-totalPaid;
+  const mostVal=[...owned].sort((a,b)=>((b.isJP&&b.jpPrice?b.jpPrice:b.market)??0)-((a.isJP&&a.jpPrice?a.jpPrice:a.market)??0))[0];
+  const recentSold=[...sold].sort((a,b)=>(b.soldAt??0)-(a.soldAt??0))[0];
+  const recentBought=[...owned].sort((a,b)=>(b.boughtAt??b.addedAt??0)-(a.boughtAt??a.addedAt??0))[0];
+  const wlVal=watchlist.reduce((s,c)=>s+(c.market??0),0);
+
+  // ── Price history for portfolio value chart ──
+  // Reconstruct daily portfolio value from priceHistory points
+  const dayMap={};
+  owned.forEach(c=>{
+    const hist=priceHistory[c.id];
+    if(!hist?.points?.length) return;
+    hist.points.forEach(p=>{
+      const day=new Date(p.t).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+      dayMap[day]=(dayMap[day]||0)+(p.market??0);
+    });
+  });
+  const dayEntries=Object.entries(dayMap).slice(-30);
+
+  // ── Watchlist price spread ──
+  const wlData=watchlist.filter(c=>c.market!=null).sort((a,b)=>(b.market??0)-(a.market??0)).slice(0,10);
+
+  el.innerHTML=`
+  <style>
+    .db-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+    .db-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+    @media(max-width:768px){.db-grid{grid-template-columns:repeat(2,1fr)}.db-grid-2{grid-template-columns:1fr}}
+    .db-metric{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rl);padding:10px 12px}
+    .db-metric-label{font-size:8px;color:var(--t3);font-family:'DM Sans',sans-serif;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:4px}
+    .db-metric-val{font-size:18px;font-weight:700;color:var(--text);font-family:'DM Sans',sans-serif;font-variant-numeric:tabular-nums;line-height:1.1}
+    .db-metric-sub{font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif;margin-top:2px}
+    .db-card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--rl);padding:12px 14px}
+    .db-card-title{font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--t2);font-family:'Space Mono',monospace;text-transform:uppercase;margin-bottom:10px}
+    .db-chart-wrap{position:relative;width:100%}
+    .db-hero{display:flex;gap:10px;align-items:center;margin-bottom:8px}
+    .db-hero img{width:48px;height:68px;object-fit:cover;border-radius:5px;background:var(--s2);flex-shrink:0}
+    .db-hero-body{min-width:0}
+    .db-hero-name{font-size:11px;font-weight:600;color:var(--text);font-family:'DM Sans',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .db-hero-sub{font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif;margin-top:1px}
+    .db-hero-val{font-size:16px;font-weight:700;color:var(--gold2);font-family:'DM Sans',sans-serif;font-variant-numeric:tabular-nums;margin-top:3px}
+  </style>
+
+  <div class="db-grid">
+    <div class="db-metric">
+      <div class="db-metric-label">Collection Value</div>
+      <div class="db-metric-val" style="color:var(--gold2)">$${totalVal.toFixed(0)}</div>
+      <div class="db-metric-sub">${owned.length} cards</div>
+    </div>
+    <div class="db-metric">
+      <div class="db-metric-label">Total Paid</div>
+      <div class="db-metric-val">$${totalPaid.toFixed(0)}</div>
+      <div class="db-metric-sub">${owned.filter(c=>c.purchasePrice!=null).length} with price</div>
+    </div>
+    <div class="db-metric">
+      <div class="db-metric-label">Unrealised P&L</div>
+      <div class="db-metric-val" style="color:${pnl>=0?'var(--green)':'var(--red)'}">${pnl>=0?'+':''}$${pnl.toFixed(0)}</div>
+      <div class="db-metric-sub">${totalPaid>0?(pnl/totalPaid*100).toFixed(1)+'%':''}</div>
+    </div>
+    <div class="db-metric">
+      <div class="db-metric-label">Watchlist Value</div>
+      <div class="db-metric-val">$${wlVal.toFixed(0)}</div>
+      <div class="db-metric-sub">${watchlist.length} cards watching</div>
+    </div>
+  </div>
+
+  <div class="db-grid-2">
+    ${mostVal?`<div class="db-card">
+      <div class="db-card-title">Most Valuable</div>
+      <div class="db-hero">
+        <img src="${mostVal.img}" loading="lazy"/>
+        <div class="db-hero-body">
+          <div class="db-hero-name">${mostVal.name}</div>
+          <div class="db-hero-sub">${mostVal.set}</div>
+          <div class="db-hero-val">$${((mostVal.isJP&&mostVal.jpPrice?mostVal.jpPrice:mostVal.market)??0).toFixed(2)}</div>
+        </div>
+      </div>
+    </div>`:''}
+    ${recentBought?`<div class="db-card">
+      <div class="db-card-title">Most Recent Add</div>
+      <div class="db-hero">
+        <img src="${recentBought.img}" loading="lazy"/>
+        <div class="db-hero-body">
+          <div class="db-hero-name">${recentBought.name}</div>
+          <div class="db-hero-sub">${recentBought.set}</div>
+          <div class="db-hero-val" style="color:var(--text);font-size:11px">${recentBought.boughtAt?fmtDate(recentBought.boughtAt):'Recently added'}</div>
+        </div>
+      </div>
+    </div>`:''}
+  </div>
+
+  ${recentSold?`<div class="db-card" style="margin-bottom:12px">
+    <div class="db-card-title">Most Recent Sale</div>
+    <div class="db-hero">
+      <img src="${recentSold.img}" loading="lazy"/>
+      <div class="db-hero-body">
+        <div class="db-hero-name">${recentSold.name}</div>
+        <div class="db-hero-sub">${recentSold.set} · Sold ${fmtDate(recentSold.soldAt)}</div>
+        <div style="display:flex;gap:12px;margin-top:4px">
+          <div><div class="db-metric-label">Sold for</div><div style="font-size:13px;font-weight:700;color:var(--green);font-family:'DM Sans',sans-serif">$${(recentSold.soldPrice??0).toFixed(2)}</div></div>
+          ${recentSold.purchasePrice!=null?`<div><div class="db-metric-label">P&L</div><div style="font-size:13px;font-weight:700;color:${(recentSold.soldPrice??0)-recentSold.purchasePrice>=0?'var(--green)':'var(--red)'};font-family:'DM Sans',sans-serif">${((recentSold.soldPrice??0)-recentSold.purchasePrice>=0?'+':'')}$${((recentSold.soldPrice??0)-recentSold.purchasePrice).toFixed(2)}</div></div>`:''}
+        </div>
+      </div>
+    </div>
+  </div>`:''}
+
+  ${dayEntries.length>=2?`<div class="db-card" style="margin-bottom:12px">
+    <div class="db-card-title">Collection Value Over Time</div>
+    <div class="db-chart-wrap" style="height:180px"><canvas id="db-chart-val" role="img" aria-label="Line chart of collection value over time"></canvas></div>
+  </div>`:''}
+
+  ${wlData.length?`<div class="db-card">
+    <div class="db-card-title">Watchlist — Top 10 by Market Value</div>
+    <div class="db-chart-wrap" style="height:${wlData.length*38+40}px"><canvas id="db-chart-wl" role="img" aria-label="Bar chart of watchlist card values"></canvas></div>
+  </div>`:''}
+  `;
+
+  // Chart.js must already be loaded by the time this runs
+  if(typeof Chart==='undefined'){ console.warn('Chart.js not loaded'); return; }
+
+  const gold='#c9a84c';
+  const goldAlpha='rgba(201,168,76,0.12)';
+  const green='#4caf7d';
+  const gridCol='rgba(255,255,255,0.05)';
+
+  if(dayEntries.length>=2){
+    new Chart(document.getElementById('db-chart-val'),{
+      type:'line',
+      data:{
+        labels:dayEntries.map(e=>e[0]),
+        datasets:[{
+          label:'Value',data:dayEntries.map(e=>parseFloat(e[1].toFixed(2))),
+          borderColor:gold,backgroundColor:goldAlpha,
+          tension:0.4,pointRadius:3,pointBackgroundColor:gold,
+          borderWidth:2,fill:true
+        }]
+      },
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:v=>'$'+v.parsed.y.toFixed(2)}}},
+        scales:{
+          x:{ticks:{color:'#585250',font:{size:9,family:'DM Sans'},maxTicksLimit:8},grid:{display:false},border:{color:'transparent'}},
+          y:{ticks:{color:'#585250',font:{size:9,family:'DM Sans'},callback:v=>'$'+v},grid:{color:gridCol},border:{color:'transparent'}}
+        }
+      }
+    });
+  }
+
+  if(wlData.length){
+    new Chart(document.getElementById('db-chart-wl'),{
+      type:'bar',
+      data:{
+        labels:wlData.map(c=>c.name.length>18?c.name.slice(0,16)+'…':c.name),
+        datasets:[{
+          label:'Market',data:wlData.map(c=>parseFloat((c.market??0).toFixed(2))),
+          backgroundColor:wlData.map((_,i)=>i===0?gold:'rgba(201,168,76,0.35)'),
+          borderRadius:4,borderSkipped:false
+        }]
+      },
+      options:{responsive:true,maintainAspectRatio:false,
+        indexAxis:'y',
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:v=>'$'+v.parsed.x.toFixed(2)}}},
+        scales:{
+          x:{ticks:{color:'#585250',font:{size:9,family:'DM Sans'},callback:v=>'$'+v},grid:{color:gridCol},border:{color:'transparent'}},
+          y:{ticks:{color:'#ccc',font:{size:9,family:'DM Sans'}},grid:{display:false},border:{color:'transparent'}}
+        }
+      }
+    });
+  }
+}
+
 // ── WATCHLIST ─────────────────────────────────────────────────────────────
 function applyWlControls(){
   wlFiltered=filterSort([...watchlist],
@@ -1543,7 +1766,7 @@ function buildChart(id,area){
 function goWlPage(p){if(p<1||p>Math.ceil(wlFiltered.length/PER))return;wlPage=p;renderWatchlist();window.scrollTo({top:0,behavior:'smooth'});}
 
 function renderWatchlist(){
-  document.getElementById('wl-count').textContent=watchlist.length;
+  const wlEl=document.getElementById('wl-count');if(wlEl){wlEl.textContent=watchlist.length||'';wlEl.style.display=watchlist.length?'flex':'none';}
   const el=document.getElementById('watchlist-cards'),pel=document.getElementById('wl-pagination');
   Object.values(wlCharts).forEach(ch=>ch.destroy());wlCharts={};
   if(!watchlist.length){el.innerHTML='<div class="empty"><div class="empty-glyph">◇</div><div class="empty-title">Watchlist is empty</div><div class="empty-sub" style="margin-top:8px"><button class="btn" onclick="switchTab(\'search\')">→ Search for cards to watch</button></div></div>';pel.innerHTML='';updateWlMetrics();return;}
@@ -1788,7 +2011,7 @@ function ownedCopyLabel(c){
 }
 
 function renderOwned(){
-  document.getElementById('owned-count').textContent=owned.length;
+  const ownEl=document.getElementById('owned-count');if(ownEl){ownEl.textContent=owned.length||'';ownEl.style.display=owned.length?'flex':'none';}
   const el=document.getElementById('owned-cards'),pel=document.getElementById('owned-pagination');
   updateOwnedMetrics();
   if(!owned.length){el.innerHTML='<div class="empty"><div class="empty-glyph">★</div><div class="empty-title">Your Folio is empty</div><div class="empty-sub" style="margin-top:8px"><button class="btn" onclick="switchTab(\'search\')">→ Search for your first card</button></div></div>';pel.innerHTML='';return;}
@@ -1971,7 +2194,7 @@ function confirmSG(){
 
 // ── SOLD ──────────────────────────────────────────────────────────────────
 function renderSold(){
-  document.getElementById('sold-count').textContent=sold.length;
+  const sEl2=document.getElementById('sold-count');if(sEl2){sEl2.textContent=sold.length||'';sEl2.style.display=sold.length?'flex':'none';}
   const el=document.getElementById('sold-cards'),pel=document.getElementById('sold-pagination');
   updateSoldMetrics();
   if(!sold.length){el.innerHTML='<div class="empty"><div class="empty-glyph">💰</div><div class="empty-title">No cards sold yet</div></div>';pel.innerHTML='';return;}
@@ -2066,7 +2289,7 @@ function updateSoldMetrics(){
 
 // ── GIFTED ────────────────────────────────────────────────────────────────
 function renderGifted(){
-  document.getElementById('gifted-count').textContent=gifted.length;
+  const gEl2=document.getElementById('gifted-count');if(gEl2){gEl2.textContent=gifted.length||'';gEl2.style.display=gifted.length?'flex':'none';}
   const el=document.getElementById('gifted-cards'),pel=document.getElementById('gifted-pagination');
   updateGiftedMetrics();
   if(!gifted.length){el.innerHTML='<div class="empty"><div class="empty-glyph">🎁</div><div class="empty-title">No cards gifted yet</div></div>';pel.innerHTML='';return;}
@@ -2162,7 +2385,7 @@ function renderHistory(){
   pnlEl.textContent=pnlAll!=null?(pnlAll>=0?'+':'')+fmt(pnlAll):'—';
   pnlEl.className='metric-val '+(pnlAll==null?'muted':pnlAll>=0?'green':'');
   pnlEl.style.color=pnlAll!=null&&pnlAll<0?'var(--red)':'';
-  document.getElementById('hist-count').textContent=allE.length;
+  const hEl2=document.getElementById('hist-count');if(hEl2){hEl2.textContent=allE.length||'';hEl2.style.display=allE.length?'flex':'none';}
 
   if(!entries.length){el.innerHTML='<div class="empty"><div class="empty-glyph">◎</div><div class="empty-title">No history yet</div><div class="empty-sub">Add cards to start tracking</div></div>';pel.innerHTML='';return;}
 
@@ -2259,7 +2482,7 @@ function downloadExport(){
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
     a.href=url;
-    a.download='pokefolio-'+new Date().toISOString().slice(0,10)+'.json';
+    a.download='bindr-'+new Date().toISOString().slice(0,10)+'.json';
     document.body.appendChild(a);
     a.click();
     setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},1000);
@@ -2268,7 +2491,7 @@ function downloadExport(){
     // Fallback: data URI
     const a=document.createElement('a');
     a.href='data:application/json;charset=utf-8,'+encodeURIComponent(data);
-    a.download='pokefolio-'+new Date().toISOString().slice(0,10)+'.json';
+    a.download='bindr-'+new Date().toISOString().slice(0,10)+'.json';
     a.click();
     stampExport();
   }
@@ -2357,7 +2580,7 @@ window.addEventListener('beforeunload',e=>{
   if(!owned.length&&!watchlist.length) return;
   const ts=parseInt(localStorage.getItem('pf_last_export')||'0');
   const days=Math.floor((Date.now()-ts)/86400000);
-  if(!ts||days>3){e.preventDefault();e.returnValue='Export your POKÉFOLIO data before closing!';}
+  if(!ts||days>3){e.preventDefault();e.returnValue='Export your BINDR data before closing!';}
 });
 
 // ── SHARE SHEET (iPad native) + FILE IMPORT ───────────────────────────────
@@ -2365,9 +2588,9 @@ async function shareExport(){
   const data=buildExportData();
   document.getElementById('export-area').value=data;
   const blob=new Blob([data],{type:'application/json'});
-  const file=new File([blob],`pokefolio-${new Date().toISOString().slice(0,10)}.json`,{type:'application/json'});
+  const file=new File([blob],`bindr-${new Date().toISOString().slice(0,10)}.json`,{type:'application/json'});
   if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
-    try{await navigator.share({files:[file],title:'POKÉFOLIO Export'});stampExport();}
+    try{await navigator.share({files:[file],title:'BINDR Export'});stampExport();}
     catch(e){if(e.name!=='AbortError')downloadExport();}
   } else downloadExport();
 }
@@ -2511,5 +2734,71 @@ if(localStorage.getItem('pf_theme')==='light'){document.body.classList.add('ligh
 
 
 </script>
+
+<!-- BOTTOM TAB BAR -->
+<nav class="bottom-nav" id="bottom-nav">
+  <button class="bnav-btn" id="bnav-dashboard" onclick="switchTab('dashboard')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1"/>
+      <rect x="14" y="3" width="7" height="7" rx="1"/>
+      <rect x="3" y="14" width="7" height="7" rx="1"/>
+      <rect x="14" y="14" width="7" height="7" rx="1"/>
+    </svg>
+    <span>Dash</span>
+  </button>
+  <button class="bnav-btn" id="bnav-search" onclick="switchTab('search')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="7"/>
+      <line x1="16.5" y1="16.5" x2="22" y2="22"/>
+    </svg>
+    <span>Search</span>
+  </button>
+  <button class="bnav-btn" id="bnav-watchlist" onclick="switchTab('watchlist')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 20l-7-7a5 5 0 010-7 5 5 0 017 0 5 5 0 017 0 5 5 0 010 7l-7 7z"/>
+    </svg>
+    <span>Watch</span>
+    <span class="bnav-badge" id="wl-count">0</span>
+  </button>
+  <button class="bnav-btn active" id="bnav-owned" onclick="switchTab('owned')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="2" width="18" height="20" rx="2"/>
+      <line x1="7" y1="2" x2="7" y2="22"/>
+      <line x1="7" y1="7" x2="3" y2="7"/>
+      <line x1="7" y1="12" x2="3" y2="12"/>
+      <line x1="7" y1="17" x2="3" y2="17"/>
+    </svg>
+    <span>BINDR</span>
+    <span class="bnav-badge" id="owned-count">0</span>
+  </button>
+  <button class="bnav-btn" id="bnav-sold" onclick="switchTab('sold')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+      <path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 001.96-1.61L23 6H6"/>
+    </svg>
+    <span>Sold</span>
+    <span class="bnav-badge" id="sold-count">0</span>
+  </button>
+  <button class="bnav-btn" id="bnav-gifted" onclick="switchTab('gifted')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="20 12 20 22 4 22 4 12"/>
+      <rect x="2" y="7" width="20" height="5"/>
+      <line x1="12" y1="22" x2="12" y2="7"/>
+      <path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z"/>
+      <path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/>
+    </svg>
+    <span>Gifted</span>
+    <span class="bnav-badge" id="gifted-count">0</span>
+  </button>
+  <button class="bnav-btn" id="bnav-history" onclick="switchTab('history')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="12 8 12 12 14 14"/>
+      <path d="M3.05 11a9 9 0 1 0 .5-4H1"/>
+      <polyline points="1 3 1 7 5 7"/>
+    </svg>
+    <span>History</span>
+    <span class="bnav-badge" id="hist-count">0</span>
+  </button>
+</nav>
 </body>
 </html>
