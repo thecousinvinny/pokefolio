@@ -525,7 +525,7 @@ body.light .bottom-nav{background:rgba(245,244,241,0.78);}
 .binder-body{flex:1;overflow:hidden;padding:0 12px;display:flex;flex-direction:column;}
 .binder-viewport{flex:1;position:relative;overflow:hidden;touch-action:pan-y;cursor:grab;}
 .binder-viewport:active{cursor:grabbing;}
-.binder-track{display:flex;height:100%;will-change:transform;}
+.binder-track{display:flex;height:100%;will-change:transform;-webkit-backface-visibility:hidden;backface-visibility:hidden;}
 .binder-page{flex:0 0 100%;display:grid;gap:10px;align-content:center;padding:8px 0;overflow:hidden;}
 .binder-card-slot{overflow:hidden;position:relative;}
 .binder-card-wrap{transform:scale(0.6);transform-origin:top left;width:166.67%;position:absolute;top:0;left:0;}
@@ -1700,15 +1700,15 @@ function closeBinderOverlay(){
 
 function calcBinderCols(){
   const vw=window.innerWidth;
-  if(vw>=1200) return 7;
-  if(vw>=900)  return 6;
-  if(vw>=700)  return 5;
+  if(vw>=1200) return 6;
+  if(vw>=900)  return 5;
+  if(vw>=700)  return 4;
   if(vw>=500)  return 4;
   return 3;
 }
 
 function renderBinder(){
-  const SCALE=0.6;
+  const SCALE=0.68;
   const cols=calcBinderCols();
   const rows=2;
   binderPER=cols*rows;
@@ -1732,22 +1732,33 @@ function renderBinder(){
   const slotW=Math.floor((viewport.offsetWidth-totalGap)/cols);
   const naturalW=Math.round(slotW/SCALE);           // card's natural width inside wrap
   const naturalImgH=Math.round(naturalW*(3.5/2.5)); // Pokémon card 2.5×3.5 ratio
-  const naturalTextH=52;                            // just rarity row + name row
+  const naturalTextH=52;  // rarity + name                            // just rarity row + name row
   const naturalCardH=naturalImgH+naturalTextH;
   const slotH=Math.round(naturalCardH*SCALE);
   const rowGap=gap;
 
-  viewport.style.height=(slotH*rows+rowGap)+'px';
+  // Let viewport fill available space, size rows to fit
+  viewport.style.height='';
+  const vph=viewport.clientHeight||window.innerHeight-160;
+  const vpW=viewport.offsetWidth;
+
+  // Slot width fills the viewport exactly
+  const actualSlotW=Math.floor((vpW-(cols-1)*gap)/cols);
+  // Image scaled height = slotW * (3.5/2.5) since slotW is already the visual width
+  // Text block at scale = 52 * SCALE
+  const scaledImgH=Math.round(actualSlotW*(3.5/2.5));
+  const scaledTextH=Math.round(52*SCALE);
+  const actualSlotH=scaledImgH+scaledTextH;
 
   track.innerHTML='';
-  track.style.width=`${totalPages*100}%`;
-  track.style.transform=`translateX(-${(binderPage-1)*(100/totalPages)}%)`;
+  track.style.width=`${totalPages*vpW}px`;
+  track.style.transform=`translate3d(-${(binderPage-1)*vpW}px,0,0)`;
 
   for(let p=0;p<totalPages;p++){
     const slice=ownFiltered.slice(p*binderPER,(p+1)*binderPER);
     const pageEl=document.createElement('div');
     pageEl.className='binder-page';
-    pageEl.style.cssText=`display:grid;grid-template-columns:repeat(${cols},${slotW}px);gap:${rowGap}px ${gap}px;align-content:start;height:${viewport.style.height};overflow:hidden;flex:0 0 ${(100/totalPages).toFixed(4)}%;padding:0;box-sizing:border-box;`;
+    pageEl.style.cssText=`display:grid;grid-template-columns:repeat(${cols},${actualSlotW}px);grid-template-rows:repeat(${rows},${actualSlotH}px);gap:${rowGap}px ${gap}px;align-content:center;justify-content:start;width:${vpW}px;height:100%;overflow:hidden;flex:0 0 ${vpW}px;padding:0 ${Math.floor((vpW-cols*actualSlotW-(cols-1)*gap)/2)}px;box-sizing:border-box;`;
 
     slice.forEach((c,i)=>{
       const sliceIdx=ownFiltered.indexOf(c);
@@ -1762,12 +1773,14 @@ function renderBinder(){
 
       const slot=document.createElement('div');
       slot.className='binder-card-slot';
-      slot.style.cssText=`width:${slotW}px;height:${slotH}px;overflow:hidden;position:relative;flex-shrink:0;`;
+      slot.style.cssText=`width:${actualSlotW}px;height:${actualSlotH}px;overflow:hidden;position:relative;flex-shrink:0;`;
       slot.onclick=()=>openBinderEdit(c.copyId);
       slot.style.cursor='pointer';
       const wrap=document.createElement('div');
       wrap.className='binder-card-wrap';
-      wrap.style.cssText=`transform:scale(${SCALE});transform-origin:top left;width:${naturalW}px;position:absolute;top:0;left:0;`;
+      const actualNaturalW=Math.round(actualSlotW/SCALE);
+      const actualScale=SCALE;
+      wrap.style.cssText=`transform:scale(${actualScale});transform-origin:top left;width:${actualNaturalW}px;position:absolute;top:0;left:0;`;
 
       const card=document.createElement('div');
       card.className=`pcard${ri.rank<=3?' is-rare':''}${isShowcase?' pcard-showcase':''}`;
@@ -1787,8 +1800,9 @@ function renderBinder(){
     track.appendChild(pageEl);
   }
 
-  track.style.width=`${totalPages*100}%`;
-  track.style.transform=`translateX(-${(binderPage-1)*(100/totalPages)}%)`;
+  const vp3=document.getElementById('binder-viewport');
+  const tp3=Math.max(1,Math.ceil(ownFiltered.length/binderPER));
+  if(vp3&&track){track.style.width=`${tp3*vp3.offsetWidth}px`;track.style.transform=`translate3d(-${(binderPage-1)*vp3.offsetWidth}px,0,0)`;}
   updateBinderNav();
 }
 
@@ -1810,8 +1824,11 @@ function binderNav(dir){
   binderAnimating=true;
   binderPage=newPage;
   const track=document.getElementById('binder-track');
+  const vp=document.getElementById('binder-viewport');
+  if(!track||!vp) return;
+  const pageW=vp.offsetWidth;
   track.style.transition='transform 220ms cubic-bezier(.4,0,.2,1)';
-  track.style.transform=`translateX(-${(binderPage-1)*(100/totalPages)}%)`;
+  track.style.transform=`translate3d(-${(binderPage-1)*pageW}px,0,0)`;
   setTimeout(()=>{track.style.transition='';binderAnimating=false;},230);
   updateBinderNav();
 }
@@ -1837,15 +1854,14 @@ function setupBinderSwipe(){
     dx=e.touches[0].clientX-sx;
     const dy=Math.abs(e.touches[0].clientY-sy);
     if(dy>Math.abs(dx)) return;
-    const base=(binderPage-1)*(100/totalPages());
-    const nudge=(dx/vp.offsetWidth)*(100/totalPages());
+    const base=(binderPage-1)*vp.offsetWidth;
     track().style.transition='none';
-    track().style.transform=`translateX(calc(-${base}% + ${dx}px))`;
+    track().style.transform=`translate3d(${-base+dx}px,0,0)`;
   },{passive:true});
   vp.addEventListener('touchend',e=>{
     dragging=false;
     if(Math.abs(dx)>50){ binderNav(dx<0?1:-1); }
-    else { track().style.transition='transform 180ms ease'; track().style.transform=`translateX(-${(binderPage-1)*(100/totalPages())}%)`; setTimeout(()=>track().style.transition='',180); }
+    else { track().style.transition='transform 180ms ease'; track().style.transform=`translate3d(-${(binderPage-1)*vp.offsetWidth}px,0,0)`; setTimeout(()=>track().style.transition='',180); }
     dx=0;
   },{passive:true});
 
@@ -1855,14 +1871,14 @@ function setupBinderSwipe(){
   window.addEventListener('mousemove',e=>{
     if(!md) return;
     mdx=e.clientX-mx;
-    const base=(binderPage-1)*(100/totalPages());
+    const baseM=(binderPage-1)*vp.offsetWidth;
     track().style.transition='none';
-    track().style.transform=`translateX(calc(-${base}% + ${mdx}px))`;
+    track().style.transform=`translate3d(${-baseM+mdx}px,0,0)`;
   });
   window.addEventListener('mouseup',()=>{
     if(!md) return; md=false;
     if(Math.abs(mdx)>50){ binderNav(mdx<0?1:-1); }
-    else { track().style.transition='transform 180ms ease'; track().style.transform=`translateX(-${(binderPage-1)*(100/totalPages())}%)`; setTimeout(()=>track().style.transition='',180); }
+    else { track().style.transition='transform 180ms ease'; track().style.transform=`translate3d(-${(binderPage-1)*vp.offsetWidth}px,0,0)`; setTimeout(()=>track().style.transition='',180); }
     mdx=0;
   });
 }
