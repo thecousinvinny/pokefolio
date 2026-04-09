@@ -601,7 +601,7 @@ body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);m
         <option value="number">Card number</option>
       </select>
     </div>
-    <div id="apikey-nag" style="display:none;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.25);border-radius:var(--r);padding:8px 12px;margin-bottom:10px;font-size:9px;color:var(--gold2);font-family:'DM Sans',sans-serif;line-height:1.5">⚠ No API key — results capped at 250. Get a free key at <a href="https://pokemontcg.io" target="_blank" style="color:var(--gold2);text-decoration:underline">pokemontcg.io</a> and paste it in the top-left field to unlock full results.</div>
+    <div id="apikey-nag" style="display:none;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.25);border-radius:var(--r);padding:8px 12px;margin-bottom:10px;font-size:9px;color:var(--gold2);font-family:'DM Sans',sans-serif;line-height:1.5">⚠ No API key — results capped at 250</div>
     <div id="bulk-bar" style="display:none;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--b1);margin-bottom:10px">
       <input type="checkbox" id="bulk-select-all" onchange="toggleSelectAll(this.checked)" style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer"/>
       <span id="bulk-count" style="font-size:9px;color:var(--t3);letter-spacing:0.06em">0 selected</span>
@@ -699,39 +699,34 @@ body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);m
       </select>
       <div style="display:flex;gap:4px;margin-left:auto">
       <button id="own-bulk-btn" class="toggle-btn" onclick="toggleBulkEdit()" style="white-space:nowrap">✎ BULK EDIT</button>
-      <button id="own-hide-std-btn" class="toggle-btn" onclick="ownHideStd=!ownHideStd;this.textContent=ownHideStd?'⊙ STD HIDDEN':'⊙ HIDE STD';this.style.borderColor=ownHideStd?'var(--gold)':'var(--b1)';this.style.color=ownHideStd?'var(--gold)':'var(--t3)';applyOwnControls()" style="white-space:nowrap">⊙ HIDE STD</button>
+      <button id="own-hide-std-btn" class="toggle-btn" onclick="ownHideStd=!ownHideStd;this.textContent=ownHideStd?'UNHIDE':'HIDE';this.style.borderColor=ownHideStd?'var(--gold)':'var(--b1)';this.style.color=ownHideStd?'var(--gold)':'var(--t3)';applyOwnControls()" style="white-space:nowrap;border-color:var(--gold);color:var(--gold)">UNHIDE</button>
       <button id="own-compact-btn" class="toggle-btn" onclick="ownCompact=!ownCompact;this.textContent=ownCompact?'⊞ FULL':'⊟ COMPACT';this.style.borderColor=ownCompact?'var(--gold)':'var(--b1)';this.style.color=ownCompact?'var(--gold)':'var(--t3)';applyOwnControls()" style="white-space:nowrap">⊟ COMPACT</button>
       </div>
     </div>
     <div id="bulk-edit-panel" style="display:none;background:var(--s1);border:1px solid var(--gold);border-radius:var(--rl);padding:12px 14px;margin-bottom:12px">
-      <div style="font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--gold2);margin-bottom:10px;font-family:'Space Mono',monospace">BULK EDIT — applies to all cards on this page</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--gold2);font-family:'Space Mono',monospace">BULK EDIT</span>
+        <span id="bulk-sel-count" style="font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif">0 selected</span>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
         <div>
-          <div class="edit-label" style="margin-bottom:3px">Date bought (all)</div>
+          <div class="edit-label" style="margin-bottom:3px">Date bought</div>
           <input class="edit-input" id="bulk-date" type="date" style="width:100%"/>
         </div>
         <div>
-          <div class="edit-label" style="margin-bottom:3px">Price paid (all)</div>
+          <div class="edit-label" style="margin-bottom:3px">Price paid</div>
           <input class="edit-input" id="bulk-price" type="number" min="0" step="0.01" placeholder="0.00" style="width:100%"/>
         </div>
-        <div>
-          <div class="edit-label" style="margin-bottom:3px">Bought from (all)</div>
+        <div style="grid-column:span 2">
+          <div class="edit-label" style="margin-bottom:3px">Bought from</div>
           <input class="edit-input" id="bulk-from" type="text" placeholder="eBay, LGS, pack..." style="width:100%"/>
         </div>
-        <div>
-          <div class="edit-label" style="margin-bottom:3px">Apply to</div>
-          <select class="ctrl-select" id="bulk-target" style="width:100%;font-size:10px">
-            <option value="page">Cards on this page</option>
-            <option value="all">All filtered cards</option>
-            <option value="noprice">Cards missing price</option>
-            <option value="nodate">Cards missing date</option>
-          </select>
-        </div>
       </div>
-      <div style="display:flex;gap:6px">
-        <button class="btn btn-sm" onclick="applyBulkEdit()">✓ APPLY</button>
-        <button class="btn-ghost btn-sm" onclick="clearBulkInputs()">✕ CLEAR</button>
-        <span id="bulk-edit-status" style="font-size:9px;color:var(--t3);align-self:center;font-family:'DM Sans',sans-serif"></span>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="btn btn-sm" onclick="applyBulkEdit()">✓ APPLY TO SELECTED</button>
+        <button class="btn-ghost btn-sm" onclick="selectAllOwned()">SELECT ALL</button>
+        <button class="btn-ghost btn-sm" onclick="clearBulkSel()">CLEAR</button>
+        <span id="bulk-edit-status" style="font-size:9px;color:var(--t3);align-self:center;font-family:'DM Sans',sans-serif;margin-left:auto"></span>
       </div>
     </div>
     <div id="owned-cards"></div>
@@ -843,7 +838,8 @@ let wlCharts={};
 let srRaw=[], srFiltered=[], srPage=1;
 let wlFiltered=[], wlPage=1;
 let ownCompact=false;
-let ownHideStd=false;
+let ownHideStd=true;
+let ownSelected=new Set();
 let ownFiltered=[], ownPage=1;
 let soldPage=1, giftedPage=1, histPage=1;
 let exportMode='all', sgMode=null, sgCopyId=null;
@@ -1544,58 +1540,61 @@ function addToOwned(snap){
 let bulkEditOpen=false;
 function toggleBulkEdit(){
   bulkEditOpen=!bulkEditOpen;
+  if(!bulkEditOpen){ownSelected.clear();}
   const panel=document.getElementById('bulk-edit-panel');
   const btn=document.getElementById('own-bulk-btn');
   if(panel) panel.style.display=bulkEditOpen?'block':'none';
   if(btn){btn.style.borderColor=bulkEditOpen?'var(--gold)':'var(--b1)';btn.style.color=bulkEditOpen?'var(--gold)':'var(--t3)';}
+  refreshOwnedInPlace();
 }
-function clearBulkInputs(){
-  ['bulk-date','bulk-price','bulk-from'].forEach(id=>{
-    const el=document.getElementById(id);if(el)el.value='';
-  });
+function toggleOwnSelect(copyId, checked){
+  if(checked) ownSelected.add(copyId); else ownSelected.delete(copyId);
+  document.getElementById('bulk-sel-count').textContent=`${ownSelected.size} selected`;
+  // Update outline on the card without full re-render
+  const card=document.querySelector(`[data-copy="${copyId}"]`);
+  if(card) card.style.outline=checked?'2px solid var(--gold)':'';
+}
+function selectAllOwned(){
+  ownFiltered.forEach(c=>ownSelected.add(c.copyId));
+  document.getElementById('bulk-sel-count').textContent=`${ownSelected.size} selected`;
+  refreshOwnedInPlace();
+}
+function clearBulkSel(){
+  ownSelected.clear();
+  ['bulk-date','bulk-price','bulk-from'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const st=document.getElementById('bulk-edit-status');if(st)st.textContent='';
+  const sc=document.getElementById('bulk-sel-count');if(sc)sc.textContent='0 selected';
+  refreshOwnedInPlace();
 }
 function applyBulkEdit(){
   const dateVal=document.getElementById('bulk-date')?.value;
   const priceVal=document.getElementById('bulk-price')?.value?.trim();
   const fromVal=document.getElementById('bulk-from')?.value?.trim();
-  const target=document.getElementById('bulk-target')?.value||'page';
-
   if(!dateVal&&!priceVal&&!fromVal){
     const st=document.getElementById('bulk-edit-status');
     if(st){st.textContent='Nothing to apply.';st.style.color='var(--red)';}
     return;
   }
-
-  // Determine which cards to update
-  let targets=[];
-  if(target==='page')    targets=[...ownFiltered.slice((ownPage-1)*PER,ownPage*PER)];
-  if(target==='all')     targets=[...ownFiltered];
-  if(target==='noprice') targets=ownFiltered.filter(c=>c.purchasePrice==null);
-  if(target==='nodate')  targets=ownFiltered.filter(c=>!c.boughtAt);
-
+  if(!ownSelected.size){
+    const st=document.getElementById('bulk-edit-status');
+    if(st){st.textContent='No cards selected.';st.style.color='var(--red)';}
+    return;
+  }
+  const targets=owned.filter(c=>ownSelected.has(c.copyId));
   let count=0;
   targets.forEach(c=>{
     if(priceVal!==''&&priceVal!=null){
       const pp=parseFloat(priceVal);
-      if(!isNaN(pp)&&pp>=0){
-        c.purchasePrice=pp;
-        if(ledger[c.id]) ledger[c.id].purchasePrice=pp;
-      }
+      if(!isNaN(pp)&&pp>=0){c.purchasePrice=pp;if(ledger[c.id])ledger[c.id].purchasePrice=pp;}
     }
     if(dateVal){
       const [dy,dm,dd]=dateVal.split('-').map(Number);
       const ts=new Date(dy,dm-1,dd,12,0,0).getTime();
-      if(!isNaN(ts)){
-        c.boughtAt=ts;
-        if(ledger[c.id]) ledger[c.id].ownAt=ts;
-        if(ledger[c.id]) ledger[c.id].statusAt=ts;
-      }
+      if(!isNaN(ts)){c.boughtAt=ts;if(ledger[c.id]){ledger[c.id].ownAt=ts;ledger[c.id].statusAt=ts;}}
     }
     if(fromVal) c.boughtFrom=fromVal||null;
     count++;
   });
-
   save();
   const st=document.getElementById('bulk-edit-status');
   if(st){st.textContent=`✓ Updated ${count} card${count!==1?'s':''}.`;st.style.color='var(--green)';}
@@ -1763,8 +1762,9 @@ function renderWatchlist(){
     const nmVal=c.nmMarket??c.market;
     const hasDetails=c.nmLow!=null||c.nmMid!=null||c.nmHigh!=null||c.directLow!=null||c.low!=null;
     const detailsId=`pd-${c.id.replace(/[^a-z0-9]/gi,'_')}`;
-    return `<div class="pcard${ri.rank<=3?' is-rare':''}" style="${favBorder}">
-      <img src="${c.img}" loading="lazy"/>
+    const isSelected=ownSelected.has(c.copyId);
+    return `<div class="pcard${ri.rank<=3?' is-rare':''} pcard-bulk" data-copy="${c.copyId}" style="${favBorder}${isSelected?';outline:2px solid var(--gold);outline-offset:1px':''}">
+      ${bulkEditOpen?`<input type="checkbox" class="sr-checkbox" ${isSelected?'checked':''} onchange="toggleOwnSelect('${c.copyId}',this.checked)" onclick="event.stopPropagation()"/>`:''}      <img src="${c.img}" loading="lazy"/>
       <span class="rtag ${ri.cls}">${ri.label}</span>
       <div class="pcard-name">${c.name}</div>
       <div class="pcard-set">${c.set} · ${c.number}/${c.total}</div>
@@ -1820,7 +1820,7 @@ function toggleFav(copyId){
 function applyOwnControls(){
   let list=[...owned];
   // Hide standard/rare (rank>=5) unless favourited
-  if(ownHideStd) list=list.filter(c=>raritySnap(c).rank<5||c.isFav);
+  if(ownHideStd) list=list.filter(c=>raritySnap(c).rank<6||c.isFav);
   const favFilter=document.getElementById('own-fav')?.value||'';
   if(favFilter==='fav')   list=list.filter(c=>c.isFav);
   if(favFilter==='unfav') list=list.filter(c=>!c.isFav);
@@ -1833,7 +1833,7 @@ function applyOwnControls(){
 function refreshOwnedInPlace(){
   // Re-filter and re-render without resetting page — used after edits
   let list=[...owned];
-  if(ownHideStd) list=list.filter(c=>raritySnap(c).rank<5||c.isFav);
+  if(ownHideStd) list=list.filter(c=>raritySnap(c).rank<6||c.isFav);
   const favFilter=document.getElementById('own-fav')?.value||'';
   if(favFilter==='fav')   list=list.filter(c=>c.isFav);
   if(favFilter==='unfav') list=list.filter(c=>!c.isFav);
@@ -1933,47 +1933,26 @@ function saveOwnedEdit(i){
 
 function toggleBLMode(i){
   const c=window._ownedSlice?.[i];if(!c) return;
+  c.isBL=!c.isBL;
+  if(!c.isBL) c.blPrice=null;
   const blInput=document.getElementById('oe-blp-'+i);
-  const blPlaceholder=blInput?.nextElementSibling;
+  const blSpacer=document.getElementById('oe-blp-spc-'+i);
   const blBtn=document.getElementById('oe-bl-'+i);
-  if(c.isBL){
-    c.isBL=false;c.blPrice=null;
-    if(ledger[c.id]){ledger[c.id].isBL=false;ledger[c.id].blPrice=null;}
-    if(blInput)blInput.style.display='none';
-    if(blPlaceholder)blPlaceholder.style.display='block';
-    if(blBtn){blBtn.textContent='BL';blBtn.style.color='';blBtn.style.borderColor='';blBtn.style.background='';}
-  } else {
-    c.isBL=true;
-    const val=parseFloat(blInput?.value);
-    if(!isNaN(val)&&val>0){c.blPrice=val;if(ledger[c.id]){ledger[c.id].isBL=true;ledger[c.id].blPrice=val;}}
-    if(blInput)blInput.style.display='block';
-    if(blPlaceholder)blPlaceholder.style.display='none';
-    if(blBtn){blBtn.textContent='✓ BL';blBtn.style.color='var(--purple)';blBtn.style.borderColor='rgba(196,181,253,0.4)';blBtn.style.background='var(--purple-dim)';}
-  }
-  save();refreshOwnedInPlace();
+  if(blInput) blInput.style.display=c.isBL?'block':'none';
+  if(blSpacer) blSpacer.style.display=c.isBL?'none':'block';
+  if(blBtn){blBtn.textContent=c.isBL?'✓ BL':'BL';blBtn.style.color=c.isBL?'var(--purple)':'';blBtn.style.borderColor=c.isBL?'rgba(196,181,253,0.4)':'';blBtn.style.background=c.isBL?'var(--purple-dim)':'';}
 }
 
 function toggleJPMode(i){
   const c=window._ownedSlice?.[i];if(!c) return;
+  c.isJP=!c.isJP;
+  if(!c.isJP) c.jpPrice=null;
   const jpInput=document.getElementById('oe-jpp-'+i);
-  const jpPlaceholder=jpInput?.nextElementSibling;
+  const jpSpacer=document.getElementById('oe-jpp-spc-'+i);
   const jpBtn=document.getElementById('oe-jp-'+i);
-  if(c.isJP){
-    c.isJP=false;c.jpPrice=null;
-    if(ledger[c.id]){ledger[c.id].isJP=false;ledger[c.id].jpPrice=null;}
-    if(jpInput)jpInput.style.display='none';
-    if(jpPlaceholder)jpPlaceholder.style.display='block';
-    if(jpBtn){jpBtn.textContent='JP';jpBtn.style.color='';jpBtn.style.borderColor='';jpBtn.style.background='';}
-  } else {
-    c.isJP=true;
-    const val=parseFloat(jpInput?.value);
-    if(!isNaN(val)&&val>0){c.jpPrice=val;if(ledger[c.id]){ledger[c.id].isJP=true;ledger[c.id].jpPrice=val;}}
-    else if(ledger[c.id])ledger[c.id].isJP=true;
-    if(jpInput)jpInput.style.display='block';
-    if(jpPlaceholder)jpPlaceholder.style.display='none';
-    if(jpBtn){jpBtn.textContent='✓ JP';jpBtn.style.color='var(--gold)';jpBtn.style.borderColor='rgba(201,168,76,0.4)';jpBtn.style.background='var(--gold-dim)';}
-  }
-  save();refreshOwnedInPlace();
+  if(jpInput) jpInput.style.display=c.isJP?'block':'none';
+  if(jpSpacer) jpSpacer.style.display=c.isJP?'none':'block';
+  if(jpBtn){jpBtn.textContent=c.isJP?'✓ JP':'JP';jpBtn.style.color=c.isJP?'var(--gold)':'';jpBtn.style.borderColor=c.isJP?'rgba(201,168,76,0.4)':'';jpBtn.style.background=c.isJP?'var(--gold-dim)':'';}
 }
 
 function cloneCard(copyId){
@@ -2029,11 +2008,12 @@ function renderOwned(){
     const favBorder=c.isFav?"border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)":"";
     const setId=c.setId||c.id.split('-').slice(0,-1).join('-');
     const relDate=c.releaseDate?c.releaseDate.replace(/\//g,'-'):'';
-    return `<div class="pcard${ri.rank<=3?' is-rare':''}" style="${favBorder}">
-      <img src="${c.img}" loading="lazy"/>
+    const isSelected=ownSelected.has(c.copyId);
+    return `<div class="pcard${ri.rank<=3?' is-rare':''} pcard-bulk" data-copy="${c.copyId}" style="${favBorder}${isSelected?';outline:2px solid var(--gold);outline-offset:1px':''}">
+      ${bulkEditOpen?`<input type="checkbox" class="sr-checkbox" ${isSelected?'checked':''} onchange="toggleOwnSelect('${c.copyId}',this.checked)" onclick="event.stopPropagation()"/>`:''}      <img src="${c.img}" loading="lazy"/>
       <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px;min-width:0">
         <span class="rtag ${ri.cls}" style="margin-bottom:0;flex-shrink:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ri.label}${copyLbl?`<span class="copy-badge">${copyLbl.trim()}</span>`:''}</span>
-        <span style="flex-shrink:0;font-size:7px;font-weight:700;padding:1px 5px;border-radius:3px;letter-spacing:0.04em;${c.isJP?'background:rgba(201,168,76,0.18);color:var(--gold2);border:1px solid rgba(201,168,76,0.35)':'background:var(--s3);color:var(--t3);border:1px solid var(--b1)'}">${c.isJP?'JP':'A'}</span>
+        <span style="flex-shrink:0;font-size:7px;font-weight:700;padding:1px 5px;border-radius:3px;letter-spacing:0.04em;${c.isJP?'background:rgba(220,80,80,0.15);color:#f87171;border:1px solid rgba(220,80,80,0.35)':c.isBL?'background:var(--purple-dim);color:var(--purple);border:1px solid rgba(196,181,253,0.35)':'background:rgba(59,130,246,0.12);color:#60a5fa;border:1px solid rgba(59,130,246,0.35)'}">${c.isJP?'JP':c.isBL?'BL':'US'}</span>
         <button class="cbtn" style="margin-left:auto;flex:0 0 16.6%;max-width:36px;padding:2px 0;${c.isFav?'color:var(--gold);border-color:var(--gold);background:var(--gold-dim)':'color:var(--t3)'}" onclick="ownAct(${i},'fav')" title="${c.isFav?'Unfavourite':'Favourite — locks from sale'}">★</button>
       </div>
       <div class="pcard-name">${c.name}</div>
@@ -2071,10 +2051,10 @@ function renderOwned(){
               <button class="cbtn" id="oe-bl-${i}" style="flex:1;${c.isBL?'color:var(--purple);border-color:rgba(196,181,253,0.4);background:var(--purple-dim)':''}" onclick="ownAct(${i},'bl')">${c.isBL?'✓ BL':'BL'}</button>
             </div>
             <div style="display:flex;gap:4px;margin-top:3px">
-              <input class="edit-input" id="oe-jpp-${i}" type="number" min="0" step="0.01" placeholder="JP price" value="${c.jpPrice??''}" style="flex:1;display:${c.isJP?'block':'none'}"/>
-              <div style="flex:1;display:${c.isJP?'none':'block'}"></div>
-              <input class="edit-input" id="oe-blp-${i}" type="number" min="0" step="0.01" placeholder="BL price" value="${c.blPrice??''}" style="flex:1;display:${c.isBL?'block':'none'}"/>
-              <div style="flex:1;display:${c.isBL?'none':'block'}"></div>
+              <input class="edit-input" id="oe-jpp-${i}" type="number" min="0" step="0.01" placeholder="JP price" value="${c.jpPrice??''}" style="flex:1;min-width:0;display:${c.isJP?'block':'none'}"/>
+              <div id="oe-jpp-spc-${i}" style="flex:1;display:${c.isJP?'none':'block'}"></div>
+              <input class="edit-input" id="oe-blp-${i}" type="number" min="0" step="0.01" placeholder="BL price" value="${c.blPrice??''}" style="flex:1;min-width:0;display:${c.isBL?'block':'none'}"/>
+              <div id="oe-blp-spc-${i}" style="flex:1;display:${c.isBL?'none':'block'}"></div>
             </div>
           </div>
           <div style="display:flex;gap:4px;margin-top:6px">
@@ -2203,8 +2183,9 @@ function renderSold(){
     const pnl=cost!=null&&rev!=null?(rev-cost):null;
     const pnlCls=pnl==null?'':pnl>=0?'pnl-pos':'pnl-neg';
     const favBorder=c.isFav?"border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)":"";
-    return `<div class="pcard${ri.rank<=3?' is-rare':''}" style="${favBorder}">
-      <img src="${c.img}" loading="lazy"/>
+    const isSelected=ownSelected.has(c.copyId);
+    return `<div class="pcard${ri.rank<=3?' is-rare':''} pcard-bulk" data-copy="${c.copyId}" style="${favBorder}${isSelected?';outline:2px solid var(--gold);outline-offset:1px':''}">
+      ${bulkEditOpen?`<input type="checkbox" class="sr-checkbox" ${isSelected?'checked':''} onchange="toggleOwnSelect('${c.copyId}',this.checked)" onclick="event.stopPropagation()"/>`:''}      <img src="${c.img}" loading="lazy"/>
       <span class="rtag ${ri.cls}">${ri.label}</span>
       <div class="pcard-name">${c.name}</div>
       <div class="pcard-set">${c.set} · ${c.number}/${c.total}</div>
@@ -2292,8 +2273,9 @@ function renderGifted(){
   const grid=slice.map((c,i)=>{
     const ri=raritySnap(c);
     const favBorder=c.isFav?"border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)":"";
-    return `<div class="pcard${ri.rank<=3?' is-rare':''}" style="${favBorder}">
-      <img src="${c.img}" loading="lazy"/>
+    const isSelected=ownSelected.has(c.copyId);
+    return `<div class="pcard${ri.rank<=3?' is-rare':''} pcard-bulk" data-copy="${c.copyId}" style="${favBorder}${isSelected?';outline:2px solid var(--gold);outline-offset:1px':''}">
+      ${bulkEditOpen?`<input type="checkbox" class="sr-checkbox" ${isSelected?'checked':''} onchange="toggleOwnSelect('${c.copyId}',this.checked)" onclick="event.stopPropagation()"/>`:''}      <img src="${c.img}" loading="lazy"/>
       <span class="rtag ${ri.cls}">${ri.label}</span>
       <div class="pcard-name">${c.name}</div>
       <div class="pcard-set">${c.set} · ${c.number}/${c.total}</div>
