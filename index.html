@@ -542,6 +542,7 @@ body.light .bottom-nav{background:rgba(245,244,241,0.78);}
 .cdm-inner{display:flex;gap:0;flex:1;overflow:hidden;min-height:0;}
 .cdm-left{flex:0 0 340px;display:flex;flex-direction:column;align-items:center;padding:18px 16px 16px;border-right:1px solid var(--b1);gap:8px;background:var(--bg);overflow-y:auto;}
 .cdm-img-wrap{width:100%;border-radius:8px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,0.6);}
+.cdm-img-wrap.pcard-showcase{overflow:visible;}
 .cdm-img{width:100%;display:block;}
 .cdm-actions{display:flex;flex-direction:column;gap:6px;width:100%;margin-top:2px;}
 .cdm-right{flex:1;overflow-y:auto;padding:20px 22px;display:flex;flex-direction:column;gap:16px;min-width:0;}
@@ -2030,7 +2031,12 @@ function oemClone(){
 }
 
 // ── CARD DETAIL MODAL ──────────────────────────────────────────────────────
+let cdmList=[];  // current filtered list for swipe nav
+let cdmIndex=0;
+
 function openCDM(copyId){
+  cdmList=ownFiltered.map(o=>o.copyId);
+  cdmIndex=cdmList.indexOf(copyId);
   const c=owned.find(o=>o.copyId===copyId);if(!c)return;
   const ri=raritySnap(c);
   const setId=c.setId||c.id.split('-').slice(0,-1).join('-');
@@ -2146,10 +2152,10 @@ function openCDM(copyId){
 
     <div class="cdm-section">
       <div class="cdm-section-label">MY PURCHASE</div>
-      <div class="cdm-row"><span class="cdm-row-label">Price paid</span><span class="cdm-row-val">${pp!=null?fmt(pp):'—'}</span></div>
-      <div class="cdm-row"><span class="cdm-row-label">P&L</span><span class="cdm-row-val" style="${pnl==null?'':pnl>0?'color:var(--green)':'color:var(--red)'}">${pnl!=null?(pnl>=0?'+':'')+fmt(pnl):'—'}</span></div>
       <div class="cdm-row"><span class="cdm-row-label">Date bought</span><span class="cdm-row-val">${c.boughtAt?fmtDate(c.boughtAt):'—'}</span></div>
       <div class="cdm-row"><span class="cdm-row-label">From</span><span class="cdm-row-val">${c.boughtFrom||'—'}</span></div>
+      <div class="cdm-row"><span class="cdm-row-label">Price paid</span><span class="cdm-row-val">${pp!=null?fmt(pp):'—'}</span></div>
+      <div class="cdm-row"><span class="cdm-row-label">P&amp;L</span><span class="cdm-row-val" style="${pnl==null?'':pnl>0?'color:var(--green)':'color:var(--red)'}">${pnl!=null?(pnl>=0?'+':'')+fmt(pnl):'—'}</span></div>
     </div>
   `;
 
@@ -2203,8 +2209,71 @@ function openCDM(copyId){
   }
 
   document.getElementById('cdm-bg').classList.add('open');
+  document.body.style.overflow='hidden';
+  if(!document.getElementById('cdm-bg')._swipe) setupCDMSwipe();
 }
-function closeCDM(){ document.getElementById('cdm-bg').classList.remove('open'); }
+
+function setupCDMSwipe(){
+  const bg=document.getElementById('cdm-bg');
+  if(!bg) return;
+  bg._swipe=true;
+  let sx=0,sy=0,dx=0,dragging=false;
+  const box=()=>document.querySelector('.cdm-box');
+
+  bg.addEventListener('touchstart',e=>{
+    if(e.target.closest('button,a,input,select,.cdm-right,.own-edit-area')) return;
+    sx=e.touches[0].clientX;sy=e.touches[0].clientY;dragging=true;dx=0;
+  },{passive:true});
+  bg.addEventListener('touchmove',e=>{
+    if(!dragging) return;
+    dx=e.touches[0].clientX-sx;
+    const dy=Math.abs(e.touches[0].clientY-sy);
+    if(dy>Math.abs(dx)){dragging=false;return;}
+    const b=box(); if(b) b.style.transform=`translateX(${dx*0.4}px)`;
+  },{passive:true});
+  bg.addEventListener('touchend',()=>{
+    if(!dragging) return; dragging=false;
+    const b=box();
+    if(Math.abs(dx)>60){
+      const dir=dx<0?1:-1;
+      const next=cdmIndex+dir;
+      if(next>=0&&next<cdmList.length){
+        if(b){b.style.transition='transform 180ms ease';b.style.transform=`translateX(${dx<0?-40:40}px)`;b.style.opacity='0';}
+        setTimeout(()=>{if(b){b.style.transition='';b.style.transform='';b.style.opacity='';}cdmIndex=next;openCDM(cdmList[cdmIndex]);},160);
+        return;
+      }
+    }
+    if(b){b.style.transition='transform 200ms ease';b.style.transform='';setTimeout(()=>b.style.transition='',210);}
+    dx=0;
+  },{passive:true});
+
+  // Mouse drag
+  let mx=0,md=false,mdx=0;
+  bg.addEventListener('mousedown',e=>{if(e.target.closest('button,a,input,select,.cdm-right')) return;mx=e.clientX;md=true;mdx=0;});
+  window.addEventListener('mousemove',e=>{
+    if(!md) return; mdx=e.clientX-mx;
+    const b=box();if(b)b.style.transform=`translateX(${mdx*0.4}px)`;
+  });
+  window.addEventListener('mouseup',()=>{
+    if(!md) return; md=false;
+    const b=box();
+    if(Math.abs(mdx)>60){
+      const dir=mdx<0?1:-1;const next=cdmIndex+dir;
+      if(next>=0&&next<cdmList.length){
+        if(b){b.style.transition='transform 180ms ease';b.style.transform=`translateX(${mdx<0?-40:40}px)`;b.style.opacity='0';}
+        setTimeout(()=>{if(b){b.style.transition='';b.style.transform='';b.style.opacity='';}cdmIndex=next;openCDM(cdmList[cdmIndex]);},160);
+        return;
+      }
+    }
+    if(b){b.style.transition='transform 200ms ease';b.style.transform='';setTimeout(()=>b.style.transition='',210);}
+    mdx=0;
+  });
+
+  // Block scroll behind modal
+  bg.addEventListener('touchmove',e=>{if(e.target===bg||e.target.closest('.cdm-box')===null)e.preventDefault();},{passive:false});
+  bg.addEventListener('wheel',e=>e.preventDefault(),{passive:false});
+}
+function closeCDM(){ document.getElementById('cdm-bg').classList.remove('open');document.body.style.overflow=''; }
 // ── WATCHLIST ─────────────────────────────────────────────────────────────
 function applyWlControls(){
   wlFiltered=filterSort([...watchlist],
