@@ -570,7 +570,9 @@ body.light .bottom-nav{background:rgba(245,244,241,0.78);}
 <nav class="nav">
   <div class="nav-top">
     <div class="nav-left">
-
+      <div class="auto-refresh-indicator"><div class="ar-dot" id="ar-dot"></div><span id="ar-label">AUTO-REFRESH OFF</span><span id="last-updated" style="margin-left:4px;color:var(--t3);font-size:8px"></span></div>
+      <button class="hdr-btn" id="global-refresh-btn" onclick="refreshAll()" title="Refresh all prices">↻ REFRESH</button>
+      <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle light/dark mode">☀</button>
     </div>
     <a class="logo">
       <div class="logo-box">
@@ -596,9 +598,7 @@ body.light .bottom-nav{background:rgba(245,244,241,0.78);}
       <span style="font-size:7px;font-weight:700;letter-spacing:0.1em;padding:2px 5px;border-radius:3px;background:var(--gold-dim2);color:var(--gold);border:1px solid rgba(201,168,76,0.35);align-self:center;margin-left:-4px">LITE</span>
     </a>
     <div class="nav-right">
-      <div class="auto-refresh-indicator"><div class="ar-dot" id="ar-dot"></div><span id="ar-label">AUTO-REFRESH OFF</span><span id="last-updated" style="margin-left:4px;color:var(--t3);font-size:8px"></span></div>
-      <button class="hdr-btn" id="global-refresh-btn" onclick="refreshAll()" title="Refresh all prices">↻ REFRESH</button>
-      <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle light/dark mode">☀</button>
+      <button class="hdr-btn" onclick="openShareModal()" title="Share your collection">⇪ SHARE</button>
       <button class="hdr-btn" onclick="openIEModal()">⇅ IMPORT / EXPORT</button>
     </div>
   </div>
@@ -3146,6 +3146,13 @@ function goHistPage(p){if(p<1||p>Math.ceil(Object.keys(ledger).length/PER))retur
 function removeLedger(id){delete ledger[id];save();refreshAllCounts();renderHistory();}
 
 // ── IMPORT / EXPORT ───────────────────────────────────────────────────────
+
+function openShareModal(){
+  document.getElementById('share-modal-bg').classList.add('open');
+}
+function closeShareModal(){
+  document.getElementById('share-modal-bg').classList.remove('open');
+}
 function openIEModal(){
   document.getElementById('ie-modal-bg').classList.add('open');
   document.getElementById('export-area').value='';
@@ -3585,6 +3592,19 @@ if(localStorage.getItem('pf_theme')==='light'){document.body.classList.add('ligh
       </div>
       <div class="cdm-right" id="cdm-right"></div>
     </div>
+  </div>
+</div>
+
+<!-- SHARE MODAL (stub — full feature coming) -->
+<div class="modal-bg" id="share-modal-bg" onclick="if(event.target===this)closeShareModal()">
+  <div class="modal" style="max-width:400px;text-align:center">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <span style="font-size:11px;font-weight:700;letter-spacing:0.12em;color:var(--gold2);font-family:'Space Mono',monospace">⇪ SHARE BINDER</span>
+      <button class="modal-close" onclick="closeShareModal()">✕</button>
+    </div>
+    <div style="font-size:32px;margin-bottom:12px">🔗</div>
+    <div style="font-size:12px;font-weight:600;color:var(--text);font-family:'DM Sans',sans-serif;margin-bottom:8px">Coming Soon</div>
+    <div style="font-size:10px;color:var(--t3);font-family:'DM Sans',sans-serif;line-height:1.6">Share your collection with friends via a link.<br>They'll see your showcase card, top cards by value,<br>and a swipeable binder view — no login needed.</div>
   </div>
 </div>
 </body>
