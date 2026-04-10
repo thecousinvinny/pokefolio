@@ -485,7 +485,9 @@ body.light .bottom-nav{background:rgba(245,244,241,0.78);}
 
 /* SHOWCASE */
 @keyframes prism{0%{border-color:#fff;box-shadow:0 0 0 1px #fff}25%{border-color:#60a5fa;box-shadow:0 0 0 1px #60a5fa}50%{border-color:#c4b5fd;box-shadow:0 0 0 1px #c4b5fd}75%{border-color:#c9a84c;box-shadow:0 0 0 1px #c9a84c}100%{border-color:#fff;box-shadow:0 0 0 1px #fff}}
+@keyframes prismOutline{0%{outline-color:#fff}25%{outline-color:#60a5fa}50%{outline-color:#c4b5fd}75%{outline-color:#c9a84c}100%{outline-color:#fff}}
 .pcard-showcase{animation:prism 3s linear infinite;}
+.cdm-img-wrap.pcard-showcase{animation:prismOutline 3s linear infinite;outline:2px solid #fff;outline-offset:2px;}
 .binder-card-slot.pcard-showcase{border-radius:var(--r);}
 
 /* ── DASHBOARD ───────────────────────────────────────────── */
@@ -502,6 +504,7 @@ body.light .bottom-nav{background:rgba(245,244,241,0.78);}
 .db-5grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
 @media(max-width:1100px){.db-5grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:700px){.db-5grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.db-charts-row{grid-template-columns:1fr!important}}
 .db-legend{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
 .db-legend-item{display:flex;align-items:center;gap:4px;font-size:8px;color:var(--t2);font-family:'DM Sans',sans-serif;max-width:130px;overflow:hidden}
 .db-legend-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
@@ -541,9 +544,9 @@ body.light .bottom-nav{background:rgba(245,244,241,0.78);}
 .cdm-box{background:var(--s1);border:1px solid var(--b2);border-radius:var(--rl);width:min(920px,96vw);max-height:92vh;overflow:hidden;display:flex;flex-direction:column;}
 .cdm-inner{display:flex;gap:0;flex:1;overflow:hidden;min-height:0;}
 .cdm-left{flex:0 0 340px;display:flex;flex-direction:column;align-items:center;padding:18px 16px 16px;border-right:1px solid var(--b1);gap:8px;background:var(--bg);overflow-y:auto;}
-.cdm-img-wrap{width:100%;border-radius:8px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,0.6);}
-.cdm-img-wrap.pcard-showcase{overflow:visible;}
-.cdm-img{width:100%;display:block;}
+.cdm-img-wrap{width:100%;border-radius:8px;overflow:hidden;}
+.cdm-img-wrap.pcard-showcase{overflow:visible;outline-offset:2px;}
+.cdm-img{width:100%;display:block;border-radius:7px;}
 .cdm-actions{display:flex;flex-direction:column;gap:6px;width:100%;margin-top:2px;}
 .cdm-right{flex:1;overflow-y:auto;padding:20px 22px;display:flex;flex-direction:column;gap:16px;min-width:0;}
 .cdm-header{padding:12px 22px 10px;border-bottom:1px solid var(--b1);display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-shrink:0;}
@@ -765,6 +768,9 @@ body.light .bottom-nav{background:rgba(245,244,241,0.78);}
         <option value="set">Set A–Z</option>
         <option value="rarity">Rarity</option>
       </select>
+      <div style="margin-left:auto">
+        <button id="wl-panel-btn" class="toggle-btn" onclick="wlShowPanel=!wlShowPanel;this.style.borderColor=wlShowPanel?'var(--gold)':'';this.style.color=wlShowPanel?'var(--gold)':'';applyWlControls()" style="white-space:nowrap">$ PRICES &amp; HISTORY</button>
+      </div>
     </div>
     <div id="watchlist-cards"></div>
     <div id="wl-pagination"></div>
@@ -945,12 +951,15 @@ let owned       =JSON.parse(localStorage.getItem('ptrkr_own')  ||'[]');
 let gifted      =JSON.parse(localStorage.getItem('ptrkr_gifted')||'[]');
 let sold        =JSON.parse(localStorage.getItem('ptrkr_sold') ||'[]');
 let priceHistory=JSON.parse(localStorage.getItem('ptrkr_ph')   ||'{}');
+// One-time dedup: remove duplicate same-day points from stored history
+(function(){Object.keys(priceHistory).forEach(id=>{const pts=priceHistory[id]?.points;if(!pts?.length)return;const seen=new Map();pts.forEach(p=>{const day=new Date(p.t).toDateString();if(!seen.has(day)||p.t>seen.get(day).t)seen.set(day,p);});priceHistory[id].points=[...seen.values()].sort((a,b)=>a.t-b.t);});localStorage.setItem('ptrkr_ph',JSON.stringify(priceHistory));})();
 let ledger      =JSON.parse(localStorage.getItem('ptrkr_ledger')||'{}');
 
 let wlCharts={};
 let srRaw=[], srFiltered=[], srPage=1;
 let wlFiltered=[], wlPage=1;
 let ownCompact=false;
+let wlShowPanel=false;
 let ownHideStd=true;
 let ownBinder=false;
 let binderPER=10;
@@ -980,13 +989,9 @@ async function silentRefreshAll(){
       const r=await apiFetch(`https://api.pokemontcg.io/v2/cards/${id}`);const d=await r.json();
       const{market,low}=getPrice(d.data??{});
       if(market!=null){
-        watchlist.filter(c=>c.id===id).forEach(c=>{c.market=market;});
-        owned.filter(c=>c.id===id).forEach(c=>{c.market=market;});
+        watchlist.filter(c=>c.id===id).forEach(c=>{c.market=market;if(low!=null)c.low=low;recordHistory(c);});
+        owned.filter(c=>c.id===id).forEach(c=>{c.market=market;if(low!=null)c.low=low;recordHistory(c);});
         if(ledger[id]) ledger[id].currentMarket=market;
-      }
-      if(low!=null){
-        watchlist.filter(c=>c.id===id).forEach(c=>{c.low=low;});
-        owned.filter(c=>c.id===id).forEach(c=>{c.low=low;});
       }
     }catch(e){}
   }));
@@ -1134,21 +1139,19 @@ function raritySnap(c){
 const tcgUrl=name=>`https://www.tcgplayer.com/search/pokemon/product?productLineName=pokemon&q=${encodeURIComponent(name)}&view=grid`;
 
 function recordHistory(snap){
+  if(!snap?.id||snap.market==null) return;
   if(!priceHistory[snap.id]) priceHistory[snap.id]={name:snap.name,set:snap.set,img:snap.img,points:[]};
-  const pts=priceHistory[snap.id].points;
+  const ph=priceHistory[snap.id];
+  // Ensure metadata is up to date
+  if(snap.name) ph.name=snap.name;
+  if(snap.set) ph.set=snap.set;
+  if(snap.img) ph.img=snap.img;
   const todayStr=new Date().toDateString();
-  // Find if we already have a point for today — if so, update it in place
-  const todayIdx=pts.findIndex(p=>new Date(p.t).toDateString()===todayStr);
   const point={t:Date.now(),market:snap.market,low:snap.low??null};
-  if(todayIdx>=0){
-    pts[todayIdx]=point; // update today's reading
-  } else {
-    pts.push(point);
-  }
-  // Keep rolling 90-day window
-  priceHistory[snap.id].points=pts
-    .filter(p=>p.t>=Date.now()-90*24*3600*1000)
-    .sort((a,b)=>a.t-b.t);
+  // Replace any existing point from today (dedup by calendar day)
+  const filtered=ph.points.filter(p=>new Date(p.t).toDateString()!==todayStr);
+  filtered.push(point);
+  ph.points=filtered.sort((a,b)=>a.t-b.t);
 }
 
 function suggestSell(cardId,currentMarket){
@@ -1643,22 +1646,16 @@ function renderDashboard(){
     </div>
   </div>
 
-  ${dayEntries.length>=2?`<div class="db-card">
-    <div class="db-card-title">Collection Value Over Time</div>
-    <div class="db-chart-wrap" style="height:160px"><canvas id="db-chart-val" role="img" aria-label="Collection value over time"></canvas></div>
-  </div>`:''}
-
-  <div class="db-card">
-    <div class="db-card-title">Sales Revenue</div>
-    <div class="db-chart-wrap" style="height:150px"><canvas id="db-chart-sales" role="img" aria-label="Cumulative sales revenue over time"></canvas></div>
+  <div class="db-charts-row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div class="db-card">
+      <div class="db-card-title">Collection Value Over Time</div>
+      <div class="db-chart-wrap" style="height:160px"><canvas id="db-chart-val" role="img" aria-label="Collection value over time"></canvas></div>
+    </div>
+    <div class="db-card">
+      <div class="db-card-title">Sales Revenue</div>
+      <div class="db-chart-wrap" style="height:160px"><canvas id="db-chart-sales" role="img" aria-label="Cumulative sales revenue over time"></canvas></div>
+    </div>
   </div>
-
-  ${wlWithHist.length>=1?`<div class="db-card">
-    <div class="db-card-title">Watchlist Price History — Buy Signal?</div>
-    <div class="db-legend">${wlWithHist.map((x,i)=>`<div class="db-legend-item"><div class="db-legend-dot" style="background:${wlColors[i]}"></div><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.c.name}</span></div>`).join('')}</div>
-    <div class="db-chart-wrap" style="height:180px"><canvas id="db-chart-wl" role="img" aria-label="Watchlist prices over time"></canvas></div>
-    <div style="font-size:8px;color:var(--t3);font-family:'DM Sans',sans-serif;margin-top:7px">↓ Trending down may be a buying opportunity · ↑ Rising may continue or correct</div>
-  </div>`:`<div class="db-card"><div class="db-card-title">Watchlist Price History</div><div style="font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif">Refresh watchlist prices over multiple days to build history here.</div></div>`}
   `;
 
   if(typeof Chart==='undefined') return;
@@ -1691,10 +1688,6 @@ function renderDashboard(){
     }
   });
 
-  if(wlWithHist.length>=1){
-    const allDays=[...new Set(wlWithHist.flatMap(x=>x.pts.map(p=>new Date(p.t).toLocaleDateString('en-US',{month:'short',day:'numeric'}))))].sort((a,b)=>new Date(a)-new Date(b));
-    new Chart(document.getElementById('db-chart-wl'),{type:'line',data:{labels:allDays,datasets:wlWithHist.map((x,i)=>({label:x.c.name,data:allDays.map(day=>{const pt=x.pts.find(p=>new Date(p.t).toLocaleDateString('en-US',{month:'short',day:'numeric'})===day);return pt?+pt.market.toFixed(2):null;}),borderColor:wlColors[i],backgroundColor:'transparent',tension:0.4,pointRadius:2,borderWidth:2,spanGaps:true}))},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,callbacks:{label:v=>v.dataset.label+': $'+v.parsed.y?.toFixed(2)}}},scales:{x:baseX,y:baseY}}});
-  }
 }
 
 // ── BINDER MODE ────────────────────────────────────────────────────────────
@@ -2045,8 +2038,9 @@ function openCDM(copyId){
   const img=document.getElementById('cdm-img');
   img.src=c.imgLg||c.img;
   imgWrap.className='cdm-img-wrap'+(isShowcase?' pcard-showcase':'');
-  if(c.isFav&&!isShowcase) imgWrap.style.cssText='width:100%;border-radius:8px;overflow:hidden;outline:3px solid var(--gold);outline-offset:2px;box-shadow:0 0 0 6px rgba(201,168,76,0.15),0 12px 40px rgba(0,0,0,0.6)';
-  else imgWrap.style.cssText='width:100%;border-radius:8px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,0.6)';
+  const baseWrap='width:100%;border-radius:8px;overflow:hidden;';
+  if(c.isFav&&!isShowcase) imgWrap.style.cssText=baseWrap+'outline:2px solid var(--gold);outline-offset:2px';
+  else imgWrap.style.cssText=baseWrap;
 
   // Name under image on left
   const leftName=document.getElementById('cdm-left-name');
@@ -2088,13 +2082,20 @@ function openCDM(copyId){
   const globalI=owned.indexOf(c);
   const actEl=document.getElementById('cdm-actions');
   actEl.innerHTML=`
-    <a class="tcg-link" href="${c.tcgUrl||tcgUrl(c.name)}" target="_blank" style="text-align:center">↗ TCG</a>
-    <button class="cbtn" onclick="closeCDM();openOwnedEditModal('${c.copyId}')">▼ EDIT</button>
+    <div style="display:flex;gap:5px">
+      <a class="tcg-link" href="${c.tcgUrl||tcgUrl(c.name)}" target="_blank" style="flex:1;text-align:center">↗ TCG</a>
+      <button class="cbtn" style="flex:1" onclick="openOwnedEditModal('${c.copyId}')">▼ EDIT</button>
+    </div>
     ${(c.isFav||isShowcase)?'':
-      `<button class="cbtn" style="color:var(--red);border-color:rgba(192,80,80,0.3)" onclick="closeCDM();ownAct(${globalI},'sell')">SELL</button>
-       <button class="cbtn" style="color:var(--purple);border-color:rgba(196,181,253,0.3)" onclick="closeCDM();ownAct(${globalI},'gift')">GIFT</button>`}
-    <button class="cbtn" style="${isShowcase?'color:#e2e8f0;border-color:rgba(255,255,255,0.4)':'color:var(--t3)'}" onclick="toggleShowcase('${c.copyId}');openCDM('${c.copyId}')">◈ ${isShowcase?'UNSHOWCASE':'SHOWCASE'}</button>
-    <button class="cbtn" style="${c.isFav?'color:var(--gold);border-color:var(--gold);background:var(--gold-dim)':'color:var(--t3)'}" onclick="toggleFav('${c.copyId}');openCDM('${c.copyId}')">★ ${c.isFav?'UNFAVOURITE':'FAVOURITE'}</button>`;
+    `<div style="display:flex;gap:5px">
+      <button class="cbtn" style="flex:1;color:var(--red);border-color:rgba(192,80,80,0.3)" onclick="closeCDM();ownAct(${globalI},'sell')">SELL</button>
+      <button class="cbtn" style="flex:1;color:var(--purple);border-color:rgba(196,181,253,0.3)" onclick="closeCDM();ownAct(${globalI},'gift')">GIFT</button>
+    </div>`}
+    <div style="display:flex;gap:5px">
+      <button class="cbtn" style="flex:1;${isShowcase?'color:#e2e8f0;border-color:rgba(255,255,255,0.4)':'color:var(--t3)'}" onclick="toggleShowcase('${c.copyId}');openCDM('${c.copyId}')">◈ ${isShowcase?'UNSHOWCASE':'SHOWCASE'}</button>
+      <button class="cbtn" style="flex:1;${c.isFav?'color:var(--gold);border-color:var(--gold);background:var(--gold-dim)':'color:var(--t3)'}" onclick="toggleFav('${c.copyId}');openCDM('${c.copyId}')">★ ${c.isFav?'UNFAV':'FAV'}</button>
+    </div>
+    <button class="cbtn del-btn" onclick="cdmConfirmRemove('${c.copyId}','${c.name.replace(/'/g,"\\'")}')">✕ REMOVE</button>`;
 
   // Right panel
   const right=document.getElementById('cdm-right');
@@ -2133,7 +2134,7 @@ function openCDM(copyId){
       ${c.low!=null?`<div class="cdm-row"><span class="cdm-row-label">Low listing</span><span class="cdm-row-val">${fmt(c.low)}</span></div>`:''}
     </div>
 
-    ${pts.length>=2?`
+    ${pts.length>=1?`
     <div class="cdm-section">
       <div class="cdm-section-label">PRICE HISTORY</div>
       <div class="cdm-chart-wrap" id="cdm-chart-${c.copyId}" style="padding:4px 6px;margin-bottom:6px"></div>
@@ -2153,7 +2154,7 @@ function openCDM(copyId){
   `;
 
   // Render chart with axes + labels
-  if(pts.length>=2){
+  if(pts.length>=1){
     requestAnimationFrame(()=>{
       const wrap=document.getElementById('cdm-chart-'+c.copyId);
       if(!wrap)return;
@@ -2168,10 +2169,14 @@ function openCDM(copyId){
       const col=vals[vals.length-1]>=vals[0]?'var(--green)':'var(--red)';
       const isDark=document.body.classList.contains('light')?'#555':'#888';
       const gridCol=document.body.classList.contains('light')?'rgba(0,0,0,0.07)':'rgba(255,255,255,0.06)';
-      const px=i=>PAD.left+Math.round((i/(pts.length-1))*cW);
+      const px=i=>PAD.left+Math.round(pts.length===1?cW/2:(i/(pts.length-1))*cW);
       const py=v=>PAD.top+Math.round((1-(v-yMin)/yRange)*cH);
-      const linePoints=pts.map((p,i)=>`${px(i)},${py(p.market)}`).join(' ');
-      const fillPoints=`${PAD.left},${PAD.top+cH} ${linePoints} ${PAD.left+cW},${PAD.top+cH}`;
+      const linePoints=pts.length===1
+        ? `${PAD.left+Math.round(cW/2)},${py(pts[0].market)}`
+        : pts.map((p,i)=>`${px(i)},${py(p.market)}`).join(' ');
+      const fillPoints=pts.length===1
+        ? `${PAD.left},${PAD.top+cH} ${PAD.left+Math.round(cW/2)},${py(pts[0].market)} ${PAD.left+cW},${PAD.top+cH}`
+        : `${PAD.left},${PAD.top+cH} ${linePoints} ${PAD.left+cW},${PAD.top+cH}`;
       // Y axis: 4 gridlines
       const yTicks=4;
       let gridLines='',yLabels='';
@@ -2194,6 +2199,7 @@ function openCDM(copyId){
         ${gridLines}
         <polygon points="${fillPoints}" fill="url(#cdmg2)"/>
         <polyline points="${linePoints}" fill="none" stroke="${col}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+        ${pts.length===1?`<circle cx="${PAD.left+Math.round(cW/2)}" cy="${py(pts[0].market)}" r="3" fill="${col}"/>`:''}
         ${yLabels}${xLabels}
         <line x1="${PAD.left}" y1="${PAD.top}" x2="${PAD.left}" y2="${PAD.top+cH}" stroke="${isDark}" stroke-width="0.5" opacity="0.5"/>
         <line x1="${PAD.left}" y1="${PAD.top+cH}" x2="${PAD.left+cW}" y2="${PAD.top+cH}" stroke="${isDark}" stroke-width="0.5" opacity="0.5"/>
@@ -2282,6 +2288,24 @@ function setupCDMSwipe(){
     mdx=0;
   });
 }
+
+function cdmConfirmRemove(copyId, name){
+  const btn=document.querySelector('#cdm-actions .del-btn');
+  if(!btn) return;
+  if(btn.dataset.confirming==='1'){return;}
+  btn.dataset.confirming='1';
+  btn.textContent='SURE?';
+  const yes=document.createElement('button');
+  yes.className='cbtn del-btn';yes.textContent='YES';yes.style.flex='1';
+  const no=document.createElement('button');
+  no.className='cbtn';no.textContent='NO';no.style.flex='1';
+  const row=document.createElement('div');
+  row.style.cssText='display:flex;gap:5px;margin-top:4px';
+  row.appendChild(yes);row.appendChild(no);
+  btn.parentNode.insertBefore(row,btn.nextSibling);
+  yes.onclick=()=>{removeOwned(copyId);closeCDM();};
+  no.onclick=()=>{btn.textContent='✕ REMOVE';delete btn.dataset.confirming;row.remove();};
+}
 function closeCDM(){ document.getElementById('cdm-bg').classList.remove('open');document.body.style.overflow=''; }
 // ── WATCHLIST ─────────────────────────────────────────────────────────────
 function applyWlControls(){
@@ -2294,8 +2318,6 @@ function applyWlControls(){
 
 async function refreshWatchlist(){
   if(!watchlist.length) return;
-  const btn=document.getElementById('refresh-btn');
-  btn.innerHTML='<svg class="pb-spin-sm" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9" fill="#111" stroke="#c9a84c" stroke-width="1.5"/><path d="M1 10 A9 9 0 0 1 19 10 Z" fill="#c9a84c"/><path d="M1 10 A9 9 0 0 0 19 10 Z" fill="#0d0d0d"/><line x1="1" y1="10" x2="19" y2="10" stroke="#c9a84c" stroke-width="1.5"/><circle cx="10" cy="10" r="3" fill="#111" stroke="#c9a84c" stroke-width="1.5"/><circle cx="10" cy="10" r="1.5" fill="#e2ba6a"/></svg> REFRESHING…';btn.disabled=true;
   await Promise.allSettled(watchlist.map(async(c,i)=>{
     try{
       const r=await apiFetch(`https://api.pokemontcg.io/v2/cards/${c.id}`);const d=await r.json();
@@ -2304,18 +2326,13 @@ async function refreshWatchlist(){
       if(low!=null) watchlist[i].low=low;
       const ap2=getAllPrices(d.data??{});
       if(ap2){watchlist[i].nmMarket=ap2.nm;watchlist[i].nmLow=ap2.nmLow;watchlist[i].nmMid=ap2.mid;watchlist[i].nmHigh=ap2.nmHigh;watchlist[i].directLow=ap2.lp;}
-      // Backfill fields that may be missing from old snaps
       if(!watchlist[i].releaseDate&&d.data?.set?.releaseDate) watchlist[i].releaseDate=d.data.set.releaseDate;
       if(!watchlist[i].setId&&d.data?.set?.id) watchlist[i].setId=d.data.set.id;
       if(!watchlist[i].total&&d.data?.set?.printedTotal) watchlist[i].total=d.data.set.printedTotal??d.data.set.total;
-      recordHistory(watchlist[i]);
-    }catch(e){}
+      if(market!=null) recordHistory(watchlist[i]);
+    }catch(e){console.warn('wl refresh fail',c.id,e);}
   }));
   save();
-  const now=new Date();
-  document.getElementById('last-updated').textContent='· '+now.toLocaleTimeString();
-  document.getElementById('updated-label').textContent='LAST REFRESH: '+now.toLocaleTimeString();
-  btn.innerHTML='↻ REFRESH PRICES';btn.disabled=false;
   applyWlControls();
 }
 
@@ -2458,10 +2475,10 @@ function renderWatchlist(){
         <span style="font-size:14px;font-weight:700;color:var(--gold2);font-variant-numeric:tabular-nums;font-family:'DM Sans',sans-serif">${nmVal!=null?'$'+nmVal.toFixed(2):'—'}</span>
       </div>
       ${priceAlertTag(c.id,c.market)}${stag}
-      <button class="wl-expand-btn" onclick="const p=document.getElementById('wx-${c.id}');p.classList.toggle('open');this.querySelector('.wx-arrow').textContent=p.classList.contains('open')?'▲':'▼';if(p.classList.contains('open')&&!wlCharts['${c.id}']){buildChart('${c.id}',document.getElementById('ca-${c.id}'))}">
+      <button class="wl-expand-btn" style="${wlShowPanel?'display:none':''}" onclick="const p=document.getElementById('wx-${c.id}');p.classList.toggle('open');this.querySelector('.wx-arrow').textContent=p.classList.contains('open')?'▲':'▼';if(p.classList.contains('open')&&!wlCharts['${c.id}']){buildChart('${c.id}',document.getElementById('ca-${c.id}'))}">
         <span>Prices &amp; History</span><span class="wx-arrow">▼</span>
       </button>
-      <div class="wl-expand-panel" id="wx-${c.id}">
+      <div class="wl-expand-panel${wlShowPanel?' open':''}" id="wx-${c.id}">
         <div class="price-grid">
           ${(c.nmLow??c.low)!=null?`<div class="price-cell"><span class="price-cell-label">NM Low</span><span class="price-cell-val">$${(c.nmLow??c.low).toFixed(2)}</span></div>`:''}
           ${c.nmMid!=null?`<div class="price-cell"><span class="price-cell-label">Mid</span><span class="price-cell-val">$${c.nmMid.toFixed(2)}</span></div>`:''}
@@ -2469,7 +2486,7 @@ function renderWatchlist(){
           ${c.directLow!=null?`<div class="price-cell"><span class="price-cell-label">Direct Low</span><span class="price-cell-val">$${c.directLow.toFixed(2)}</span></div>`:''}
         </div>
         ${wlPriceStats(c.id)}
-        <div class="chart-area open" id="ca-${c.id}"></div>
+        <div class="chart-area${wlShowPanel?' open':''}" id="ca-${c.id}"></div>
       </div>
       <div class="card-btns" style="margin-top:7px">
         <a class="tcg-link" href="${c.tcgUrl||tcgUrl(c.name)}" target="_blank">↗ TCG</a>
@@ -2481,6 +2498,14 @@ function renderWatchlist(){
   el.innerHTML=`<div class="sec-label">${wlFiltered.length} CARD${wlFiltered.length!==1?'S':''}</div><div class="card-grid">${cards}</div>`;
   pel.innerHTML=pagHTML(wlPage,wlFiltered.length,'goWlPage');
   updateWlMetrics();
+  if(wlShowPanel){
+    requestAnimationFrame(()=>{
+      slice.forEach(c=>{
+        const area=document.getElementById('ca-'+c.id);
+        if(area&&!wlCharts[c.id]) buildChart(c.id,area);
+      });
+    });
+  }
 }
 function updateWlMetrics(){
   const n=watchlist.length,tot=watchlist.reduce((s,c)=>s+(c.market??0),0);
@@ -2547,21 +2572,7 @@ async function refreshAll(){
   if(btn){btn.textContent='↻ …';btn.disabled=true;}
   await Promise.allSettled([
     refreshWatchlist(),
-    (async()=>{
-      if(!owned.length) return;
-      await Promise.allSettled(owned.map(async(c,i)=>{
-        try{
-          const r=await apiFetch(`https://api.pokemontcg.io/v2/cards/${c.id}`);
-          const d=await r.json();
-          const{market,low}=getPrice(d.data??{});
-          if(market!=null){owned[i].market=market;if(ledger[c.id])ledger[c.id].currentMarket=market;}
-          if(low!=null) owned[i].low=low;
-          if(!owned[i].releaseDate&&d.data?.set?.releaseDate) owned[i].releaseDate=d.data.set.releaseDate;
-          if(!owned[i].setId&&d.data?.set?.id) owned[i].setId=d.data.set.id;
-          if(market!=null) recordHistory(owned[i]);
-        }catch(e){}
-      }));
-    })()
+    refreshOwned()
   ]);
   save();
   if(btn){btn.textContent='↻ REFRESH';btn.disabled=false;}
@@ -2572,21 +2583,23 @@ async function refreshAll(){
 }
 async function refreshOwned(){
   if(!owned.length) return;
-  const btn=document.getElementById('owned-refresh-btn');
-  btn.innerHTML='<svg class="pb-spin-sm" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9" fill="#111" stroke="#c9a84c" stroke-width="1.5"/><path d="M1 10 A9 9 0 0 1 19 10 Z" fill="#c9a84c"/><path d="M1 10 A9 9 0 0 0 19 10 Z" fill="#0d0d0d"/><line x1="1" y1="10" x2="19" y2="10" stroke="#c9a84c" stroke-width="1.5"/><circle cx="10" cy="10" r="3" fill="#111" stroke="#c9a84c" stroke-width="1.5"/><circle cx="10" cy="10" r="1.5" fill="#e2ba6a"/></svg> REFRESHING…';btn.disabled=true;
   await Promise.allSettled(owned.map(async(c,i)=>{
     try{
       const r=await apiFetch(`https://api.pokemontcg.io/v2/cards/${c.id}`);const d=await r.json();
       const{market,low}=getPrice(d.data??{});
       if(market!=null){owned[i].market=market;if(ledger[c.id])ledger[c.id].currentMarket=market;}
       if(low!=null) owned[i].low=low;
+      try{
+        const ap2=getAllPrices(d.data??{});
+        if(ap2){owned[i].nmMarket=ap2.nm;owned[i].nmLow=ap2.nmLow;owned[i].nmMid=ap2.mid;owned[i].nmHigh=ap2.nmHigh;owned[i].directLow=ap2.lp;}
+      }catch(e2){}
       if(!owned[i].releaseDate&&d.data?.set?.releaseDate) owned[i].releaseDate=d.data.set.releaseDate;
       if(!owned[i].setId&&d.data?.set?.id) owned[i].setId=d.data.set.id;
-      // Record today's price in history
       if(market!=null) recordHistory(owned[i]);
-    }catch(e){}
+      else if(owned[i].market!=null) recordHistory(owned[i]); // use cached price if fetch returned null
+    }catch(e){console.warn('owned refresh fail',c.id,e);}
   }));
-  save();btn.innerHTML='↻';btn.disabled=false;
+  save();
   applyOwnControls();
 }
 
@@ -2766,8 +2779,6 @@ function renderOwned(){
           `<button class="cbtn" style="flex:1;color:var(--red);border-color:rgba(192,80,80,0.3)" onclick="ownAct(${i},'sell')">SELL</button>
            <button class="cbtn" style="flex:1;color:var(--purple);border-color:rgba(196,181,253,0.3)" onclick="ownAct(${i},'gift')">GIFT</button>`}
         </div>
-        <button class="cbtn" onclick="openOwnedEditModal(window._ownedSlice?.[${i}]?.copyId)">▼ EDIT</button>
-        <button class="cbtn del-btn" onclick="confirmRemove(this,window._ownedSlice?.[${i}]?.name,()=>removeOwned(window._ownedSlice?.[${i}]?.copyId))">✕ REMOVE</button>
       </div>
     </div>`;
   }).join('');
@@ -2915,7 +2926,7 @@ function renderSold(){
       </div>
     </div>`;
   }).join('');
-  el.innerHTML=`<div class="sec-label">${sold.length} CARD${sold.length!==1?'S':''} SOLD</div><div class="card-grid">${grid}</div>`;
+  el.innerHTML=`<div class="card-grid">${grid}</div>`;
   pel.innerHTML=pagHTML(soldPage,sold.length,'goSoldPage');
 }
 function goSoldPage(p){if(p<1||p>Math.ceil(sold.length/PER))return;soldPage=p;renderSold();window.scrollTo({top:0,behavior:'smooth'});}
@@ -3008,7 +3019,7 @@ function renderGifted(){
       </div>
     </div>`;
   }).join('');
-  el.innerHTML=`<div class="sec-label">${gifted.length} CARD${gifted.length!==1?'S':''} GIFTED</div><div class="card-grid">${grid}</div>`;
+  el.innerHTML=`<div class="card-grid">${grid}</div>`;
   pel.innerHTML=pagHTML(giftedPage,gifted.length,'goGiftedPage');
 }
 function goGiftedPage(p){if(p<1||p>Math.ceil(gifted.length/PER))return;giftedPage=p;renderGifted();window.scrollTo({top:0,behavior:'smooth'});}
@@ -3409,6 +3420,12 @@ owned.forEach(c=>{
 save();
 refreshAllCounts();
 // Render the default landing tab (Folio) immediately on load
+
+// Seed today's price for every card that has a market price stored
+;(()=>{
+  [...owned,...watchlist].forEach(c=>{if(c.market!=null)recordHistory(c);});
+  save();
+})();
 ownPage=1;applyOwnControls();
 updateFolioSummary();
 updateExportDateDisplay();
@@ -3514,7 +3531,7 @@ if(localStorage.getItem('pf_theme')==='light'){document.body.classList.add('ligh
 
 
 <!-- OWNED EDIT MODAL -->
-<div class="modal-bg" id="owned-edit-modal" onclick="if(event.target===this)closeOwnedEditModal()">
+<div class="modal-bg" id="owned-edit-modal" style="z-index:410;background:rgba(0,0,0,0.5)" onclick="if(event.target===this)closeOwnedEditModal()">
   <div class="modal-box">
     <div class="modal-title">
       <div style="display:flex;align-items:center;gap:10px">
