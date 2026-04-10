@@ -540,7 +540,7 @@ body.light .bottom-nav{background:rgba(245,244,241,0.78);}
 .cdm-bg.open{opacity:1;pointer-events:all;}
 .cdm-box{background:var(--s1);border:1px solid var(--b2);border-radius:var(--rl);width:min(920px,96vw);max-height:92vh;overflow:hidden;display:flex;flex-direction:column;}
 .cdm-inner{display:flex;gap:0;flex:1;overflow:hidden;min-height:0;}
-.cdm-left{flex:0 0 300px;display:flex;flex-direction:column;align-items:center;padding:20px 18px 16px;border-right:1px solid var(--b1);gap:8px;background:var(--bg);overflow-y:auto;}
+.cdm-left{flex:0 0 340px;display:flex;flex-direction:column;align-items:center;padding:18px 16px 16px;border-right:1px solid var(--b1);gap:8px;background:var(--bg);overflow-y:auto;}
 .cdm-img-wrap{width:100%;border-radius:8px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,0.6);}
 .cdm-img{width:100%;display:block;}
 .cdm-actions{display:flex;flex-direction:column;gap:6px;width:100%;margin-top:2px;}
@@ -2051,9 +2051,27 @@ function openCDM(copyId){
 
   // Name under image on left
   const leftName=document.getElementById('cdm-left-name');
-  if(leftName){
-    leftName.innerHTML=`<div style="font-size:12px;font-weight:700;color:var(--text);font-family:'DM Sans',sans-serif;line-height:1.3;margin-bottom:2px">${c.name}</div>`;
+  if(leftName) leftName.innerHTML=`<div style="font-size:12px;font-weight:700;color:var(--text);font-family:'DM Sans',sans-serif;line-height:1.3">${c.name}</div>`;
+
+  // Sell suggestion — needed by leftMkt below
+  const trendCol=trend==='up'?'var(--green)':trend==='down'?'var(--red)':'var(--t2)';
+  const trendLabel=trend==='up'?`SUGGEST SELL ${fmt(suggest)}`:trend==='down'?'HOLD — TREND ↓':'FAIR VALUE';
+
+  // Set info on left
+  const leftSet=document.getElementById('cdm-left-set');
+  if(leftSet){
+    const ownedInSetL=owned.filter(o=>(o.setId||o.id.split('-').slice(0,-1).join('-'))===setId).map(o=>o.id);
+    const uOwnedL=[...new Set(ownedInSetL)];
+    const trackedOnlyL=watchlist.filter(w=>(w.setId||w.id.split('-').slice(0,-1).join('-'))===setId&&!uOwnedL.includes(w.id)).length;
+    leftSet.innerHTML=`
+      <div style="font-size:8px;font-weight:700;letter-spacing:0.12em;color:var(--t3);font-family:'Space Mono',monospace;padding-bottom:4px;border-bottom:1px solid var(--b1);margin-bottom:4px">SET INFO</div>
+      <div class="cdm-row"><span class="cdm-row-label">Set</span><span class="cdm-row-val" style="font-size:9px">${c.set}</span></div>
+      <div class="cdm-row"><span class="cdm-row-label">Number</span><span class="cdm-row-val">#${c.number} / ${c.total}</span></div>
+      ${relDate?`<div class="cdm-row"><span class="cdm-row-label">Release</span><span class="cdm-row-val">${relDate}</span></div>`:''}
+      <div class="cdm-row"><span class="cdm-row-label">Collection</span><span class="cdm-row-val"><span style="color:var(--green);font-weight:700">${uOwnedL.length}</span>${trackedOnlyL?` <span style="color:var(--t2);font-weight:400">+${trackedOnlyL}</span>`:''} / ${c.total}</span></div>`;
   }
+
+
 
   // Badges — uniform height via cdm-badge class
   const badgeEl=document.getElementById('cdm-badges');
@@ -2082,12 +2100,6 @@ function openCDM(copyId){
   // Right panel
   const right=document.getElementById('cdm-right');
 
-  // Set ownership
-  const ownedInSet=owned.filter(o=>(o.setId||o.id.split('-').slice(0,-1).join('-'))===setId).map(o=>o.id);
-  const uniqueOwned=[...new Set(ownedInSet)];
-  const trackedOnly=watchlist.filter(w=>(w.setId||w.id.split('-').slice(0,-1).join('-'))===setId&&!uniqueOwned.includes(w.id)).length;
-  const setOwn=`<span style="color:var(--green);font-weight:700">${uniqueOwned.length} owned</span>${trackedOnly?` <span style="color:var(--t2)">${trackedOnly} tracked</span>`:''}`;
-
   // Price history
   const hist=priceHistory[c.id];
   const pts=hist?.points?.filter(p=>p.market!=null).sort((a,b)=>a.t-b.t)||[];
@@ -2107,52 +2119,37 @@ function openCDM(copyId){
     }
   }
 
-  // Sell suggestion
-  const trendCol=trend==='up'?'var(--green)':trend==='down'?'var(--red)':'var(--t2)';
-  const trendLabel=trend==='up'?`SUGGEST SELL ${fmt(suggest)}`:trend==='down'?'HOLD — TREND ↓':'FAIR VALUE';
-
   right.innerHTML=`
+    <div class="cdm-section">
+      <div class="cdm-section-label">MARKET VALUE</div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding:6px 0 2px">
+        <span style="font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif;letter-spacing:0.04em">${c.isJP?'JP MARKET':c.isBL?'BL MARKET':'NM MARKET'}</span>
+        <span style="font-size:26px;font-weight:700;color:var(--gold2);font-variant-numeric:tabular-nums;font-family:'DM Sans',sans-serif;line-height:1">${fmt(dm)}</span>
+      </div>
+      <div style="font-size:8px;font-weight:700;color:${trendCol};font-family:'Space Mono',monospace;letter-spacing:0.06em;padding-bottom:6px;margin-bottom:4px;border-bottom:1px solid var(--b1)">${trendLabel}</div>
+      ${c.nmLow!=null?`<div class="cdm-row"><span class="cdm-row-label">NM Low</span><span class="cdm-row-val">${fmt(c.nmLow)}</span></div>`:''}
+      ${c.nmMarket!=null?`<div class="cdm-row"><span class="cdm-row-label">NM Mid</span><span class="cdm-row-val">${fmt(c.nmMarket)}</span></div>`:''}
+      ${c.nmHigh!=null?`<div class="cdm-row"><span class="cdm-row-label">NM High</span><span class="cdm-row-val">${fmt(c.nmHigh)}</span></div>`:''}
+      ${c.directLow!=null?`<div class="cdm-row"><span class="cdm-row-label">Direct Low (LP)</span><span class="cdm-row-val">${fmt(c.directLow)}</span></div>`:''}
+      ${c.low!=null?`<div class="cdm-row"><span class="cdm-row-label">Low listing</span><span class="cdm-row-val">${fmt(c.low)}</span></div>`:''}
+    </div>
+
     ${pts.length>=2?`
     <div class="cdm-section">
       <div class="cdm-section-label">PRICE HISTORY</div>
-      <div class="cdm-chart-wrap" id="cdm-chart-${c.copyId}" style="padding:4px 6px"></div>
-    </div>`:''}
-
-    ${pts.length?`
-    <div class="cdm-section">
+      <div class="cdm-chart-wrap" id="cdm-chart-${c.copyId}" style="padding:4px 6px;margin-bottom:6px"></div>
       ${trendHtml}
       <div class="cdm-row"><span class="cdm-row-label">Lowest recorded</span><span class="cdm-row-val">${fmt(lowest.market)} <span style="color:var(--t3);font-size:8px">${new Date(lowest.t).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'})}</span></span></div>
       <div class="cdm-row"><span class="cdm-row-label">Highest recorded</span><span class="cdm-row-val">${fmt(highest.market)} <span style="color:var(--t3);font-size:8px">${new Date(highest.t).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'})}</span></span></div>
-      <div class="cdm-row"><span class="cdm-row-label">Data points</span><span class="cdm-row-val">${pts.length} days tracked</span></div>
+      <div class="cdm-row"><span class="cdm-row-label">Tracked</span><span class="cdm-row-val">${pts.length} days</span></div>
     </div>`:''}
-
-    <div class="cdm-section">
-      <div class="cdm-section-label">SET INFO</div>
-      <div class="cdm-row"><span class="cdm-row-label">Set</span><span class="cdm-row-val">${c.set}</span></div>
-      <div class="cdm-row"><span class="cdm-row-label">Number</span><span class="cdm-row-val">#${c.number} / ${c.total}</span></div>
-      ${relDate?`<div class="cdm-row"><span class="cdm-row-label">Set release</span><span class="cdm-row-val">${relDate}</span></div>`:''}
-      <div class="cdm-row"><span class="cdm-row-label">Collection</span><span class="cdm-row-val">${setOwn} / ${c.total}</span></div>
-    </div>
-
-    <div class="cdm-section">
-      <div class="cdm-section-label">MARKET VALUE</div>
-      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">
-        <span class="cdm-market-val">${fmt(dm)}</span>
-        <span style="font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif">${c.isJP?'JP MARKET':c.isBL?'BL MARKET':'NM MARKET'}</span>
-      </div>
-      <div style="font-size:9px;font-weight:700;color:${trendCol};font-family:'Space Mono',monospace;letter-spacing:0.06em;margin-bottom:4px">${trendLabel}</div>
-      ${c.nmLow!=null?`<div class="cdm-row"><span class="cdm-row-label">NM Low listing</span><span class="cdm-row-val">${fmt(c.nmLow)}</span></div>`:''}
-      ${c.nmHigh!=null?`<div class="cdm-row"><span class="cdm-row-label">NM High listing</span><span class="cdm-row-val">${fmt(c.nmHigh)}</span></div>`:''}
-      ${c.directLow!=null?`<div class="cdm-row"><span class="cdm-row-label">LP (Direct Low)</span><span class="cdm-row-val">${fmt(c.directLow)}</span></div>`:''}
-      ${c.low!=null?`<div class="cdm-row"><span class="cdm-row-label">Low listing</span><span class="cdm-row-val">${fmt(c.low)}</span></div>`:''}
-    </div>
 
     <div class="cdm-section">
       <div class="cdm-section-label">MY PURCHASE</div>
       <div class="cdm-row"><span class="cdm-row-label">Price paid</span><span class="cdm-row-val">${pp!=null?fmt(pp):'—'}</span></div>
+      <div class="cdm-row"><span class="cdm-row-label">P&L</span><span class="cdm-row-val" style="${pnl==null?'':pnl>0?'color:var(--green)':'color:var(--red)'}">${pnl!=null?(pnl>=0?'+':'')+fmt(pnl):'—'}</span></div>
       <div class="cdm-row"><span class="cdm-row-label">Date bought</span><span class="cdm-row-val">${c.boughtAt?fmtDate(c.boughtAt):'—'}</span></div>
-      <div class="cdm-row"><span class="cdm-row-label">Purchased from</span><span class="cdm-row-val">${c.boughtFrom||'—'}</span></div>
-      <div class="cdm-row"><span class="cdm-row-label">Unrealised P&L</span><span class="cdm-row-val" style="${pnl==null?'':pnl>0?'color:var(--green)':'color:var(--red)'}">${pnl!=null?(pnl>=0?'+':'')+fmt(pnl):'—'}</span></div>
+      <div class="cdm-row"><span class="cdm-row-label">From</span><span class="cdm-row-val">${c.boughtFrom||'—'}</span></div>
     </div>
   `;
 
@@ -3457,6 +3454,7 @@ if(localStorage.getItem('pf_theme')==='light'){document.body.classList.add('ligh
         <div class="cdm-img-wrap" id="cdm-img-wrap"><img class="cdm-img" id="cdm-img" src=""/></div>
         <div id="cdm-left-name" style="width:100%;text-align:center"></div>
         <div class="cdm-badges" id="cdm-badges"></div>
+        <div id="cdm-left-set" style="width:100%"></div>
         <div class="cdm-actions" id="cdm-actions"></div>
       </div>
       <div class="cdm-right" id="cdm-right"></div>
