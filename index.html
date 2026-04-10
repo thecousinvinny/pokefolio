@@ -939,7 +939,7 @@ let ownHideStd=true;
 let ownBinder=false;
 let binderPER=10;
 let ownSelected=new Set();
-let showcaseCopyId=null;
+let showcaseCopyId=localStorage.getItem('ptrkr_showcase')||null;
 let ownFiltered=[], ownPage=1;
 let soldPage=1, giftedPage=1, histPage=1;
 let exportMode='all', sgMode=null, sgCopyId=null;
