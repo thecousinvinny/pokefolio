@@ -594,6 +594,7 @@ body.light .bottom-nav{background:rgba(245,244,241,0.78);}
     </a>
     <div class="nav-right">
       <div class="auto-refresh-indicator"><div class="ar-dot" id="ar-dot"></div><span id="ar-label">AUTO-REFRESH OFF</span><span id="last-updated" style="margin-left:4px;color:var(--t3);font-size:8px"></span></div>
+      <button class="hdr-btn" id="global-refresh-btn" onclick="refreshAll()" title="Refresh all prices">↻ REFRESH</button>
       <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle light/dark mode">☀</button>
       <button class="hdr-btn" onclick="openIEModal()">⇅ IMPORT / EXPORT</button>
     </div>
@@ -736,13 +737,6 @@ body.light .bottom-nav{background:rgba(245,244,241,0.78);}
 
   <!-- WATCHLIST TAB -->
   <div id="tab-watchlist" class="section">
-    <div class="rbar">
-      <span class="rbar-left" id="updated-label">NOT YET REFRESHED</span>
-      <div style="display:flex;gap:7px">
-
-        <button class="btn-ghost" onclick="refreshWatchlist()" id="refresh-btn">↻ REFRESH PRICES</button>
-      </div>
-    </div>
     <div class="metrics">
       <div class="metric"><div class="metric-label">Watching</div><div class="metric-val" id="m-count">0</div></div>
       <div class="metric"><div class="metric-label">Market value</div><div class="metric-val gold" id="m-market">—</div></div>
@@ -815,7 +809,6 @@ body.light .bottom-nav{background:rgba(245,244,241,0.78);}
         <option value="rarity">Rarity</option>
       </select>
       <div style="display:flex;gap:4px;margin-left:auto">
-      <button class="toggle-btn" onclick="refreshOwned()" id="owned-refresh-btn">↻</button>
       <button id="own-bulk-btn" class="toggle-btn" onclick="toggleBulkEdit()" style="white-space:nowrap">✎ BULK EDIT</button>
       <button id="own-hide-std-btn" class="toggle-btn" onclick="ownHideStd=!ownHideStd;this.textContent=ownHideStd?'UNHIDE':'HIDE';this.style.borderColor=ownHideStd?'var(--gold)':'var(--b1)';this.style.color=ownHideStd?'var(--gold)':'var(--t3)';applyOwnControls()" style="white-space:nowrap;border-color:var(--gold);color:var(--gold)">UNHIDE</button>
       <button id="own-binder-btn" class="toggle-btn" onclick="toggleBinderMode()" style="white-space:nowrap">⧉ BINDER</button>
@@ -2052,7 +2045,7 @@ function openCDM(copyId){
   const img=document.getElementById('cdm-img');
   img.src=c.imgLg||c.img;
   imgWrap.className='cdm-img-wrap'+(isShowcase?' pcard-showcase':'');
-  if(c.isFav&&!isShowcase) imgWrap.style.cssText='width:100%;border-radius:8px;overflow:hidden;box-shadow:0 0 0 1px var(--gold),0 12px 40px rgba(0,0,0,0.6)';
+  if(c.isFav&&!isShowcase) imgWrap.style.cssText='width:100%;border-radius:8px;overflow:hidden;outline:3px solid var(--gold);outline-offset:2px;box-shadow:0 0 0 6px rgba(201,168,76,0.15),0 12px 40px rgba(0,0,0,0.6)';
   else imgWrap.style.cssText='width:100%;border-radius:8px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,0.6)';
 
   // Name under image on left
@@ -2548,6 +2541,35 @@ function refreshOwnedInPlace(){
   if(ownBinder) renderBinder(); else renderOwned();
 }
 
+
+async function refreshAll(){
+  const btn=document.getElementById('global-refresh-btn');
+  if(btn){btn.textContent='↻ …';btn.disabled=true;}
+  await Promise.allSettled([
+    refreshWatchlist(),
+    (async()=>{
+      if(!owned.length) return;
+      await Promise.allSettled(owned.map(async(c,i)=>{
+        try{
+          const r=await apiFetch(`https://api.pokemontcg.io/v2/cards/${c.id}`);
+          const d=await r.json();
+          const{market,low}=getPrice(d.data??{});
+          if(market!=null){owned[i].market=market;if(ledger[c.id])ledger[c.id].currentMarket=market;}
+          if(low!=null) owned[i].low=low;
+          if(!owned[i].releaseDate&&d.data?.set?.releaseDate) owned[i].releaseDate=d.data.set.releaseDate;
+          if(!owned[i].setId&&d.data?.set?.id) owned[i].setId=d.data.set.id;
+          if(market!=null) recordHistory(owned[i]);
+        }catch(e){}
+      }));
+    })()
+  ]);
+  save();
+  if(btn){btn.textContent='↻ REFRESH';btn.disabled=false;}
+  document.getElementById('last-updated').textContent='Updated '+new Date().toLocaleTimeString();
+  applyOwnControls();
+  if(document.getElementById('tab-watchlist')?.classList.contains('active')) applyWlControls();
+  if(document.getElementById('tab-dashboard')?.classList.contains('active')) renderDashboard();
+}
 async function refreshOwned(){
   if(!owned.length) return;
   const btn=document.getElementById('owned-refresh-btn');
@@ -2565,7 +2587,6 @@ async function refreshOwned(){
     }catch(e){}
   }));
   save();btn.innerHTML='↻';btn.disabled=false;
-  document.getElementById('owned-updated').textContent='UPDATED '+new Date().toLocaleTimeString();
   applyOwnControls();
 }
 
@@ -2849,7 +2870,7 @@ function renderSold(){
   const sEl2=document.getElementById('sold-count');if(sEl2){sEl2.textContent=sold.length||'';sEl2.style.display=sold.length?'flex':'none';}
   const el=document.getElementById('sold-cards'),pel=document.getElementById('sold-pagination');
   updateSoldMetrics();
-  if(!sold.length){el.innerHTML='<div class="empty"><div class="empty-glyph">💰</div><div class="empty-title">No cards sold yet</div></div>';pel.innerHTML='';return;}
+  if(!sold.length){el.innerHTML='';pel.innerHTML='';return;}
   const so=document.getElementById('sold-sort')?.value||'date-desc';
   const list=[...sold].sort((a,b)=>{
     if(so==='name') return a.name.localeCompare(b.name);
@@ -2949,7 +2970,7 @@ function renderGifted(){
   const gEl2=document.getElementById('gifted-count');if(gEl2){gEl2.textContent=gifted.length||'';gEl2.style.display=gifted.length?'flex':'none';}
   const el=document.getElementById('gifted-cards'),pel=document.getElementById('gifted-pagination');
   updateGiftedMetrics();
-  if(!gifted.length){el.innerHTML='<div class="empty"><div class="empty-glyph">🎁</div><div class="empty-title">No cards gifted yet</div></div>';pel.innerHTML='';return;}
+  if(!gifted.length){el.innerHTML='';pel.innerHTML='';return;}
   const so=document.getElementById('gifted-sort')?.value||'date-desc';
   const list=[...gifted].sort((a,b)=>{
     if(so==='name') return a.name.localeCompare(b.name);
