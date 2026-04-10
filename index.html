@@ -447,8 +447,9 @@ body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);m
   background:rgba(8,8,8,0.72);
   backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);
   border-top:1px solid rgba(255,255,255,0.06);
-  padding-bottom:min(env(safe-area-inset-bottom,0px),16px);
-  height:calc(52px + min(env(safe-area-inset-bottom,0px),16px));
+  padding-top:4px;
+  padding-bottom:calc(4px + env(safe-area-inset-bottom,0px));
+  height:calc(52px + 4px + env(safe-area-inset-bottom,0px));
 }
 body.light .bottom-nav{background:rgba(245,244,241,0.78);}
 .bnav-btn{
@@ -478,7 +479,7 @@ body.light .bottom-nav{background:rgba(245,244,241,0.78);}
 }
 .bnav-badge:empty,.bnav-badge[data-empty]{display:none}
 /* Offset page content so cards don't hide behind bottom nav */
-.wrap{padding-bottom:calc(72px + env(safe-area-inset-bottom,0px))!important;}
+.wrap{padding-bottom:calc(56px + env(safe-area-inset-bottom,0px))!important;}
 
 /* Remove old top tabs */
 .tabs{display:none!important;}
@@ -580,12 +581,12 @@ body.light .bottom-nav{background:rgba(245,244,241,0.78);}
           <rect x="0" y="4" width="24" height="29" rx="3" fill="rgba(201,168,76,0.06)" stroke="rgba(201,168,76,0.25)" stroke-width="1"/>
           <rect x="4" y="2" width="24" height="29" rx="3" fill="rgba(201,168,76,0.09)" stroke="rgba(201,168,76,0.4)" stroke-width="1"/>
           <rect x="8" y="0" width="20" height="29" rx="3" fill="rgba(201,168,76,0.13)" stroke="#c9a84c" stroke-width="1.5"/>
-          <rect x="8" y="0" width="5.5" height="29" rx="3" fill="#c9a84c"/>
-          <circle cx="19.5" cy="14.5" r="7.5" fill="none" stroke="#c9a84c" stroke-width="1.4"/>
-          <line x1="12" y1="14.5" x2="27" y2="14.5" stroke="#c9a84c" stroke-width="1.4"/>
-          <path d="M12 14.5 A7.5 7.5 0 0 1 27 14.5 Z" fill="#c9a84c" opacity="0.22"/>
-          <circle cx="19.5" cy="14.5" r="2.5" fill="none" stroke="#c9a84c" stroke-width="1.3"/>
-          <circle cx="19.5" cy="14.5" r="1.1" fill="#c9a84c"/>
+          <rect x="8" y="0" width="2" height="29" rx="1" fill="#c9a84c"/>
+          <circle cx="19" cy="14.5" r="5.5" fill="none" stroke="#c9a84c" stroke-width="1.3"/>
+          <line x1="13.5" y1="14.5" x2="24.5" y2="14.5" stroke="#c9a84c" stroke-width="1.3"/>
+          <path d="M13.5 14.5 A5.5 5.5 0 0 1 24.5 14.5 Z" fill="#c9a84c" opacity="0.22"/>
+          <circle cx="19" cy="14.5" r="2" fill="none" stroke="#c9a84c" stroke-width="1.2"/>
+          <circle cx="19" cy="14.5" r="0.9" fill="#c9a84c"/>
         </svg>
       </div>
       <span class="logo-text">FOLIO</span>
