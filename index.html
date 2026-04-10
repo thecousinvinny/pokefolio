@@ -143,7 +143,7 @@ body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);m
 .edit-label{font-size:9px;color:var(--t3);letter-spacing:0;font-family:'DM Sans',sans-serif;font-weight:500;text-transform:uppercase}
 .edit-input{background:var(--s2);border:1px solid var(--b1);border-radius:4px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:10px;padding:4px 7px;outline:none;width:100%;transition:border-color .15s;font-variant-numeric:tabular-nums}
 .edit-input:focus{border-color:var(--gold)}
-.edit-input[type="date"]{color-scheme:dark;font-family:'Space Mono',monospace;font-size:9px}
+.edit-input[type="date"]{color-scheme:dark}
 .copy-badge{font-size:8px;font-weight:700;padding:1px 5px;border-radius:3px;letter-spacing:0;background:var(--s3);color:var(--t2);border:1px solid var(--b1);margin-left:4px;font-family:'DM Sans',sans-serif}
 
 /* PAGINATION */
@@ -230,7 +230,8 @@ body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);m
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:400;align-items:center;justify-content:center}
 .modal-bg.open{display:flex}
 .modal{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rl);padding:22px;width:400px;max-width:92vw;max-height:90vh;overflow-y:auto}
-.modal-title{font-size:11px;font-weight:700;letter-spacing:0.12em;color:var(--gold2);margin-bottom:10px;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center}
+.modal-box{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rl);padding:26px;width:520px;max-width:94vw;max-height:90vh;overflow-y:auto}
+.modal-title{font-size:11px;font-weight:700;letter-spacing:0.12em;color:var(--gold2);margin-bottom:10px;text-transform:uppercase;display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
 .modal-close{background:none;border:none;color:var(--t3);font-size:14px;cursor:pointer;transition:color .15s;line-height:1}
 .modal-close:hover{color:var(--gold)}
 .modal-card-preview{display:flex;gap:10px;align-items:center;background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:9px;margin-bottom:12px}
@@ -3221,7 +3222,7 @@ if(localStorage.getItem('pf_theme')==='light'){document.body.classList.add('ligh
     </div>
     <input type="hidden" id="oem-copyid"/>
     <div class="edit-row"><span class="edit-label">Price paid (USD)</span><input class="edit-input" id="oem-pp" type="number" min="0" step="0.01" placeholder="0.00"/></div>
-    <div class="edit-row"><span class="edit-label">Date bought</span><input class="edit-input" id="oem-pd" type="date"/></div>
+    <div class="edit-row"><span class="edit-label">Date bought</span><input class="edit-input" id="oem-pd" type="date" style="text-align:left"/></div>
     <div class="edit-row"><span class="edit-label">From</span><input class="edit-input" id="oem-bf" type="text" placeholder="eBay, LGS, trade, pack..."/></div>
     <div class="edit-row" style="border-top:1px solid var(--b1);padding-top:6px;margin-top:4px">
       <span class="edit-label">Version</span>
