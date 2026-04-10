@@ -484,10 +484,13 @@ body.light .bottom-nav{background:rgba(245,244,241,0.78);}
 .tabs{display:none!important;}
 
 /* SHOWCASE */
-@keyframes prism{0%{box-shadow:0 0 0 2px #fff,0 0 0 3px #c9a84c}25%{box-shadow:0 0 0 2px #60a5fa,0 0 0 3px #c4b5fd}50%{box-shadow:0 0 0 2px #c4b5fd,0 0 0 3px #fff}75%{box-shadow:0 0 0 2px #c9a84c,0 0 0 3px #60a5fa}100%{box-shadow:0 0 0 2px #fff,0 0 0 3px #c9a84c}}
+@keyframes prism{0%{box-shadow:0 0 0 2px #fff,0 0 0 4px #c9a84c}25%{box-shadow:0 0 0 2px #60a5fa,0 0 0 4px #c4b5fd}50%{box-shadow:0 0 0 2px #c4b5fd,0 0 0 4px #fff}75%{box-shadow:0 0 0 2px #c9a84c,0 0 0 4px #60a5fa}100%{box-shadow:0 0 0 2px #fff,0 0 0 4px #c9a84c}}
 .pcard-showcase{
   animation:prism 3s linear infinite;
   border-color:transparent!important;
+}
+.binder-card-slot.pcard-showcase{
+  border-radius:var(--r);
 }
 
 /* ── DASHBOARD ───────────────────────────────────────────── */
