@@ -1493,10 +1493,16 @@ function confirmQAAdd(){
   if(dateVal){const[dy,dm,dd]=dateVal.split('-').map(Number);snap.boughtAt=new Date(dy,dm-1,dd,12,0,0).getTime();}
   const fromVal=document.getElementById('qa-from').value.trim();
   if(fromVal) snap.boughtFrom=fromVal;
-  owned.push(snap);ledgerSetOwned(snap);save();refreshAllCounts();
+  owned.push(snap);ledgerSetOwned(snap);
+  if(_qaWlId){
+    watchlist=watchlist.filter(w=>w.id!==_qaWlId);
+    _qaWlId=null;
+  }
+  save();refreshAllCounts();
   closeQAModal();
+  applyWlControls();applyOwnControls();
   const b=document.getElementById('ownb-'+(snap.id||''));
-  if(b){const orig=b.textContent;b.textContent='✓ IN FOLIO';b.style.color='';b.style.borderColor='';}
+  if(b){b.textContent='✓ IN FOLIO';b.style.color='';b.style.borderColor='';}
   showBriefToast('✓ Added '+snap.name+' to FOLIO',3000);
 }
 // ── BULK EDIT ──────────────────────────────────────────────────────────────
@@ -2086,7 +2092,10 @@ function openCDM(copyId){
       <button class="cbtn" style="flex:1;${isShowcase?'color:#e2e8f0;border-color:rgba(255,255,255,0.4)':'color:var(--t3)'}" onclick="toggleShowcase('${c.copyId}');openCDM('${c.copyId}')">◈ ${isShowcase?'UNSHOWCASE':'SHOWCASE'}</button>
       <button class="cbtn" style="flex:1;${c.isFav?'color:var(--gold);border-color:var(--gold);background:var(--gold-dim)':'color:var(--t3)'}" onclick="toggleFav('${c.copyId}');openCDM('${c.copyId}')">★ ${c.isFav?'UNFAV':'FAV'}</button>
     </div>
-    <button class="cbtn del-btn" onclick="cdmConfirmRemove('${c.copyId}','${c.name.replace(/'/g,"\\'")}')">✕ REMOVE</button>`;
+    <div style="display:flex;gap:5px">
+      <button class="cbtn" style="flex:1;font-size:8px;color:var(--t3)" onclick="cdmRestoreToWatch('${c.copyId}')">↩ TO WATCH</button>
+      <button class="cbtn del-btn" style="flex:1" onclick="cdmConfirmRemove('${c.copyId}','${c.name.replace(/'/g,"\\'")}')">✕ REMOVE</button>
+    </div>`;
 
   // Right panel
   const right=document.getElementById('cdm-right');
@@ -2280,6 +2289,19 @@ function setupCDMSwipe(){
   });
 }
 
+
+function cdmRestoreToWatch(copyId){
+  const c=owned.find(o=>o.copyId===copyId);if(!c) return;
+  if(!watchlist.some(w=>w.id===c.id)){
+    watchlist.push({...c});
+    ledgerSetWl(c);
+    recordHistory(c);
+  }
+  removeOwned(copyId);
+  closeCDM();
+  refreshAllCounts();
+  showBriefToast('↩ Moved '+c.name+' to Watch',2500);
+}
 function cdmConfirmRemove(copyId, name){
   const btn=document.querySelector('#cdm-actions .del-btn');
   if(!btn) return;
@@ -2386,13 +2408,11 @@ function removeWl(id){
 }
 function wlToOwned(id){
   const c=watchlist.find(w=>w.id===id);if(!c) return;
-  const newSnap={...c,copyId:uid(),addedAt:Date.now()};
-  const wlSnap=JSON.stringify(watchlist),ownSnap=JSON.stringify(owned);
-  owned.push(newSnap);ledgerSetOwned(newSnap);
-  watchlist=watchlist.filter(w=>w.id!==id);
-  save();refreshAllCounts();applyWlControls();
-  pushUndo(`Undone: moved ${c.name} to owned`,()=>{watchlist=JSON.parse(wlSnap);owned=JSON.parse(ownSnap);refreshAllCounts();applyWlControls();});
+  // Store the watchlist id so confirmQAAdd can remove from wl after adding
+  _qaWlId=id;
+  openAddToFOLIO(c);
 }
+let _qaWlId=null;
 
 function toggleChart(copyId){
   const area=document.getElementById('ca-'+copyId),tog=document.getElementById('ct-'+copyId);
@@ -3596,6 +3616,30 @@ if(localStorage.getItem('pf_theme')==='light'){document.body.classList.add('ligh
     <div style="font-size:32px;margin-bottom:12px">🔗</div>
     <div style="font-size:12px;font-weight:600;color:var(--text);font-family:'DM Sans',sans-serif;margin-bottom:8px">Coming Soon</div>
     <div style="font-size:10px;color:var(--t3);font-family:'DM Sans',sans-serif;line-height:1.6">Share your collection with friends via a link.<br>They'll see your showcase card, top cards by value,<br>and a swipeable binder view — no login needed.</div>
+  </div>
+</div>
+
+<!-- QUICK ADD TO FOLIO MODAL -->
+<div class="modal-bg" id="qa-modal-bg" onclick="if(event.target===this)closeQAModal()">
+  <div class="modal-box">
+    <div class="modal-title">
+      <div style="display:flex;align-items:center;gap:10px">
+        <img id="qa-img" src="" style="width:40px;height:56px;object-fit:cover;border-radius:4px;background:var(--s2);flex-shrink:0"/>
+        <div>
+          <div id="qa-name" style="font-size:11px;font-weight:600;color:var(--text);font-family:'DM Sans',sans-serif;margin-bottom:2px"></div>
+          <div id="qa-set" style="font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif"></div>
+          <div id="qa-market" style="font-size:12px;font-weight:700;color:var(--gold2);font-family:'DM Sans',sans-serif;margin-top:3px"></div>
+        </div>
+      </div>
+      <button class="modal-close" onclick="closeQAModal()">✕</button>
+    </div>
+    <div class="edit-row"><span class="edit-label">Price paid (USD)</span><input class="edit-input" id="qa-price" type="number" min="0" step="0.01" placeholder="0.00"/></div>
+    <div class="edit-row"><span class="edit-label">Date bought</span><input class="edit-input" id="qa-date" type="date" style="text-align:left"/></div>
+    <div class="edit-row"><span class="edit-label">From</span><input class="edit-input" id="qa-from" type="text" placeholder="eBay, LGS, trade, pack..."/></div>
+    <div style="display:flex;gap:7px;margin-top:10px">
+      <button class="btn" style="flex:1" onclick="confirmQAAdd()">✓ ADD TO FOLIO</button>
+      <button class="btn-ghost" onclick="closeQAModal()">CANCEL</button>
+    </div>
   </div>
 </div>
 </body>
