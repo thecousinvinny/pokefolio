@@ -1152,9 +1152,9 @@ function recordHistory(snap){
   } else {
     pts.push(point);
   }
-  // Keep rolling 30-day window
+  // Keep rolling 90-day window
   priceHistory[snap.id].points=pts
-    .filter(p=>p.t>=Date.now()-30*24*3600*1000)
+    .filter(p=>p.t>=Date.now()-90*24*3600*1000)
     .sort((a,b)=>a.t-b.t);
 }
 
@@ -2217,61 +2217,77 @@ function setupCDMSwipe(){
   const bg=document.getElementById('cdm-bg');
   if(!bg) return;
   bg._swipe=true;
-  let sx=0,sy=0,dx=0,dragging=false;
+  let sx=0,sy=0,dx=0,dy=0,dragging=false,scrolling=false;
   const box=()=>document.querySelector('.cdm-box');
 
+  // Block all background scroll
+  bg.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
+  bg.addEventListener('wheel',e=>e.preventDefault(),{passive:false});
+
+  // Touch swipe — works anywhere on modal, but yields to vertical scroll in right panel
   bg.addEventListener('touchstart',e=>{
-    if(e.target.closest('button,a,input,select,.cdm-right,.own-edit-area')) return;
-    sx=e.touches[0].clientX;sy=e.touches[0].clientY;dragging=true;dx=0;
+    if(e.target.closest('button,a,input,select,textarea')) return;
+    sx=e.touches[0].clientX;sy=e.touches[0].clientY;
+    dx=0;dy=0;dragging=false;scrolling=false;
   },{passive:true});
+
   bg.addEventListener('touchmove',e=>{
-    if(!dragging) return;
-    dx=e.touches[0].clientX-sx;
-    const dy=Math.abs(e.touches[0].clientY-sy);
-    if(dy>Math.abs(dx)){dragging=false;return;}
-    const b=box(); if(b) b.style.transform=`translateX(${dx*0.4}px)`;
+    const cx=e.touches[0].clientX,cy=e.touches[0].clientY;
+    dx=cx-sx;dy=cy-sy;
+    const inRightPanel=e.target.closest('.cdm-right');
+    // If in right panel and more vertical than horizontal — let it scroll
+    if(!dragging&&!scrolling){
+      if(Math.abs(dy)>Math.abs(dx)+6){
+        if(inRightPanel){scrolling=true;return;}
+      }
+      if(Math.abs(dx)>8){dragging=true;}
+    }
+    if(scrolling) return;
+    if(dragging){
+      const b=box();if(b) b.style.transform=`translateX(${dx*0.35}px)`;
+    }
   },{passive:true});
+
   bg.addEventListener('touchend',()=>{
-    if(!dragging) return; dragging=false;
+    if(!dragging){dx=0;return;}
+    dragging=false;scrolling=false;
     const b=box();
-    if(Math.abs(dx)>60){
-      const dir=dx<0?1:-1;
-      const next=cdmIndex+dir;
+    if(Math.abs(dx)>55){
+      const dir=dx<0?1:-1;const next=cdmIndex+dir;
       if(next>=0&&next<cdmList.length){
-        if(b){b.style.transition='transform 180ms ease';b.style.transform=`translateX(${dx<0?-40:40}px)`;b.style.opacity='0';}
-        setTimeout(()=>{if(b){b.style.transition='';b.style.transform='';b.style.opacity='';}cdmIndex=next;openCDM(cdmList[cdmIndex]);},160);
+        if(b){b.style.transition='transform 160ms ease,opacity 160ms ease';b.style.transform=`translateX(${dx<0?-60:60}px)`;b.style.opacity='0';}
+        setTimeout(()=>{if(b){b.style.transition='none';b.style.transform='translateX(0)';b.style.opacity='1';}cdmIndex=next;openCDM(cdmList[cdmIndex]);},170);
         return;
       }
     }
-    if(b){b.style.transition='transform 200ms ease';b.style.transform='';setTimeout(()=>b.style.transition='',210);}
+    if(b){b.style.transition='transform 200ms ease';b.style.transform='';setTimeout(()=>{if(b)b.style.transition='';},210);}
     dx=0;
   },{passive:true});
 
-  // Mouse drag
+  // Mouse drag — anywhere on box
   let mx=0,md=false,mdx=0;
-  bg.addEventListener('mousedown',e=>{if(e.target.closest('button,a,input,select,.cdm-right')) return;mx=e.clientX;md=true;mdx=0;});
+  bg.addEventListener('mousedown',e=>{
+    if(e.target.closest('button,a,input,select,textarea')) return;
+    mx=e.clientX;md=true;mdx=0;e.preventDefault();
+  });
   window.addEventListener('mousemove',e=>{
     if(!md) return; mdx=e.clientX-mx;
-    const b=box();if(b)b.style.transform=`translateX(${mdx*0.4}px)`;
+    const b=box();if(b)b.style.transform=`translateX(${mdx*0.35}px)`;
   });
   window.addEventListener('mouseup',()=>{
     if(!md) return; md=false;
     const b=box();
-    if(Math.abs(mdx)>60){
+    if(Math.abs(mdx)>55){
       const dir=mdx<0?1:-1;const next=cdmIndex+dir;
       if(next>=0&&next<cdmList.length){
-        if(b){b.style.transition='transform 180ms ease';b.style.transform=`translateX(${mdx<0?-40:40}px)`;b.style.opacity='0';}
-        setTimeout(()=>{if(b){b.style.transition='';b.style.transform='';b.style.opacity='';}cdmIndex=next;openCDM(cdmList[cdmIndex]);},160);
+        if(b){b.style.transition='transform 160ms ease,opacity 160ms ease';b.style.transform=`translateX(${mdx<0?-60:60}px)`;b.style.opacity='0';}
+        setTimeout(()=>{if(b){b.style.transition='none';b.style.transform='translateX(0)';b.style.opacity='1';}cdmIndex=next;openCDM(cdmList[cdmIndex]);},170);
         return;
       }
     }
-    if(b){b.style.transition='transform 200ms ease';b.style.transform='';setTimeout(()=>b.style.transition='',210);}
+    if(b){b.style.transition='transform 200ms ease';b.style.transform='';setTimeout(()=>{if(b)b.style.transition='';},210);}
     mdx=0;
   });
-
-  // Block scroll behind modal
-  bg.addEventListener('touchmove',e=>{if(e.target===bg||e.target.closest('.cdm-box')===null)e.preventDefault();},{passive:false});
-  bg.addEventListener('wheel',e=>e.preventDefault(),{passive:false});
 }
 function closeCDM(){ document.getElementById('cdm-bg').classList.remove('open');document.body.style.overflow=''; }
 // ── WATCHLIST ─────────────────────────────────────────────────────────────
@@ -2544,9 +2560,11 @@ async function refreshOwned(){
       if(low!=null) owned[i].low=low;
       if(!owned[i].releaseDate&&d.data?.set?.releaseDate) owned[i].releaseDate=d.data.set.releaseDate;
       if(!owned[i].setId&&d.data?.set?.id) owned[i].setId=d.data.set.id;
+      // Record today's price in history
+      if(market!=null) recordHistory(owned[i]);
     }catch(e){}
   }));
-  save();btn.innerHTML='↻ REFRESH PRICES';btn.disabled=false;
+  save();btn.innerHTML='↻';btn.disabled=false;
   document.getElementById('owned-updated').textContent='UPDATED '+new Date().toLocaleTimeString();
   applyOwnControls();
 }
@@ -3110,7 +3128,8 @@ function buildExportData(){
   if(exportMode==='all'||exportMode==='watchlist') d.watchlist=watchlist;
   if(exportMode==='all'||exportMode==='owned')     d.owned=owned;
   if(exportMode==='all'||exportMode==='history')   d.ledger=ledger;
-  if(exportMode==='all'){d.gifted=gifted;d.sold=sold;d.priceHistory=priceHistory;d.showcaseCopyId=showcaseCopyId||null;}
+  if(exportMode==='all'){d.gifted=gifted;d.sold=sold;d.showcaseCopyId=showcaseCopyId||null;}
+  d.priceHistory=priceHistory; // always export price history to prevent data loss
   return JSON.stringify(d,null,2);
 }
 function doExport(){document.getElementById('export-area').value=buildExportData();}
