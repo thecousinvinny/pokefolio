@@ -536,26 +536,28 @@ body.light .bottom-nav{background:rgba(245,244,241,0.78);}
 .binder-dot.active{background:var(--gold2);width:18px;border-radius:3px;}
 
 /* ── CARD DETAIL MODAL ────────────────────────────────────────────────── */
-.cdm-bg{position:fixed;inset:0;z-index:400;background:rgba(0,0,0,0.72);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
+.cdm-bg{position:fixed;inset:0;z-index:400;background:rgba(0,0,0,0.76);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
 .cdm-bg.open{opacity:1;pointer-events:all;}
-.cdm-box{background:var(--s1);border:1px solid var(--b2);border-radius:var(--rl);width:min(820px,96vw);max-height:90vh;overflow:hidden;display:flex;flex-direction:column;}
+.cdm-box{background:var(--s1);border:1px solid var(--b2);border-radius:var(--rl);width:min(920px,96vw);max-height:92vh;overflow:hidden;display:flex;flex-direction:column;}
 .cdm-inner{display:flex;gap:0;flex:1;overflow:hidden;min-height:0;}
-.cdm-left{flex:0 0 220px;display:flex;flex-direction:column;align-items:center;padding:20px 16px;border-right:1px solid var(--b1);gap:10px;background:var(--bg);}
-.cdm-img{width:100%;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.5);}
-.cdm-actions{display:flex;flex-direction:column;gap:6px;width:100%;}
-.cdm-right{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px;min-width:0;}
-.cdm-header{padding:14px 20px 10px;border-bottom:1px solid var(--b1);display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-shrink:0;}
-.cdm-name{font-size:15px;font-weight:700;color:var(--text);font-family:'DM Sans',sans-serif;line-height:1.2;}
-.cdm-set{font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif;margin-top:2px;letter-spacing:0.04em;}
-.cdm-section{display:flex;flex-direction:column;gap:4px;}
-.cdm-section-label{font-size:8px;font-weight:700;letter-spacing:0.12em;color:var(--t3);font-family:'Space Mono',monospace;margin-bottom:2px;}
-.cdm-row{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;border-bottom:1px solid var(--b1);}
+.cdm-left{flex:0 0 300px;display:flex;flex-direction:column;align-items:center;padding:20px 18px 16px;border-right:1px solid var(--b1);gap:8px;background:var(--bg);overflow-y:auto;}
+.cdm-img-wrap{width:100%;border-radius:8px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,0.6);}
+.cdm-img{width:100%;display:block;}
+.cdm-actions{display:flex;flex-direction:column;gap:6px;width:100%;margin-top:2px;}
+.cdm-right{flex:1;overflow-y:auto;padding:20px 22px;display:flex;flex-direction:column;gap:16px;min-width:0;}
+.cdm-header{padding:12px 22px 10px;border-bottom:1px solid var(--b1);display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-shrink:0;}
+.cdm-name{font-size:17px;font-weight:700;color:var(--text);font-family:'DM Sans',sans-serif;line-height:1.2;margin-bottom:2px;}
+.cdm-set{font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif;letter-spacing:0.04em;}
+.cdm-section{display:flex;flex-direction:column;gap:3px;}
+.cdm-section-label{font-size:8px;font-weight:700;letter-spacing:0.12em;color:var(--t3);font-family:'Space Mono',monospace;margin-bottom:3px;padding-bottom:4px;border-bottom:1px solid var(--b1);}
+.cdm-row{display:flex;justify-content:space-between;align-items:baseline;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);}
 .cdm-row:last-child{border-bottom:none;}
 .cdm-row-label{font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif;}
-.cdm-row-val{font-size:10px;font-weight:600;color:var(--text);font-family:'DM Sans',sans-serif;text-align:right;}
-.cdm-market-val{font-size:20px;font-weight:700;color:var(--gold2);font-variant-numeric:tabular-nums;font-family:'DM Sans',sans-serif;}
-.cdm-chart-wrap{background:var(--s2);border-radius:var(--r);padding:8px;min-height:80px;}
-.cdm-badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px;}
+.cdm-row-val{font-size:10px;font-weight:600;color:var(--text);font-family:'DM Sans',sans-serif;text-align:right;max-width:60%;}
+.cdm-market-val{font-size:22px;font-weight:700;color:var(--gold2);font-variant-numeric:tabular-nums;font-family:'DM Sans',sans-serif;}
+.cdm-chart-wrap{background:var(--s2);border-radius:var(--r);padding:10px 8px 6px;margin-top:2px;}
+.cdm-badges{display:flex;gap:5px;flex-wrap:nowrap;width:100%;overflow:hidden;}
+.cdm-badge{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:3px;font-size:8px;font-weight:700;white-space:nowrap;flex-shrink:0;}
 </style>
 </head>
 <body>
@@ -2039,22 +2041,30 @@ function openCDM(copyId){
   const isShowcase=showcaseCopyId===c.copyId;
   const {suggest,trend}=suggestSell(c.id,c.market);
 
-  // Header
-  document.getElementById('cdm-name').textContent=c.name;
-  document.getElementById('cdm-set').textContent=c.set+' · #'+c.number+' / '+c.total+(relDate?' · '+relDate:'');
-
   // Image with fav/showcase border
+  const imgWrap=document.getElementById('cdm-img-wrap');
   const img=document.getElementById('cdm-img');
   img.src=c.imgLg||c.img;
-  img.style.border=isShowcase?'':'';
-  img.className='cdm-img'+(isShowcase?' pcard-showcase':'');
-  img.style.cssText=`width:100%;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.5);${c.isFav&&!isShowcase?'border:1px solid var(--gold);box-shadow:0 0 0 1px var(--gold),0 8px 32px rgba(0,0,0,0.5)':''}`;
+  imgWrap.className='cdm-img-wrap'+(isShowcase?' pcard-showcase':'');
+  if(c.isFav&&!isShowcase) imgWrap.style.cssText='width:100%;border-radius:8px;overflow:hidden;box-shadow:0 0 0 1px var(--gold),0 12px 40px rgba(0,0,0,0.6)';
+  else imgWrap.style.cssText='width:100%;border-radius:8px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,0.6)';
 
-  // Badges
+  // Name under image on left
+  const leftName=document.getElementById('cdm-left-name');
+  if(leftName){
+    leftName.innerHTML=`<div style="font-size:12px;font-weight:700;color:var(--text);font-family:'DM Sans',sans-serif;line-height:1.3;margin-bottom:2px">${c.name}</div>`;
+  }
+
+  // Badges — uniform height via cdm-badge class
   const badgeEl=document.getElementById('cdm-badges');
   const langStyle=c.isJP?'background:rgba(220,80,80,0.15);color:#f87171;border:1px solid rgba(220,80,80,0.35)':c.isBL?'background:var(--purple-dim);color:var(--purple);border:1px solid rgba(196,181,253,0.35)':'background:rgba(59,130,246,0.12);color:#60a5fa;border:1px solid rgba(59,130,246,0.35)';
   const langLabel=c.isJP?'JP':c.isBL?'BL':'US';
-  badgeEl.innerHTML=`<span class="rtag ${ri.cls}" style="font-size:8px">${ri.label}</span><span style="font-size:8px;font-weight:700;padding:2px 7px;border-radius:3px;${langStyle}">${langLabel}</span>${isShowcase?'<span style="font-size:8px;color:#e2e8f0;border:1px solid rgba(255,255,255,0.3);border-radius:3px;padding:2px 6px">◈ SHOWCASE</span>':''}${c.isFav?'<span style="font-size:8px;color:var(--gold);border:1px solid rgba(201,168,76,0.4);border-radius:3px;padding:2px 6px">★ FAV</span>':''}`;
+  const rarStyle=ri.cls==='r-ir'?'background:rgba(201,168,76,0.12);color:var(--gold2);border:1px solid rgba(201,168,76,0.3)':ri.cls==='r-fa'?'background:rgba(196,181,253,0.1);color:var(--purple);border:1px solid rgba(196,181,253,0.25)':ri.cls==='r-sr'?'background:rgba(96,165,250,0.1);color:#60a5fa;border:1px solid rgba(96,165,250,0.25)':'background:var(--s3);color:var(--t2);border:1px solid var(--b1)';
+  badgeEl.innerHTML=
+    `<span class="cdm-badge" style="${rarStyle}">${ri.label}</span>`+
+    `<span class="cdm-badge" style="${langStyle}">${langLabel}</span>`+
+    (isShowcase?`<span class="cdm-badge" style="background:rgba(255,255,255,0.06);color:#e2e8f0;border:1px solid rgba(255,255,255,0.2)">◈ SHOWCASE</span>`:'')
+    +(c.isFav?`<span class="cdm-badge" style="background:var(--gold-dim);color:var(--gold);border:1px solid rgba(201,168,76,0.4)">★ FAV</span>`:'');
 
   // Action buttons
   const idx=ownFiltered.indexOf(c);
@@ -2102,18 +2112,38 @@ function openCDM(copyId){
   const trendLabel=trend==='up'?`SUGGEST SELL ${fmt(suggest)}`:trend==='down'?'HOLD — TREND ↓':'FAIR VALUE';
 
   right.innerHTML=`
+    ${pts.length>=2?`
+    <div class="cdm-section">
+      <div class="cdm-section-label">PRICE HISTORY</div>
+      <div class="cdm-chart-wrap" id="cdm-chart-${c.copyId}" style="padding:4px 6px"></div>
+    </div>`:''}
+
+    ${pts.length?`
+    <div class="cdm-section">
+      ${trendHtml}
+      <div class="cdm-row"><span class="cdm-row-label">Lowest recorded</span><span class="cdm-row-val">${fmt(lowest.market)} <span style="color:var(--t3);font-size:8px">${new Date(lowest.t).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'})}</span></span></div>
+      <div class="cdm-row"><span class="cdm-row-label">Highest recorded</span><span class="cdm-row-val">${fmt(highest.market)} <span style="color:var(--t3);font-size:8px">${new Date(highest.t).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'})}</span></span></div>
+      <div class="cdm-row"><span class="cdm-row-label">Data points</span><span class="cdm-row-val">${pts.length} days tracked</span></div>
+    </div>`:''}
+
+    <div class="cdm-section">
+      <div class="cdm-section-label">SET INFO</div>
+      <div class="cdm-row"><span class="cdm-row-label">Set</span><span class="cdm-row-val">${c.set}</span></div>
+      <div class="cdm-row"><span class="cdm-row-label">Number</span><span class="cdm-row-val">#${c.number} / ${c.total}</span></div>
+      ${relDate?`<div class="cdm-row"><span class="cdm-row-label">Set release</span><span class="cdm-row-val">${relDate}</span></div>`:''}
+      <div class="cdm-row"><span class="cdm-row-label">Collection</span><span class="cdm-row-val">${setOwn} / ${c.total}</span></div>
+    </div>
+
     <div class="cdm-section">
       <div class="cdm-section-label">MARKET VALUE</div>
-      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px">
+      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">
         <span class="cdm-market-val">${fmt(dm)}</span>
         <span style="font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif">${c.isJP?'JP MARKET':c.isBL?'BL MARKET':'NM MARKET'}</span>
       </div>
-      <div style="font-size:9px;font-weight:700;color:${trendCol};font-family:'Space Mono',monospace;letter-spacing:0.06em;margin-bottom:6px">${trendLabel}</div>
-      ${c.nmLow!=null||c.nmHigh!=null||c.directLow!=null?`
-      <div class="cdm-row"><span class="cdm-row-label">NM Low listing</span><span class="cdm-row-val">${c.nmLow!=null?fmt(c.nmLow):'—'}</span></div>
-      <div class="cdm-row"><span class="cdm-row-label">NM High listing</span><span class="cdm-row-val">${c.nmHigh!=null?fmt(c.nmHigh):'—'}</span></div>
-      <div class="cdm-row"><span class="cdm-row-label">LP (Direct Low)</span><span class="cdm-row-val">${c.directLow!=null?fmt(c.directLow):'—'}</span></div>
-      `:''}
+      <div style="font-size:9px;font-weight:700;color:${trendCol};font-family:'Space Mono',monospace;letter-spacing:0.06em;margin-bottom:4px">${trendLabel}</div>
+      ${c.nmLow!=null?`<div class="cdm-row"><span class="cdm-row-label">NM Low listing</span><span class="cdm-row-val">${fmt(c.nmLow)}</span></div>`:''}
+      ${c.nmHigh!=null?`<div class="cdm-row"><span class="cdm-row-label">NM High listing</span><span class="cdm-row-val">${fmt(c.nmHigh)}</span></div>`:''}
+      ${c.directLow!=null?`<div class="cdm-row"><span class="cdm-row-label">LP (Direct Low)</span><span class="cdm-row-val">${fmt(c.directLow)}</span></div>`:''}
       ${c.low!=null?`<div class="cdm-row"><span class="cdm-row-label">Low listing</span><span class="cdm-row-val">${fmt(c.low)}</span></div>`:''}
     </div>
 
@@ -2124,44 +2154,53 @@ function openCDM(copyId){
       <div class="cdm-row"><span class="cdm-row-label">Purchased from</span><span class="cdm-row-val">${c.boughtFrom||'—'}</span></div>
       <div class="cdm-row"><span class="cdm-row-label">Unrealised P&L</span><span class="cdm-row-val" style="${pnl==null?'':pnl>0?'color:var(--green)':'color:var(--red)'}">${pnl!=null?(pnl>=0?'+':'')+fmt(pnl):'—'}</span></div>
     </div>
-
-    <div class="cdm-section">
-      <div class="cdm-section-label">SET INFO</div>
-      <div class="cdm-row"><span class="cdm-row-label">Set</span><span class="cdm-row-val">${c.set}</span></div>
-      <div class="cdm-row"><span class="cdm-row-label">Number</span><span class="cdm-row-val">#${c.number} / ${c.total}</span></div>
-      ${relDate?`<div class="cdm-row"><span class="cdm-row-label">Set release</span><span class="cdm-row-val">${relDate}</span></div>`:''}
-      <div class="cdm-row"><span class="cdm-row-label">Collection</span><span class="cdm-row-val">${setOwn} / ${c.total}</span></div>
-    </div>
-
-    ${pts.length?`
-    <div class="cdm-section">
-      <div class="cdm-section-label">PRICE HISTORY</div>
-      ${trendHtml}
-      <div class="cdm-row"><span class="cdm-row-label">Lowest recorded</span><span class="cdm-row-val">${fmt(lowest.market)} <span style="color:var(--t3);font-size:8px">${new Date(lowest.t).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'})}</span></span></div>
-      <div class="cdm-row"><span class="cdm-row-label">Highest recorded</span><span class="cdm-row-val">${fmt(highest.market)} <span style="color:var(--t3);font-size:8px">${new Date(highest.t).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'})}</span></span></div>
-      <div class="cdm-row"><span class="cdm-row-label">Data points</span><span class="cdm-row-val">${pts.length} days tracked</span></div>
-      <div class="cdm-chart-wrap" id="cdm-chart-${c.copyId}"></div>
-    </div>`:''}
   `;
 
-  // Render mini chart if history exists
+  // Render chart with axes + labels
   if(pts.length>=2){
     requestAnimationFrame(()=>{
       const wrap=document.getElementById('cdm-chart-'+c.copyId);
       if(!wrap)return;
-      const W=wrap.offsetWidth||260,H=80;
+      const PAD={top:8,right:8,bottom:28,left:48};
+      const W=wrap.offsetWidth||340,H=120;
+      const cW=W-PAD.left-PAD.right,cH=H-PAD.top-PAD.bottom;
       const vals=pts.map(p=>p.market);
       const mn=Math.min(...vals),mx=Math.max(...vals);
-      const range=mx-mn||1;
-      const px=(v,i)=>Math.round((i/(pts.length-1))*W);
-      const py=v=>Math.round(H-((v-mn)/range)*(H-8)-4);
+      const range=mx-mn||mn*0.1||1;
+      const yMin=mn-range*0.08,yMax=mx+range*0.08;
+      const yRange=yMax-yMin;
       const col=vals[vals.length-1]>=vals[0]?'var(--green)':'var(--red)';
-      const pts2=pts.map((p,i)=>`${px(0,i)},${py(p.market)}`).join(' ');
-      const fillPts=`0,${H} ${pts2} ${W},${H}`;
-      wrap.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="display:block">
-        <defs><linearGradient id="cdmg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${col}" stop-opacity="0.25"/><stop offset="100%" stop-color="${col}" stop-opacity="0"/></linearGradient></defs>
-        <polygon points="${fillPts}" fill="url(#cdmg)"/>
-        <polyline points="${pts2}" fill="none" stroke="${col}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+      const isDark=document.body.classList.contains('light')?'#555':'#888';
+      const gridCol=document.body.classList.contains('light')?'rgba(0,0,0,0.07)':'rgba(255,255,255,0.06)';
+      const px=i=>PAD.left+Math.round((i/(pts.length-1))*cW);
+      const py=v=>PAD.top+Math.round((1-(v-yMin)/yRange)*cH);
+      const linePoints=pts.map((p,i)=>`${px(i)},${py(p.market)}`).join(' ');
+      const fillPoints=`${PAD.left},${PAD.top+cH} ${linePoints} ${PAD.left+cW},${PAD.top+cH}`;
+      // Y axis: 4 gridlines
+      const yTicks=4;
+      let gridLines='',yLabels='';
+      for(let i=0;i<=yTicks;i++){
+        const v=yMin+(i/yTicks)*yRange;
+        const y=py(v);
+        gridLines+=`<line x1="${PAD.left}" y1="${y}" x2="${PAD.left+cW}" y2="${y}" stroke="${gridCol}" stroke-width="1"/>`;
+        yLabels+=`<text x="${PAD.left-5}" y="${y+3.5}" text-anchor="end" font-size="8" fill="${isDark}" font-family="DM Sans,sans-serif">$${v.toFixed(0)}</text>`;
+      }
+      // X axis: up to 5 date labels
+      let xLabels='';
+      const xStep=Math.max(1,Math.floor((pts.length-1)/4));
+      for(let i=0;i<pts.length;i+=xStep){
+        const x=px(i);
+        const d=new Date(pts[i].t).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+        xLabels+=`<text x="${x}" y="${H-6}" text-anchor="middle" font-size="8" fill="${isDark}" font-family="DM Sans,sans-serif">${d}</text>`;
+      }
+      wrap.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block;overflow:visible">
+        <defs><linearGradient id="cdmg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${col}" stop-opacity="0.2"/><stop offset="100%" stop-color="${col}" stop-opacity="0"/></linearGradient></defs>
+        ${gridLines}
+        <polygon points="${fillPoints}" fill="url(#cdmg2)"/>
+        <polyline points="${linePoints}" fill="none" stroke="${col}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+        ${yLabels}${xLabels}
+        <line x1="${PAD.left}" y1="${PAD.top}" x2="${PAD.left}" y2="${PAD.top+cH}" stroke="${isDark}" stroke-width="0.5" opacity="0.5"/>
+        <line x1="${PAD.left}" y1="${PAD.top+cH}" x2="${PAD.left+cW}" y2="${PAD.top+cH}" stroke="${isDark}" stroke-width="0.5" opacity="0.5"/>
       </svg>`;
     });
   }
@@ -3411,15 +3450,12 @@ if(localStorage.getItem('pf_theme')==='light'){document.body.classList.add('ligh
 <div class="cdm-bg" id="cdm-bg" onclick="if(event.target===this)closeCDM()">
   <div class="cdm-box">
     <div class="cdm-header">
-      <div>
-        <div class="cdm-name" id="cdm-name"></div>
-        <div class="cdm-set" id="cdm-set"></div>
-      </div>
-      <button class="modal-close" onclick="closeCDM()" style="flex-shrink:0;font-size:16px">✕</button>
+      <button class="modal-close" onclick="closeCDM()" style="font-size:16px;margin-left:auto">✕</button>
     </div>
     <div class="cdm-inner">
       <div class="cdm-left">
-        <img class="cdm-img" id="cdm-img" src=""/>
+        <div class="cdm-img-wrap" id="cdm-img-wrap"><img class="cdm-img" id="cdm-img" src=""/></div>
+        <div id="cdm-left-name" style="width:100%;text-align:center"></div>
         <div class="cdm-badges" id="cdm-badges"></div>
         <div class="cdm-actions" id="cdm-actions"></div>
       </div>
