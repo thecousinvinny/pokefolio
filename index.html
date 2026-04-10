@@ -986,6 +986,7 @@ function save(){
   localStorage.setItem('ptrkr_sold',  JSON.stringify(sold));
   localStorage.setItem('ptrkr_ph',    JSON.stringify(priceHistory));
   localStorage.setItem('ptrkr_ledger',JSON.stringify(ledger));
+  if(showcaseCopyId) localStorage.setItem('ptrkr_showcase',showcaseCopyId); else localStorage.removeItem('ptrkr_showcase');
 }
 function refreshAllCounts(){
   const wlEl=document.getElementById('wl-count');if(wlEl){wlEl.textContent=watchlist.length||'';wlEl.style.display=watchlist.length?'flex':'none';}
@@ -2844,7 +2845,7 @@ function buildExportData(){
   if(exportMode==='all'||exportMode==='watchlist') d.watchlist=watchlist;
   if(exportMode==='all'||exportMode==='owned')     d.owned=owned;
   if(exportMode==='all'||exportMode==='history')   d.ledger=ledger;
-  if(exportMode==='all'){d.gifted=gifted;d.sold=sold;d.priceHistory=priceHistory;}
+  if(exportMode==='all'){d.gifted=gifted;d.sold=sold;d.priceHistory=priceHistory;d.showcaseCopyId=showcaseCopyId||null;}
   return JSON.stringify(d,null,2);
 }
 function doExport(){document.getElementById('export-area').value=buildExportData();}
@@ -2884,6 +2885,7 @@ function doImport(mode){
     if(d.watchlist) watchlist=d.watchlist;if(d.owned) owned=d.owned;
     if(d.gifted)    gifted=d.gifted||[];if(d.sold)  sold=d.sold||[];
     if(d.priceHistory) priceHistory=d.priceHistory;if(d.ledger) ledger=d.ledger;
+    if(d.showcaseCopyId!==undefined){showcaseCopyId=d.showcaseCopyId;if(showcaseCopyId)localStorage.setItem('ptrkr_showcase',showcaseCopyId);else localStorage.removeItem('ptrkr_showcase');}
     wlAdded=(d.watchlist||[]).length;ownAdded=(d.owned||[]).length;ledAdded=Object.keys(d.ledger||{}).length;
   }else{
     (d.watchlist||[]).forEach(c=>{if(!watchlist.some(w=>w.id===c.id)){watchlist.push(c);wlAdded++;}});
