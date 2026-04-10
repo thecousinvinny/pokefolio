@@ -492,9 +492,9 @@ body.light .bottom-nav{background:rgba(245,244,241,0.78);}
 .binder-card-slot.pcard-showcase{border-radius:var(--r);}
 
 /* ── DASHBOARD ───────────────────────────────────────────── */
-.db-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.db-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1.25rem}
 @media(max-width:768px){.db-metrics{grid-template-columns:repeat(2,1fr)}}
-.db-metric{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rl);padding:10px 12px}
+.db-metric{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rl);padding:12px 14px}
 .db-metric-label{font-size:8px;color:var(--t3);font-family:'DM Sans',sans-serif;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:4px}
 .db-metric-val{font-size:18px;font-weight:700;font-family:'DM Sans',sans-serif;font-variant-numeric:tabular-nums;line-height:1.1}
 .db-card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--rl);padding:12px 14px;margin-bottom:12px}
@@ -849,7 +849,6 @@ body.light .bottom-nav{background:rgba(245,244,241,0.78);}
 
   <!-- SOLD TAB -->
   <div id="tab-sold" class="section">
-    <div class="rbar"><span class="rbar-left">CARDS YOU'VE SOLD</span></div>
     <div class="metrics">
       <div class="metric"><div class="metric-label">Cards sold</div><div class="metric-val" id="sm-count">0</div></div>
       <div class="metric"><div class="metric-label">Total revenue</div><div class="metric-val gold" id="sm-revenue">—</div></div>
@@ -872,7 +871,6 @@ body.light .bottom-nav{background:rgba(245,244,241,0.78);}
 
   <!-- GIFTED TAB -->
   <div id="tab-gifted" class="section">
-    <div class="rbar"><span class="rbar-left">CARDS YOU'VE GIFTED</span></div>
     <div class="metrics">
       <div class="metric"><div class="metric-label">Cards gifted</div><div class="metric-val" id="gm-count">0</div></div>
       <div class="metric"><div class="metric-label">Total value gifted</div><div class="metric-val muted" id="gm-value">—</div></div>
