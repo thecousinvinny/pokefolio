@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-<meta name="apple-mobile-web-app-title" content="BINDR"/>
-<title>BINDR</title>
+<meta name="apple-mobile-web-app-title" content="FOLIO"/>
+<title>FOLIO</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -575,26 +575,20 @@ body.light .bottom-nav{background:rgba(245,244,241,0.78);}
       <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle light/dark mode">☀</button>
     </div>
     <a class="logo">
-      <div class="logo-box">
-        <svg width="38" height="38" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <!-- outer ring -->
-          <circle cx="19" cy="19" r="17" fill="#111" stroke="#c9a84c" stroke-width="1.5"/>
-          <!-- top half — gold -->
-          <path d="M2 19 A17 17 0 0 1 36 19 Z" fill="#c9a84c"/>
-          <!-- bottom half — black -->
-          <path d="M2 19 A17 17 0 0 0 36 19 Z" fill="#0f0f0f"/>
-          <!-- gold divider band -->
-          <line x1="2" y1="19" x2="36" y2="19" stroke="#c9a84c" stroke-width="2.5"/>
-          <!-- top highlight -->
-          <!-- center button ring -->
-          <circle cx="19" cy="19" r="5.5" fill="#0f0f0f" stroke="#c9a84c" stroke-width="1.8"/>
-          <!-- center button fill -->
-          <circle cx="19" cy="19" r="3.2" fill="#e2ba6a"/>
-          <!-- center button highlight -->
-          <circle cx="17.8" cy="17.8" r="1.1" fill="#f8e8b0" opacity="0.75"/>
+      <div class="logo-box" style="position:relative;width:28px;height:34px;flex-shrink:0">
+        <svg width="28" height="34" viewBox="0 0 28 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="4" width="24" height="29" rx="3" fill="rgba(201,168,76,0.06)" stroke="rgba(201,168,76,0.25)" stroke-width="1"/>
+          <rect x="4" y="2" width="24" height="29" rx="3" fill="rgba(201,168,76,0.09)" stroke="rgba(201,168,76,0.4)" stroke-width="1"/>
+          <rect x="8" y="0" width="20" height="29" rx="3" fill="rgba(201,168,76,0.13)" stroke="#c9a84c" stroke-width="1.5"/>
+          <rect x="8" y="0" width="5.5" height="29" rx="3" fill="#c9a84c"/>
+          <circle cx="19.5" cy="14.5" r="7.5" fill="none" stroke="#c9a84c" stroke-width="1.4"/>
+          <line x1="12" y1="14.5" x2="27" y2="14.5" stroke="#c9a84c" stroke-width="1.4"/>
+          <path d="M12 14.5 A7.5 7.5 0 0 1 27 14.5 Z" fill="#c9a84c" opacity="0.22"/>
+          <circle cx="19.5" cy="14.5" r="2.5" fill="none" stroke="#c9a84c" stroke-width="1.3"/>
+          <circle cx="19.5" cy="14.5" r="1.1" fill="#c9a84c"/>
         </svg>
       </div>
-      <span class="logo-text">BINDR</span>
+      <span class="logo-text">FOLIO</span>
       <span style="font-size:7px;font-weight:700;letter-spacing:0.1em;padding:2px 5px;border-radius:3px;background:var(--gold-dim2);color:var(--gold);border:1px solid rgba(201,168,76,0.35);align-self:center;margin-left:-4px">LITE</span>
     </a>
     <div class="nav-right">
@@ -1404,7 +1398,7 @@ function renderSrPage(){
       <div class="cond-divider"></div>
       <div class="card-btns">
         <button class="cbtn${inWl?' wl-added':''}" id="wlb-${c.id}" onclick='addToWl(${snap})' style="${inWl?'':'color:var(--gold);border-color:rgba(201,168,76,0.4)'}">${inWl?'✓ WATCH':'WATCH'}</button>
-        <button class="cbtn${inOwn?' own-added':''}" id="ownb-${c.id}" onclick='openAddToBINDR(${snap})' style="${inOwn?'':'color:var(--green);border-color:rgba(76,175,125,0.3)'}">${inOwn?'✓ IN BINDR':'+ ADD TO BINDR'}</button>
+        <button class="cbtn${inOwn?' own-added':''}" id="ownb-${c.id}" onclick='openAddToFOLIO(${snap})' style="${inOwn?'':'color:var(--green);border-color:rgba(76,175,125,0.3)'}">${inOwn?'✓ IN FOLIO':'+ ADD TO FOLIO'}</button>
         <a class="tcg-link" href="${c.tcgplayer?.url||tcgUrl(c.name)}" target="_blank">↗ TCG</a>
       </div>
     </div>`;
@@ -1473,9 +1467,9 @@ function addToOwned(snap){
 
 
 
-// ── QUICK ADD TO BINDR MODAL ───────────────────────────────────────────────
+// ── QUICK ADD TO FOLIO MODAL ───────────────────────────────────────────────
 let _qaSnap=null;
-function openAddToBINDR(snap){
+function openAddToFOLIO(snap){
   _qaSnap=snap;
   document.getElementById('qa-img').src=snap.img||'';
   document.getElementById('qa-name').textContent=snap.name||'';
@@ -1505,8 +1499,8 @@ function confirmQAAdd(){
   owned.push(snap);ledgerSetOwned(snap);save();refreshAllCounts();
   closeQAModal();
   const b=document.getElementById('ownb-'+(snap.id||''));
-  if(b){const orig=b.textContent;b.textContent='✓ IN BINDR';b.style.color='';b.style.borderColor='';}
-  showBriefToast('✓ Added '+snap.name+' to BINDR',3000);
+  if(b){const orig=b.textContent;b.textContent='✓ IN FOLIO';b.style.color='';b.style.borderColor='';}
+  showBriefToast('✓ Added '+snap.name+' to FOLIO',3000);
 }
 // ── BULK EDIT ──────────────────────────────────────────────────────────────
 let bulkEditOpen=false;
@@ -1601,7 +1595,7 @@ function renderDashboard(){
   const wlColors=['#c9a84c','#4caf7d','#60a5fa','#c4b5fd','#f87171'];
   const wlWithHist=watchlist.map(c=>({c,pts:(priceHistory[c.id]?.points||[]).filter(p=>p.market!=null).sort((a,b)=>a.t-b.t)})).filter(x=>x.pts.length>=2).sort((a,b)=>b.pts.length-a.pts.length).slice(0,5);
 
-  // Build a full vertical pcard identical to BINDR/Search tabs
+  // Build a full vertical pcard identical to FOLIO/Search tabs
   function dashCard(c, label, val, valColor){
     if(!c) return `<div class="pcard" style="border:1px dashed var(--b1);min-height:220px;display:flex;align-items:center;justify-content:center"><span style="font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif">No data yet</span></div>`;
     const ri=raritySnap(c);
@@ -2490,7 +2484,7 @@ function renderWatchlist(){
       </div>
       <div class="card-btns" style="margin-top:7px">
         <a class="tcg-link" href="${c.tcgUrl||tcgUrl(c.name)}" target="_blank">↗ TCG</a>
-        <button class="cbtn" style="color:var(--green);border-color:rgba(76,175,125,0.3)" onclick="wlToOwned('${c.id}')">+ ADD TO BINDR</button>
+        <button class="cbtn" style="color:var(--green);border-color:rgba(76,175,125,0.3)" onclick="wlToOwned('${c.id}')">+ ADD TO FOLIO</button>
         <button class="cbtn del-btn" onclick="confirmRemove(this,'${c.name}',()=>removeWl('${c.id}'))">✕ REMOVE</button>
       </div>
     </div>`;
@@ -2920,7 +2914,7 @@ function renderSold(){
         ${c.notes?`<div class="price-row"><span class="price-label">NOTE</span><span class="price-val list" style="font-size:9px;word-break:break-word">${c.notes}</span></div>`:''}
       </div>
       <div class="card-btns">
-        <button class="cbtn" style="color:var(--green);border-color:rgba(76,175,125,0.3)" onclick="restoreToOwned('sold',${i})">↩ RESTORE TO BINDR</button>
+        <button class="cbtn" style="color:var(--green);border-color:rgba(76,175,125,0.3)" onclick="restoreToOwned('sold',${i})">↩ RESTORE TO FOLIO</button>
         <a class="tcg-link" href="${c.tcgUrl||tcgUrl(c.name)}" target="_blank">↗ TCG</a>
         <button class="cbtn del-btn" onclick="confirmRemove(this,window._soldSlice?.[${i}]?.name,()=>removeSold(${i}))">✕ REMOVE</button>
       </div>
@@ -3013,7 +3007,7 @@ function renderGifted(){
         ${c.notes?`<div class="price-row"><span class="price-label">NOTE</span><span class="price-val list" style="font-size:9px;word-break:break-word">${c.notes}</span></div>`:''}
       </div>
       <div class="card-btns">
-        <button class="cbtn" style="color:var(--green);border-color:rgba(76,175,125,0.3)" onclick="restoreToOwned('gifted',${i})">↩ RESTORE TO BINDR</button>
+        <button class="cbtn" style="color:var(--green);border-color:rgba(76,175,125,0.3)" onclick="restoreToOwned('gifted',${i})">↩ RESTORE TO FOLIO</button>
         <a class="tcg-link" href="${c.tcgUrl||tcgUrl(c.name)}" target="_blank">↗ TCG</a>
         <button class="cbtn del-btn" onclick="confirmRemove(this,window._giftedSlice?.[${i}]?.name,()=>removeGifted(${i}))">✕ REMOVE</button>
       </div>
@@ -3184,7 +3178,7 @@ function downloadExport(){
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
     a.href=url;
-    a.download='bindr-'+new Date().toISOString().slice(0,10)+'.json';
+    a.download='folio-'+new Date().toISOString().slice(0,10)+'.json';
     document.body.appendChild(a);
     a.click();
     setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},1000);
@@ -3193,7 +3187,7 @@ function downloadExport(){
     // Fallback: data URI
     const a=document.createElement('a');
     a.href='data:application/json;charset=utf-8,'+encodeURIComponent(data);
-    a.download='bindr-'+new Date().toISOString().slice(0,10)+'.json';
+    a.download='folio-'+new Date().toISOString().slice(0,10)+'.json';
     a.click();
     stampExport();
   }
@@ -3283,7 +3277,7 @@ window.addEventListener('beforeunload',e=>{
   if(!owned.length&&!watchlist.length) return;
   const ts=parseInt(localStorage.getItem('pf_last_export')||'0');
   const days=Math.floor((Date.now()-ts)/86400000);
-  if(!ts||days>3){e.preventDefault();e.returnValue='Export your BINDR data before closing!';}
+  if(!ts||days>3){e.preventDefault();e.returnValue='Export your FOLIO data before closing!';}
 });
 
 // ── SHARE SHEET (iPad native) + FILE IMPORT ───────────────────────────────
@@ -3291,9 +3285,9 @@ async function shareExport(){
   const data=buildExportData();
   document.getElementById('export-area').value=data;
   const blob=new Blob([data],{type:'application/json'});
-  const file=new File([blob],`bindr-${new Date().toISOString().slice(0,10)}.json`,{type:'application/json'});
+  const file=new File([blob],`folio-${new Date().toISOString().slice(0,10)}.json`,{type:'application/json'});
   if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
-    try{await navigator.share({files:[file],title:'BINDR Export'});stampExport();}
+    try{await navigator.share({files:[file],title:'FOLIO Export'});stampExport();}
     catch(e){if(e.name!=='AbortError')downloadExport();}
   } else downloadExport();
 }
@@ -3470,7 +3464,7 @@ if(localStorage.getItem('pf_theme')==='light'){document.body.classList.add('ligh
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="2" width="18" height="20" rx="2"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="7" y1="7" x2="3" y2="7"/><line x1="7" y1="12" x2="3" y2="12"/><line x1="7" y1="17" x2="3" y2="17"/></svg>
     </div>
     <span class="bnav-badge" id="owned-count">0</span>
-    <span class="bnav-label">BINDR</span>
+    <span class="bnav-label">FOLIO</span>
   </button>
   <button class="bnav-btn" id="bnav-sold" onclick="switchTab('sold')">
     <div class="bnav-icon">
