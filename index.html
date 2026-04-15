@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="FOLIO"/>
 <title>FOLIO</title>
+<script>if(location.hash.startsWith('#share='))document.documentElement.style.visibility='hidden'</script>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -3773,12 +3774,20 @@ function renderSharePage(){
 
     if(data.trunc) html+=`<div class="sp-trunc">Showing top 50 cards by value</div>`;
     html+='</div></div>'; // close sp-right + sp-body
-        document.body.innerHTML=html;
+    document.body.innerHTML=html;
+    document.documentElement.style.visibility='';
     return true;
   }catch(e){console.error('Share page error:',e);return false;}
 }
 // Run on load
-if(!renderSharePage()){
+if(window.location.hash.startsWith('#share=')){
+  // Share mode — renderSharePage will replace body entirely
+  document.addEventListener('DOMContentLoaded',()=>{
+    const nav=document.getElementById('bottom-nav');
+    if(nav) nav.style.display='none';
+    renderSharePage();
+  });
+} else {
   // Normal app mode — already handled by existing init
 }
 
