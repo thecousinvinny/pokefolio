@@ -2321,7 +2321,14 @@ function closeCDM(){ document.getElementById('cdm-bg').classList.remove('open');
 const _cardSnapMap={};
 function openCardStatById(id,mode){
   const c=watchlist.find(w=>w.id===id)||owned.find(o=>o.id===id)||_cardSnapMap[id];
-  if(c) openCardStat(c,mode);
+  if(!c) return;
+  // Build list for swipe nav from current filtered list
+  let list=[];
+  if(mode==='watch') list=wlFiltered.map(w=>w);
+  else if(mode==='search') list=srFiltered.slice((srPage-1)*PER,srPage*PER).map(r=>_cardSnapMap[r.id]||r);
+  _csmList=list.filter(Boolean);
+  _csmIdx=_csmList.findIndex(s=>s.id===id);
+  openCardStat(c,mode);
 }
 // ── CARD STAT MODAL (Watch + Search) ──────────────────────────────────────
 let _csmSnap=null; // current snap for watch/search modal
@@ -2334,7 +2341,9 @@ function openCardStat(snapJson, mode, listJson){
   if(!c) return;
   _csmSnap=c;_csmMode=mode||'search';
   if(listJson) try{_csmList=JSON.parse(listJson);}catch(e){_csmList=[];}
-  _csmIdx=_csmList.findIndex(s=>s.id===c.id);
+  // Sync index — if _csmList already set (from openCardStatById), find position
+  const foundIdx=_csmList.findIndex(s=>s.id===c.id);
+  if(foundIdx>=0) _csmIdx=foundIdx;
 
   const ri=c.rarity?{label:c.rarity,cls:raritySnap(c).cls}:raritySnap(c);
   const riCls=raritySnap(c).cls;
@@ -2498,7 +2507,7 @@ function setupCSMSwipe(){
   bg.addEventListener('wheel',e=>e.preventDefault(),{passive:false});
   bg.addEventListener('touchstart',e=>{if(e.target.closest('button,a,input,textarea'))return;sx=e.touches[0].clientX;sy=e.touches[0].clientY;dx=0;dragging=false;scrolling=false;},{passive:true});
   bg.addEventListener('touchmove',e=>{const cx=e.touches[0].clientX,cy=e.touches[0].clientY;dx=cx-sx;const dy=Math.abs(cy-sy);if(!dragging&&!scrolling){if(dy>Math.abs(dx)+6){if(e.target.closest('.cdm-right')){scrolling=true;return;}}if(Math.abs(dx)>8)dragging=true;}if(scrolling)return;if(dragging){const b=box();if(b)b.style.transform=`translateX(${dx*0.35}px)`;}},{passive:true});
-  bg.addEventListener('touchend',()=>{if(!dragging){dx=0;return;}dragging=false;scrolling=false;const b=box();if(Math.abs(dx)>55&&_csmList.length>1){const dir=dx<0?1:-1;const next=_csmIdx+dir;if(next>=0&&next<_csmList.length){if(b){b.style.transition='transform 160ms ease,opacity 160ms ease';b.style.transform=`translateX(${dx<0?-60:60}px)`;b.style.opacity='0';}setTimeout(()=>{if(b){b.style.transition='none';b.style.transform='';b.style.opacity='1';}openCardStat(_csmList[next],_csmMode,JSON.stringify(_csmList));},170);return;}}if(b){b.style.transition='transform 200ms ease';b.style.transform='';setTimeout(()=>{if(b)b.style.transition='';},210);}dx=0;},{passive:true});
+  bg.addEventListener('touchend',()=>{if(!dragging){dx=0;return;}dragging=false;scrolling=false;const b=box();if(Math.abs(dx)>55&&_csmList.length>1){const dir=dx<0?1:-1;const next=_csmIdx+dir;if(next>=0&&next<_csmList.length){if(b){b.style.transition='transform 160ms ease,opacity 160ms ease';b.style.transform=`translateX(${dx<0?-60:60}px)`;b.style.opacity='0';}setTimeout(()=>{if(b){b.style.transition='none';b.style.transform='';b.style.opacity='1';}_csmIdx=next;openCardStat(_csmList[_csmIdx],_csmMode);},170);return;}}if(b){b.style.transition='transform 200ms ease';b.style.transform='';setTimeout(()=>{if(b)b.style.transition='';},210);}dx=0;},{passive:true});
 }
 // ── WATCHLIST ─────────────────────────────────────────────────────────────
 function applyWlControls(){
@@ -3070,32 +3079,21 @@ function renderSold(){
     const ri=raritySnap(c);
     const cost=c.purchasePrice??null;const rev=c.soldPrice??null;
     const pnl=cost!=null&&rev!=null?(rev-cost):null;
-    const pnlCls=pnl==null?'':pnl>=0?'pnl-pos':'pnl-neg';
-    const favBorder=c.isFav?"border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)":"";
-    const isSelected=ownSelected.has(c.copyId);
-    const isShowcase=showcaseCopyId===c.copyId;
-    const cardBorder=isShowcase?'':(favBorder);
-    return `<div class="pcard${ri.rank<=3?' is-rare':''} pcard-bulk${isShowcase?' pcard-showcase':''}" data-copy="${c.copyId}" style="${cardBorder}${isSelected?';outline:2px solid var(--gold);outline-offset:1px':''};cursor:pointer" onclick="if(!event.target.closest('button,a,input')){openCDM('${c.copyId}')}">\n      ${bulkEditOpen?`<input type="checkbox" class="sr-checkbox" ${isSelected?'checked':''} onchange="toggleOwnSelect('${c.copyId}',this.checked)" onclick="event.stopPropagation()"/>`:''}      <img src="${c.img}" loading="lazy"/>
-      <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px;min-width:0">
-        <span class="rtag ${ri.cls}" style="margin-bottom:0;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ri.label}</span>
-        <span style="flex-shrink:0;font-size:7px;font-weight:700;padding:1px 5px;border-radius:3px;letter-spacing:0.04em;${c.isJP?'background:rgba(220,80,80,0.15);color:#f87171;border:1px solid rgba(220,80,80,0.35)':c.isBL?'background:var(--purple-dim);color:var(--purple);border:1px solid rgba(196,181,253,0.35)':'background:rgba(59,130,246,0.12);color:#60a5fa;border:1px solid rgba(59,130,246,0.35)'}">${c.isJP?'JP':c.isBL?'BL':'US'}</span>
-      </div>
+    const pnlCol=pnl==null?'var(--t2)':pnl>=0?'var(--green)':'var(--red)';
+    const relDate=c.releaseDate?c.releaseDate.replace(/\//g,'-'):'';
+    return `<div class="pcard${ri.rank<=3?' is-rare':''}" style="cursor:pointer" onclick="openSGM('sold','${c.copyId}')">
+      <img src="${c.img}" loading="lazy"/>
+      <span class="rtag ${ri.cls}">${ri.label}</span>
       <div class="pcard-name">${c.name}</div>
       <div class="pcard-set">${c.set} · ${c.number}/${c.total}</div>
+      ${relDate?`<div class="set-own-badge" style="margin-bottom:2px">Set Release: ${relDate}</div>`:''}
+      <div class="cond-divider"></div>
       <div class="price-rows">
-        ${c.boughtAt?`<div class="price-row"><span class="price-label">BOUGHT ON</span><span class="price-val list" style="font-size:9px">${fmtDate(c.boughtAt)}</span></div>`:''}
-        ${cost!=null?`<div class="price-row"><span class="price-label">BOUGHT FOR</span><span class="price-val list">${fmt(cost)}</span></div>`:''}
-        <div class="price-row"><span class="price-label">COST BASIS</span><span class="price-val list">${cost!=null?fmt(cost):'—'}</span></div>
-        <div class="price-row" style="border-top:1px solid var(--b1);margin-top:3px;padding-top:3px"><span class="price-label">SOLD ON</span><span class="price-val list" style="font-size:9px">${fmtDate(c.soldAt)}</span></div>
-        <div class="price-row"><span class="price-label">SOLD FOR</span><span class="price-val market">${fmt(rev)}</span></div>
-        ${c.soldTo?`<div class="price-row"><span class="price-label">SOLD TO</span><span class="price-val list" style="font-size:9px">${c.soldTo}</span></div>`:''}
-        ${pnl!=null?`<div class="price-row"><span class="price-label">P&L</span><span class="price-val ${pnlCls}">${(pnl>=0?'+':'')+fmt(pnl)}</span></div>`:''}
-        ${c.notes?`<div class="price-row"><span class="price-label">NOTE</span><span class="price-val list" style="font-size:9px;word-break:break-word">${c.notes}</span></div>`:''}
-      </div>
-      <div class="card-btns">
-        <button class="cbtn" style="color:var(--green);border-color:rgba(76,175,125,0.3)" onclick="restoreToOwned('sold',${i})">↩ RESTORE TO FOLIO</button>
-        <a class="tcg-link" href="${c.tcgUrl||tcgUrl(c.name)}" target="_blank">↗ TCG</a>
-        <button class="cbtn del-btn" onclick="confirmRemove(this,window._soldSlice?.[${i}]?.name,()=>removeSold(${i}))">✕ REMOVE</button>
+        <div class="price-row"><span class="price-label">MKT NOW</span><span class="price-val market">${fmt(c.market)}</span></div>
+        ${c.boughtAt?`<div class="price-row"><span class="price-label">BOUGHT</span><span class="price-val list" style="font-size:9px">${fmtDate(c.boughtAt)}</span></div>`:''}
+        ${cost!=null?`<div class="price-row"><span class="price-label">PAID</span><span class="price-val list">${fmt(cost)}</span></div>`:''}
+        ${c.boughtFrom?`<div class="price-row"><span class="price-label">FROM</span><span class="price-val list" style="font-size:9px">${c.boughtFrom}</span></div>`:''}
+        ${pnl!=null?`<div class="price-row"><span class="price-label">P&L</span><span class="price-val" style="color:${pnlCol};font-weight:700">${(pnl>=0?'+':'')+fmt(pnl)}</span></div>`:''}
       </div>
     </div>`;
   }).join('');
@@ -3111,8 +3109,10 @@ function removeSold(idx){
   pushUndo(`Removed ${c.name} from sold`,()=>{sold=JSON.parse(snap);refreshAllCounts();renderSold();});
 }
 function restoreToOwned(from,idx){
-  const slice=from==='sold'?window._soldSlice:window._giftedSlice;
-  const c=slice?.[idx];if(!c) return;
+  let c;
+  if(typeof idx==='string') c=(from==='sold'?sold:gifted).find(x=>x.copyId===idx);
+  else{const slice=from==='sold'?window._soldSlice:window._giftedSlice;c=slice?.[idx];}
+  if(!c) return;
   const copyId=c.copyId;
   const entry={...c};
   delete entry.soldAt;delete entry.soldPrice;delete entry.soldTo;
@@ -3166,29 +3166,21 @@ function renderGifted(){
   window._giftedSlice=slice;
   const grid=slice.map((c,i)=>{
     const ri=raritySnap(c);
-    const favBorder=c.isFav?"border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)":"";
-    const isSelected=ownSelected.has(c.copyId);
-    const isShowcase=showcaseCopyId===c.copyId;
-    const cardBorder=isShowcase?'':(favBorder);
-    return `<div class="pcard${ri.rank<=3?' is-rare':''} pcard-bulk${isShowcase?' pcard-showcase':''}" data-copy="${c.copyId}" style="${cardBorder}${isSelected?';outline:2px solid var(--gold);outline-offset:1px':''};cursor:pointer" onclick="if(!event.target.closest('button,a,input')){openCDM('${c.copyId}')}">\n      ${bulkEditOpen?`<input type="checkbox" class="sr-checkbox" ${isSelected?'checked':''} onchange="toggleOwnSelect('${c.copyId}',this.checked)" onclick="event.stopPropagation()"/>`:''}      <img src="${c.img}" loading="lazy"/>
-      <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px;min-width:0">
-        <span class="rtag ${ri.cls}" style="margin-bottom:0;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ri.label}</span>
-        <span style="flex-shrink:0;font-size:7px;font-weight:700;padding:1px 5px;border-radius:3px;letter-spacing:0.04em;${c.isJP?'background:rgba(220,80,80,0.15);color:#f87171;border:1px solid rgba(220,80,80,0.35)':c.isBL?'background:var(--purple-dim);color:var(--purple);border:1px solid rgba(196,181,253,0.35)':'background:rgba(59,130,246,0.12);color:#60a5fa;border:1px solid rgba(59,130,246,0.35)'}">${c.isJP?'JP':c.isBL?'BL':'US'}</span>
-      </div>
+    const relDate=c.releaseDate?c.releaseDate.replace(/\//g,'-'):'';
+    return `<div class="pcard${ri.rank<=3?' is-rare':''}" style="cursor:pointer" onclick="openSGM('gifted','${c.copyId}')">
+      <img src="${c.img}" loading="lazy"/>
+      <span class="rtag ${ri.cls}">${ri.label}</span>
       <div class="pcard-name">${c.name}</div>
       <div class="pcard-set">${c.set} · ${c.number}/${c.total}</div>
+      ${relDate?`<div class="set-own-badge" style="margin-bottom:2px">Set Release: ${relDate}</div>`:''}
+      <div class="cond-divider"></div>
       <div class="price-rows">
-        ${c.boughtAt?`<div class="price-row"><span class="price-label">BOUGHT ON</span><span class="price-val list" style="font-size:9px">${fmtDate(c.boughtAt)}</span></div>`:''}
-        ${c.purchasePrice!=null?`<div class="price-row"><span class="price-label">BOUGHT FOR</span><span class="price-val list">${fmt(c.purchasePrice)}</span></div>`:''}
-        <div class="price-row" style="border-top:1px solid var(--b1);margin-top:3px;padding-top:3px"><span class="price-label">GIFTED ON</span><span class="price-val list" style="font-size:9px">${fmtDate(c.giftedAt)}</span></div>
-        ${c.giftedTo?`<div class="price-row"><span class="price-label">GIFTED TO</span><span class="price-val list" style="font-size:9px">${c.giftedTo}</span></div>`:''}
-        <div class="price-row"><span class="price-label">MKT AT TIME</span><span class="price-val market">${fmt(c.market)}</span></div>
-        ${c.notes?`<div class="price-row"><span class="price-label">NOTE</span><span class="price-val list" style="font-size:9px;word-break:break-word">${c.notes}</span></div>`:''}
-      </div>
-      <div class="card-btns">
-        <button class="cbtn" style="color:var(--green);border-color:rgba(76,175,125,0.3)" onclick="restoreToOwned('gifted',${i})">↩ RESTORE TO FOLIO</button>
-        <a class="tcg-link" href="${c.tcgUrl||tcgUrl(c.name)}" target="_blank">↗ TCG</a>
-        <button class="cbtn del-btn" onclick="confirmRemove(this,window._giftedSlice?.[${i}]?.name,()=>removeGifted(${i}))">✕ REMOVE</button>
+        <div class="price-row"><span class="price-label">MKT NOW</span><span class="price-val market">${fmt(c.market)}</span></div>
+        ${c.boughtAt?`<div class="price-row"><span class="price-label">BOUGHT</span><span class="price-val list" style="font-size:9px">${fmtDate(c.boughtAt)}</span></div>`:''}
+        ${c.purchasePrice!=null?`<div class="price-row"><span class="price-label">PAID</span><span class="price-val list">${fmt(c.purchasePrice)}</span></div>`:''}
+        ${c.boughtFrom?`<div class="price-row"><span class="price-label">FROM</span><span class="price-val list" style="font-size:9px">${c.boughtFrom}</span></div>`:''}
+        ${c.giftedAt?`<div class="price-row"><span class="price-label">GIFTED</span><span class="price-val list" style="font-size:9px">${fmtDate(c.giftedAt)}</span></div>`:''}
+        ${c.giftedTo?`<div class="price-row"><span class="price-label">TO</span><span class="price-val list" style="font-size:9px">${c.giftedTo}</span></div>`:''}
       </div>
     </div>`;
   }).join('');
@@ -3213,6 +3205,135 @@ function updateGiftedMetrics(){
   document.getElementById('gm-recent').textContent=last?last.name:'—';
 }
 
+
+// ── SOLD / GIFTED STAT MODAL ──────────────────────────────────────────────
+let _sgmCopyId=null;
+let _sgmMode='sold'; // 'sold' or 'gifted'
+let _sgmList=[];
+let _sgmIdx=0;
+
+function openSGM(mode, copyId){
+  const list=mode==='sold'?[...sold]:[...gifted];
+  const so=mode==='sold'?document.getElementById('sold-sort')?.value||'date-desc':document.getElementById('gifted-sort')?.value||'date-desc';
+  const sorted=list.sort((a,b)=>{
+    if(so==='name') return a.name.localeCompare(b.name);
+    if(so==='set')  return(a.set||'').localeCompare(b.set||'');
+    if(so==='price-desc') return(b.soldPrice??-1)-(a.soldPrice??-1);
+    if(so==='pnl-desc'){const pla=(a.purchasePrice!=null?(a.soldPrice??0)-a.purchasePrice:null);const plb=(b.purchasePrice!=null?(b.soldPrice??0)-b.purchasePrice:null);return(plb??-Infinity)-(pla??-Infinity);}
+    return mode==='sold'?(b.soldAt??0)-(a.soldAt??0):(b.giftedAt??0)-(a.giftedAt??0);
+  });
+  _sgmList=sorted;
+  _sgmMode=mode;
+  _sgmIdx=_sgmList.findIndex(c=>c.copyId===copyId);
+  _sgmCopyId=copyId;
+  _renderSGM();
+  document.getElementById('sgm-bg').classList.add('open');
+  document.body.style.overflow='hidden';
+  if(!document.getElementById('sgm-bg')._swipe) setupSGMSwipe();
+}
+
+function _renderSGM(){
+  const c=_sgmList[_sgmIdx];if(!c) return;
+  _sgmCopyId=c.copyId;
+  const ri=raritySnap(c);
+  const cost=c.purchasePrice??null;
+  const rev=c.soldPrice??null;
+  const pnl=cost!=null&&rev!=null?(rev-cost):null;
+  const pnlCol=pnl==null?'var(--t2)':pnl>=0?'var(--green)':'var(--red)';
+  const relDate=c.releaseDate?c.releaseDate.replace(/\//g,'-'):'';
+  const setId=c.setId||c.id.split('-').slice(0,-1).join('-');
+
+  // Left panel
+  document.getElementById('sgm-img').src=c.imgLg||c.img||'';
+  document.getElementById('sgm-left-name').innerHTML=`<div style="font-size:12px;font-weight:700;color:var(--text);font-family:'DM Sans',sans-serif;line-height:1.3">${c.name}</div>`;
+  const langStyle=c.isJP?'background:rgba(220,80,80,0.15);color:#f87171;border:1px solid rgba(220,80,80,0.35)':c.isBL?'background:var(--purple-dim);color:var(--purple);border:1px solid rgba(196,181,253,0.35)':'background:rgba(59,130,246,0.12);color:#60a5fa;border:1px solid rgba(59,130,246,0.35)';
+  const rarStyle=ri.cls==='r-ir'?'background:rgba(201,168,76,0.12);color:var(--gold2);border:1px solid rgba(201,168,76,0.3)':ri.cls==='r-fa'?'background:rgba(196,181,253,0.1);color:var(--purple);border:1px solid rgba(196,181,253,0.25)':ri.cls==='r-sr'?'background:rgba(96,165,250,0.1);color:#60a5fa;border:1px solid rgba(96,165,250,0.25)':'background:var(--s3);color:var(--t2);border:1px solid var(--b1)';
+  document.getElementById('sgm-badges').innerHTML=`<span class="cdm-badge" style="${rarStyle}">${ri.label}</span><span class="cdm-badge" style="${langStyle}">${c.isJP?'JP':c.isBL?'BL':'US'}</span>`;
+  document.getElementById('sgm-left-set').innerHTML=`
+    <div style="font-size:8px;font-weight:700;letter-spacing:0.12em;color:var(--t3);font-family:'Space Mono',monospace;padding-bottom:4px;border-bottom:1px solid var(--b1);margin-bottom:4px">SET INFO</div>
+    <div class="cdm-row"><span class="cdm-row-label">Set</span><span class="cdm-row-val" style="font-size:9px">${c.set||'—'}</span></div>
+    <div class="cdm-row"><span class="cdm-row-label">Number</span><span class="cdm-row-val">#${c.number||'—'} / ${c.total||'?'}</span></div>
+    ${relDate?`<div class="cdm-row"><span class="cdm-row-label">Release</span><span class="cdm-row-val">${relDate}</span></div>`:''}`;
+
+  // Actions
+  document.getElementById('sgm-actions').innerHTML=`
+    <a class="tcg-link" style="text-align:center" href="${c.tcgUrl||tcgUrl(c.name)}" target="_blank">↗ TCG</a>
+    <div style="display:flex;gap:5px">
+      <button class="cbtn" style="flex:1;color:var(--green);border-color:rgba(76,175,125,0.3)" onclick="sgmRestore()">↩ RESTORE TO FOLIO</button>
+    </div>
+    <button class="cbtn del-btn" onclick="sgmConfirmRemove()">✕ REMOVE</button>`;
+
+  // Right panel
+  document.getElementById('sgm-right').innerHTML=`
+    <div class="cdm-section">
+      <div class="cdm-section-label">MARKET VALUE</div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding:6px 0 4px">
+        <span style="font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif">CURRENT MKT</span>
+        <span style="font-size:26px;font-weight:700;color:var(--gold2);font-variant-numeric:tabular-nums;font-family:'DM Sans',sans-serif;line-height:1">${fmt(c.market)}</span>
+      </div>
+    </div>
+    <div class="cdm-section">
+      <div class="cdm-section-label">PURCHASE</div>
+      ${c.boughtAt?`<div class="cdm-row"><span class="cdm-row-label">Bought on</span><span class="cdm-row-val">${fmtDate(c.boughtAt)}</span></div>`:''}
+      ${cost!=null?`<div class="cdm-row"><span class="cdm-row-label">Bought for</span><span class="cdm-row-val">${fmt(cost)}</span></div>`:''}
+      ${c.boughtFrom?`<div class="cdm-row"><span class="cdm-row-label">From</span><span class="cdm-row-val">${c.boughtFrom}</span></div>`:''}
+      ${cost!=null?`<div class="cdm-row"><span class="cdm-row-label">Cost basis</span><span class="cdm-row-val">${fmt(cost)}</span></div>`:''}
+    </div>
+    <div class="cdm-section">
+      <div class="cdm-section-label">${_sgmMode==='sold'?'SALE':'GIFT'}</div>
+      ${_sgmMode==='sold'?`
+        ${c.soldAt?`<div class="cdm-row"><span class="cdm-row-label">Sold on</span><span class="cdm-row-val">${fmtDate(c.soldAt)}</span></div>`:''}
+        ${rev!=null?`<div class="cdm-row"><span class="cdm-row-label">Sold for</span><span class="cdm-row-val" style="color:var(--green);font-weight:700">${fmt(rev)}</span></div>`:''}
+        ${c.soldTo?`<div class="cdm-row"><span class="cdm-row-label">Sold to</span><span class="cdm-row-val">${c.soldTo}</span></div>`:''}
+        ${pnl!=null?`<div class="cdm-row"><span class="cdm-row-label">P&L</span><span class="cdm-row-val" style="color:${pnlCol};font-weight:700">${(pnl>=0?'+':'')+fmt(pnl)}</span></div>`:''}
+      `:`
+        ${c.giftedAt?`<div class="cdm-row"><span class="cdm-row-label">Gifted on</span><span class="cdm-row-val">${fmtDate(c.giftedAt)}</span></div>`:''}
+        ${c.giftedTo?`<div class="cdm-row"><span class="cdm-row-label">Gifted to</span><span class="cdm-row-val">${c.giftedTo}</span></div>`:''}
+        ${c.market!=null?`<div class="cdm-row"><span class="cdm-row-label">Mkt at time</span><span class="cdm-row-val">${fmt(c.market)}</span></div>`:''}
+      `}
+      ${c.notes?`<div class="cdm-row"><span class="cdm-row-label">Note</span><span class="cdm-row-val" style="font-size:9px">${c.notes}</span></div>`:''}
+    </div>`;
+}
+
+function closeSGM(){
+  document.getElementById('sgm-bg').classList.remove('open');
+  document.body.style.overflow='';
+  _sgmCopyId=null;
+}
+
+function sgmRestore(){
+  const c=_sgmList[_sgmIdx];if(!c) return;
+  restoreToOwned(_sgmMode,c.copyId);
+  closeSGM();
+}
+
+function sgmConfirmRemove(){
+  const btn=document.querySelector('#sgm-actions .del-btn');
+  if(!btn||btn.dataset.confirming==='1') return;
+  btn.dataset.confirming='1';
+  btn.textContent='SURE?';
+  const yes=document.createElement('button');yes.className='cbtn del-btn';yes.textContent='YES';yes.style.flex='1';
+  const no=document.createElement('button');no.className='cbtn';no.textContent='NO';no.style.flex='1';
+  const row=document.createElement('div');row.style.cssText='display:flex;gap:5px;margin-top:4px';
+  row.appendChild(yes);row.appendChild(no);
+  btn.parentNode.insertBefore(row,btn.nextSibling);
+  yes.onclick=()=>{
+    if(_sgmMode==='sold') removeSold(_sgmList.indexOf(_sgmList[_sgmIdx]));
+    else removeGifted(_sgmList.indexOf(_sgmList[_sgmIdx]));
+    closeSGM();
+  };
+  no.onclick=()=>{btn.textContent='✕ REMOVE';delete btn.dataset.confirming;row.remove();};
+}
+
+function setupSGMSwipe(){
+  const bg=document.getElementById('sgm-bg');
+  if(!bg) return; bg._swipe=true;
+  let sx=0,dx=0,dragging=false,scrolling=false,sy=0;
+  const box=()=>document.querySelector('#sgm-bg .cdm-box');
+  bg.addEventListener('touchstart',e=>{if(e.target.closest('button,a,input'))return;sx=e.touches[0].clientX;sy=e.touches[0].clientY;dx=0;dragging=false;scrolling=false;},{passive:true});
+  bg.addEventListener('touchmove',e=>{const cx=e.touches[0].clientX,cy=e.touches[0].clientY;dx=cx-sx;const dy=Math.abs(cy-sy);if(!dragging&&!scrolling){if(dy>Math.abs(dx)+6){if(e.target.closest('.cdm-right')){scrolling=true;return;}}if(Math.abs(dx)>8)dragging=true;}if(scrolling)return;if(dragging){const b=box();if(b)b.style.transform=`translateX(${dx*0.35}px)`;}},{passive:true});
+  bg.addEventListener('touchend',()=>{if(!dragging){dx=0;return;}dragging=false;scrolling=false;const b=box();if(Math.abs(dx)>55&&_sgmList.length>1){const dir=dx<0?1:-1;const next=_sgmIdx+dir;if(next>=0&&next<_sgmList.length){if(b){b.style.transition='transform 160ms ease,opacity 160ms ease';b.style.transform=`translateX(${dx<0?-60:60}px)`;b.style.opacity='0';}setTimeout(()=>{if(b){b.style.transition='none';b.style.transform='';b.style.opacity='1';}_sgmIdx=next;_renderSGM();},170);return;}}if(b){b.style.transition='transform 200ms ease';b.style.transform='';setTimeout(()=>{if(b)b.style.transition='';},210);}dx=0;},{passive:true});
+}
 // ── HISTORY ───────────────────────────────────────────────────────────────
 function renderHistory(){
   const el=document.getElementById('history-list'),pel=document.getElementById('hist-pagination');
@@ -3989,6 +4110,25 @@ if(localStorage.getItem('pf_theme')==='light'){document.body.classList.add('ligh
         <div class="cdm-actions" id="csm-actions"></div>
       </div>
       <div class="cdm-right" id="csm-right"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SOLD / GIFTED STAT MODAL -->
+<div class="modal-bg" id="sgm-bg" style="z-index:399" onclick="if(event.target===this)closeSGM()">
+  <div class="cdm-box">
+    <div class="cdm-header">
+      <button class="modal-close" onclick="closeSGM()" style="font-size:16px;margin-left:auto">✕</button>
+    </div>
+    <div class="cdm-inner">
+      <div class="cdm-left">
+        <div class="cdm-img-wrap"><img class="cdm-img" id="sgm-img" src=""/></div>
+        <div id="sgm-left-name" style="width:100%;text-align:center"></div>
+        <div class="cdm-badges" id="sgm-badges"></div>
+        <div id="sgm-left-set" style="width:100%"></div>
+        <div class="cdm-actions" id="sgm-actions"></div>
+      </div>
+      <div class="cdm-right" id="sgm-right"></div>
     </div>
   </div>
 </div>
