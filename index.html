@@ -3651,7 +3651,7 @@ function renderSharePage(){
       .sp-showcase-img{width:100%;display:block;border-radius:0}
       .sp-showcase-glow{position:absolute;inset:-30px;border-radius:18px;pointer-events:none;z-index:0;animation:spC1 3s linear infinite;opacity:0.08}
       .sp-frames{position:absolute;inset:-10px;pointer-events:none;z-index:2;overflow:visible}
-      .sp-showcase-card{background:#111;width:min(200px,100%);border-radius:12px;overflow:hidden;padding-bottom:10px;margin:0 auto}
+      .sp-showcase-card{background:#111;width:min(220px,100%);border-radius:12px;overflow:hidden;padding-bottom:10px;margin:0 auto}
       .sp-showcase-rarity{display:inline-block;font-size:7px;font-weight:700;letter-spacing:0.1em;padding:2px 8px;border-radius:20px;margin:8px 10px 3px 10px}
       .sp-showcase-name{font-size:12px;font-weight:700;color:#f0ede8;letter-spacing:0.02em;line-height:1.25;margin:0 10px 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       .sp-showcase-sub{font-size:8px;color:#555;letter-spacing:0.03em;font-family:"DM Sans",sans-serif;margin:0 10px 6px}
@@ -3678,7 +3678,7 @@ function renderSharePage(){
       .sp-section-title span{color:#c9a84c;opacity:0.6}
 
       /* TOP 5 cards — 5 columns on wide */
-      .sp-top-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+      .sp-top-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
       .sp-top-card{background:#111;border:1px solid #1e1e1e;border-radius:10px;overflow:hidden;transition:transform .15s}
       .sp-top-card:hover{transform:translateY(-2px)}
       .sp-top-card img{width:100%;display:block}
@@ -3686,7 +3686,7 @@ function renderSharePage(){
       .sp-top-num{position:absolute;top:6px;left:6px;background:rgba(0,0,0,0.75);color:#c9a84c;font-size:8px;font-weight:700;padding:2px 5px;border-radius:4px;letter-spacing:0.06em}
 
       /* COLLECTION grid — fill space */
-      .sp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px}
+      .sp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
       .sp-card{background:#0f0f0f;border:1px solid #1a1a1a;border-radius:8px;overflow:hidden;transition:transform .15s}
       .sp-card:hover{transform:translateY(-1px)}
       .sp-card img{width:100%;display:block}
@@ -3708,14 +3708,14 @@ function renderSharePage(){
         .sp-body{flex-direction:column}
         .sp-left{width:100%;position:static;height:auto;border-right:none;border-bottom:1px solid #141414;padding:28px 20px}
         .sp-right{padding:20px}
-        .sp-top-grid{grid-template-columns:repeat(3,1fr)}
+        .sp-top-grid{grid-template-columns:repeat(auto-fill,minmax(100px,1fr))}
         .sp-stat-bar{flex-wrap:wrap}
         .sp-stat{min-width:calc(50% - 4px)}
         .sp-cta{margin-top:16px}
       }
       @media(min-width:700px) and (max-width:900px){
         .sp-left{width:240px}
-        .sp-top-grid{grid-template-columns:repeat(4,1fr)}
+        .sp-top-grid{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}
       }
     </style>
     <div class="sp-nav">
