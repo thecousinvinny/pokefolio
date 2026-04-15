@@ -291,6 +291,22 @@ body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);m
 @keyframes logoPulse{0%,100%{opacity:1}50%{opacity:0.45}}
 .logo-refreshing .logo-box svg{animation:logoPulse 1.2s ease-in-out infinite}
 
+
+#pull-indicator{position:fixed;top:calc(env(safe-area-inset-top,0px) + 48px);left:50%;transform:translateX(-50%) translateY(-60px);z-index:600;background:var(--s2);border:1px solid var(--b1);border-radius:20px;padding:6px 14px;font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--t2);font-family:'Space Mono',monospace;transition:transform .2s ease,opacity .2s;opacity:0;pointer-events:none;white-space:nowrap}
+#pull-indicator.visible{transform:translateX(-50%) translateY(0);opacity:1}
+
+.search-history{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;min-height:0}
+.sh-chip{background:var(--s2);border:1px solid var(--b1);border-radius:20px;padding:4px 10px;font-size:9px;font-weight:600;color:var(--t2);font-family:'DM Sans',sans-serif;cursor:pointer;letter-spacing:0.04em;transition:border-color .15s,color .15s;display:flex;align-items:center;gap:5px;white-space:nowrap}
+.sh-chip:hover,.sh-chip:active{border-color:var(--gold);color:var(--gold)}
+.sh-chip .sh-x{font-size:10px;color:var(--t3);line-height:1}
+
+.rarity-chips{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px;margin-bottom:10px}
+.rarity-chips::-webkit-scrollbar{display:none}
+.rc{background:var(--s2);border:1px solid var(--b1);border-radius:20px;padding:5px 11px;font-size:9px;font-weight:700;letter-spacing:0.06em;color:var(--t2);font-family:'Space Mono',monospace;cursor:pointer;white-space:nowrap;transition:all .15s;-webkit-tap-highlight-color:rgba(0,0,0,0)}
+.rc:active,.rc.active{background:rgba(201,168,76,0.15);border-color:var(--gold);color:var(--gold)}
+.sc{background:var(--s2);border:1px solid var(--b1);border-radius:20px;padding:4px 10px;font-size:8px;font-weight:700;letter-spacing:0.08em;color:var(--t3);font-family:'Space Mono',monospace;cursor:pointer;white-space:nowrap;transition:all .15s;-webkit-tap-highlight-color:rgba(0,0,0,0)}
+.sc:active,.sc.active{background:rgba(201,168,76,0.1);border-color:rgba(201,168,76,0.5);color:var(--gold2)}
+
 /* EMPTY / LOADING / ERROR */
 .empty{text-align:center;padding:4rem 1rem;color:var(--t3)}
 .empty-glyph{font-size:24px;color:var(--b2);margin-bottom:10px}
@@ -712,33 +728,52 @@ body.light .bottom-nav{background:rgba(245,244,241,0.9);border-top:1px solid rgb
 
   <!-- SEARCH TAB -->
   <div id="tab-search" class="section">
-    <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
-      <input type="text" id="search-input" class="ctrl-input" style="flex:1;width:auto" placeholder="Name, set code, number, artist... (e.g. Charizard ex, sv3pt5, 207/165, Arita)" onkeydown="if(event.key==='Enter')doSearch(1)"/>
+    <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+      <div style="flex:1;position:relative;min-width:0">
+        <input type="text" id="search-input" class="ctrl-input" style="width:100%;padding-right:28px" placeholder="Name, set code, number, artist... (e.g. Charizard ex, sv3pt5, 207/165, Arita)" oninput="document.getElementById('search-clear').style.display=this.value?'flex':'none'" onkeydown="if(event.key==='Enter')doSearch(1)"/>
+        <button id="search-clear" onclick="document.getElementById('search-input').value='';this.style.display='none';_defaultLoaded=false;loadDefaultSearch();" style="display:none;position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--t3);font-size:14px;line-height:1;padding:2px 4px;-webkit-tap-highlight-color:rgba(0,0,0,0)">×</button>
+      </div>
       <button class="btn" onclick="doSearch(1)">SEARCH</button>
     </div>
-    <div class="controls-bar">
-      <span class="ctrl-label">Filter</span>
-      <input type="text" class="ctrl-input" id="sr-name-filter" placeholder="Name..." oninput="filterSrPage()"/>
-      <select class="ctrl-select" id="sr-rarity-filter" onchange="filterSrPage()">
-        <option value="">All rarities</option>
-        <option value="ILLUS">Illus Rare</option>
-        <option value="FULL|HYPER">Full Art / Hyper</option>
-        <option value="ULTRA|SPEC">Ultra Rare / Spec</option>
-        <option value="RARE">Rare+</option>
-        <option value="STANDARD">Standard</option>
-      </select>
-      <div class="ctrl-sep"></div>
-      <span class="ctrl-label">Sort</span>
-      <select class="ctrl-select" id="sr-sort" onchange="filterSrPage()">
-        <option value="rarity">Rarity (rare first)</option>
-        <option value="name">Name A–Z</option>
-        <option value="name-desc">Name Z–A</option>
-        <option value="market-desc">Market ↓</option>
-        <option value="market-asc">Market ↑</option>
-        <option value="set">Set A–Z</option>
-        <option value="number">Card number</option>
-      </select>
+    <div id="search-history" class="search-history"></div>
+    <div class="rarity-chips" id="rarity-chips">
+      <span class="rc active" data-val="" onclick="setRarityChip(this,'')">ALL</span>
+      <span class="rc" data-val="SPEC" onclick="setRarityChip(this,'SPEC')">SPEC ILLUS</span>
+      <span class="rc" data-val="ILLUS" onclick="setRarityChip(this,'ILLUS')">ILLUS RARE</span>
+      <span class="rc" data-val="FULL|HYPER" onclick="setRarityChip(this,'FULL|HYPER')">FULL ART</span>
+      <span class="rc" data-val="ULTRA" onclick="setRarityChip(this,'ULTRA')">ULTRA RARE</span>
+      <span class="rc" data-val="RARE" onclick="setRarityChip(this,'RARE')">RARE+</span>
+      <span class="rc" data-val="STANDARD" onclick="setRarityChip(this,'STANDARD')">STANDARD</span>
     </div>
+    <div class="rarity-chips" id="sort-chips" style="margin-bottom:12px">
+      <span class="sc active" data-val="rarity" onclick="setSortChip(this,'rarity')">RARITY</span>
+      <span class="sc" data-val="market-desc" onclick="setSortChip(this,'market-desc')">PRICE ↓</span>
+      <span class="sc" data-val="market-asc" onclick="setSortChip(this,'market-asc')">PRICE ↑</span>
+      <span class="sc" data-val="name" onclick="setSortChip(this,'name')">A–Z</span>
+      <span class="sc" data-val="set" onclick="setSortChip(this,'set')">SET</span>
+      <span class="sc" data-val="number" onclick="setSortChip(this,'number')">NUMBER</span>
+    </div>
+    <!-- hidden selects kept for JS filterSrPage() compatibility -->
+    <select id="sr-rarity-filter" style="display:none" onchange="filterSrPage()">
+      <option value="">All rarities</option>
+      <option value="ILLUS">Illus Rare</option>
+      <option value="FULL|HYPER">Full Art / Hyper</option>
+      <option value="ULTRA|SPEC">Ultra Rare / Spec</option>
+      <option value="ULTRA">Ultra Rare</option>
+      <option value="SPEC">Spec Illus</option>
+      <option value="RARE">Rare+</option>
+      <option value="STANDARD">Standard</option>
+    </select>
+    <select id="sr-sort" style="display:none" onchange="filterSrPage()">
+      <option value="rarity">Rarity</option>
+      <option value="name">Name A–Z</option>
+      <option value="name-desc">Name Z–A</option>
+      <option value="market-desc">Market ↓</option>
+      <option value="market-asc">Market ↑</option>
+      <option value="set">Set A–Z</option>
+      <option value="number">Card number</option>
+    </select>
+    <input type="text" id="sr-name-filter" style="display:none" oninput="filterSrPage()"/>
     <div id="apikey-nag" style="display:none;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.25);border-radius:var(--r);padding:8px 12px;margin-bottom:10px;font-size:9px;color:var(--gold2);font-family:'DM Sans',sans-serif;line-height:1.5">⚠ No API key — results capped at 250</div>
     <div id="bulk-bar" style="display:none;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--b1);margin-bottom:10px">
       <input type="checkbox" id="bulk-select-all" onchange="toggleSelectAll(this.checked)" style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer"/>
@@ -1031,6 +1066,9 @@ function refreshAllCounts(){
 
 const TABS=['dashboard','search','watchlist','owned','sold','gifted','history'];
 function switchTab(t){
+  // If tapping the already-active tab, scroll to top
+  const curActive=TABS.find(n=>document.getElementById('tab-'+n)?.classList.contains('active'));
+  if(curActive===t){window.scrollTo({top:0,behavior:'smooth'});return;}
   // Update bottom nav active state
   document.querySelectorAll('.bnav-btn').forEach(b=>b.classList.remove('active'));
   const activeBtn=document.getElementById('bnav-'+t);
@@ -1045,7 +1083,7 @@ function switchTab(t){
   if(t==='sold'){soldPage=1;renderSold();}
   if(t==='gifted'){giftedPage=1;renderGifted();}
   if(t==='history'){histPage=1;renderHistory();}
-  if(t==='search') loadDefaultSearch();
+  if(t==='search'){loadDefaultSearch();renderSearchHistory();}
 }
 function renderCurrentTab(){
   const idx=[...document.querySelectorAll('.tab')].findIndex(b=>b.classList.contains('active'));
@@ -1143,6 +1181,32 @@ function rarityOf(card){
   if(/\bRare\b/i.test(rar)) return{label:'RARE',cls:'r-sr',rank:6};
   return{label:'STANDARD',cls:'r-std',rank:10};
 }
+
+const TYPE_COLORS={
+  Fire:    {bg:'rgba(251,113,33,0.15)',  color:'#fb7121', border:'rgba(251,113,33,0.4)'},
+  Water:   {bg:'rgba(59,130,246,0.15)',  color:'#60a5fa', border:'rgba(59,130,246,0.4)'},
+  Grass:   {bg:'rgba(34,197,94,0.15)',   color:'#4ade80', border:'rgba(34,197,94,0.4)'},
+  Lightning:{bg:'rgba(250,204,21,0.15)', color:'#fbbf24', border:'rgba(250,204,21,0.4)'},
+  Psychic: {bg:'rgba(217,70,239,0.15)',  color:'#e879f9', border:'rgba(217,70,239,0.4)'},
+  Fighting:{bg:'rgba(194,65,12,0.15)',   color:'#f97316', border:'rgba(194,65,12,0.4)'},
+  Darkness:{bg:'rgba(109,40,217,0.12)',  color:'#a78bfa', border:'rgba(109,40,217,0.35)'},
+  Metal:   {bg:'rgba(148,163,184,0.15)', color:'#94a3b8', border:'rgba(148,163,184,0.4)'},
+  Dragon:  {bg:'rgba(99,102,241,0.15)',  color:'#818cf8', border:'rgba(99,102,241,0.4)'},
+  Fairy:   {bg:'rgba(244,114,182,0.15)', color:'#f472b6', border:'rgba(244,114,182,0.4)'},
+  Colorless:{bg:'rgba(148,163,184,0.1)', color:'#94a3b8', border:'rgba(148,163,184,0.3)'},
+};
+function typeChips(types){
+  if(!types||!types.length) return '';
+  return types.map(t=>{
+    const s=TYPE_COLORS[t]||{bg:'rgba(148,163,184,0.1)',color:'#94a3b8',border:'rgba(148,163,184,0.3)'};
+    return '<span style="display:inline-flex;align-items:center;background:'+s.bg+';color:'+s.color+';border:1px solid '+s.border+';border-radius:12px;padding:2px 7px;font-size:9px;font-weight:700;letter-spacing:0.05em;font-family:DM Sans,sans-serif;white-space:nowrap">'+t+'</span>';
+  }).join('');
+}
+function setSymbolImg(url){
+  if(!url) return '';
+  return '<img src="'+url+'" style="height:14px;width:auto;object-fit:contain;opacity:0.75;vertical-align:middle;margin-right:3px" loading="lazy" onerror="this.remove()"/>';
+}
+
 function raritySnap(c){
   const ri=c.rarity??'STANDARD';
   const cls=ri.includes('ILLUS')||ri.includes('SPEC')?'r-ir':ri.includes('FULL')||ri.includes('HYPER')?'r-fa':(ri.includes('RARE')&&!ri.includes('STANDARD'))?'r-sr':'r-std';
@@ -1264,34 +1328,60 @@ function filterSort(list,ft,fr,so){
 
 // ── DEFAULT SEARCH (shown when tab first opens) ───────────────────────────
 let _defaultLoaded=false;
+let _defaultCards=null; // pre-fetched cache
+
+// Pre-fetch immediately on app load in background
+async function prefetchDefaultCards(){
+  try{
+    const setsRes=await apiFetch('https://api.pokemontcg.io/v2/sets?orderBy=-releaseDate&pageSize=1&page=1');
+    const setsData=await setsRes.json();
+    const latestSet=setsData.data?.[0];
+    if(!latestSet) return;
+    const cardsRes=await apiFetch(`https://api.pokemontcg.io/v2/cards?q=set.id:${latestSet.id}&pageSize=250&orderBy=-set.releaseDate`);
+    const cardsData=await cardsRes.json();
+    const cards=(cardsData.data||[]).filter(c=>c.supertype!=='Trainer'&&c.supertype!=='Energy');
+    _defaultCards={cards, setName:latestSet.name};
+    // If search tab is already open and waiting, render immediately
+    if(document.getElementById('tab-search')?.classList.contains('active')&&!srRaw.length){
+      _applyDefaultCards();
+    }
+  }catch(e){}
+}
+
+function _applyDefaultCards(){
+  if(!_defaultCards) return;
+  srRaw=_defaultCards.cards;
+  srRaw._apiTotal=_defaultCards.cards.length;
+  _defaultLoaded=true;
+  filterSrPage();
+  const el=document.getElementById('search-results');
+  const secLabel=el?.querySelector('.sec-label');
+  if(secLabel) secLabel.textContent=`NEWEST SET · ${_defaultCards.setName.toUpperCase()} · ${_defaultCards.cards.length} CARDS`;
+}
+
 async function loadDefaultSearch(){
   if(_defaultLoaded||srRaw.length) return;
   _defaultLoaded=true;
   const el=document.getElementById('search-results');
+  // If pre-fetch already done, render instantly
+  if(_defaultCards){
+    _applyDefaultCards();
+    return;
+  }
+  // Otherwise show skeleton and wait
   el.innerHTML=skeletonGrid();
   try{
-    // Fetch the most recently released set
     const setsRes=await apiFetch('https://api.pokemontcg.io/v2/sets?orderBy=-releaseDate&pageSize=1&page=1');
     const setsData=await setsRes.json();
     const latestSet=setsData.data?.[0];
     if(!latestSet) throw new Error('No sets found');
-
-    // Fetch all cards from that set, sorted by rarity
     const cardsRes=await apiFetch(`https://api.pokemontcg.io/v2/cards?q=set.id:${latestSet.id}&pageSize=250&orderBy=-set.releaseDate`);
     const cardsData=await cardsRes.json();
-    let cards=(cardsData.data||[]).filter(c=>c.supertype!=='Trainer'&&c.supertype!=='Energy');
-
-    srRaw=cards;
-    srRaw._apiTotal=cards.length;
-    srRaw._defaultSetName=latestSet.name;
-    srRaw._defaultSetDate=latestSet.releaseDate;
-    filterSrPage();
-
-    // Show a label indicating this is the default browse
-    const secLabel=el.querySelector('.sec-label');
-    if(secLabel) secLabel.textContent=`NEWEST SET · ${latestSet.name.toUpperCase()} · ${cards.length} CARDS`;
+    const cards=(cardsData.data||[]).filter(c=>c.supertype!=='Trainer'&&c.supertype!=='Energy');
+    _defaultCards={cards, setName:latestSet.name};
+    _applyDefaultCards();
   }catch(e){
-    _defaultLoaded=false; // allow retry
+    _defaultLoaded=false;
     el.innerHTML=`<div class="empty"><div class="empty-glyph">◇</div><div class="empty-title">Search for cards above</div><div class="empty-sub">Try a Pokémon name, set name, or card number</div></div>`;
   }
 }
@@ -1304,6 +1394,7 @@ function skeletonGrid(n=48){
 async function doSearch(page){
   const raw=document.getElementById('search-input').value.trim();
   if(!raw){_defaultLoaded=false;loadDefaultSearch();return;}
+  saveSearchHistory(raw);
   srPage=page; srRaw=[];
   const el=document.getElementById('search-results');
   el.innerHTML=skeletonGrid();
@@ -1433,13 +1524,14 @@ function renderSrPage(){
     const releaseDate=c.set?.releaseDate??null;
     const ap=getAllPrices(c);
     const tcgDirectUrl=c.tcgplayer?.url||null;
-    const snap=JSON.stringify({id:c.id,name:c.name,set:c.set.name,setId:c.set.id,img:c.images.small,imgLg:c.images.large,number:c.number,total:c.set.printedTotal??c.set.total??'?',market,low,nmMarket:ap?.nm??null,nmLow:ap?.nmLow??null,nmMid:ap?.mid??null,nmHigh:ap?.nmHigh??null,directLow:ap?.lp??null,rarity:ri.label,addedAt:Date.now(),tcgplayerId,releaseDate,tcgUrl:tcgDirectUrl}).replace(/'/g,"&#39;");
-    _cardSnapMap[c.id]={id:c.id,name:c.name,set:c.set.name,setId:c.set.id,img:c.images.small,imgLg:c.images.large,number:c.number,total:c.set.printedTotal??c.set.total??'?',market,low,nmMarket:ap?.nm??null,nmLow:ap?.nmLow??null,nmMid:ap?.mid??null,nmHigh:ap?.nmHigh??null,directLow:ap?.lp??null,rarity:ri.label,releaseDate,tcgUrl:tcgDirectUrl};
+    const snap=JSON.stringify({id:c.id,name:c.name,set:c.set.name,setId:c.set.id,img:c.images.small,imgLg:c.images.large,number:c.number,total:c.set.printedTotal??c.set.total??'?',market,low,nmMarket:ap?.nm??null,nmLow:ap?.nmLow??null,nmMid:ap?.mid??null,nmHigh:ap?.nmHigh??null,directLow:ap?.lp??null,rarity:ri.label,addedAt:Date.now(),tcgplayerId,releaseDate,tcgUrl:tcgDirectUrl,types:c.types??null,flavorText:c.flavorText??null,setSymbol:c.set?.images?.symbol??null}).replace(/'/g,"&#39;");
+    _cardSnapMap[c.id]={id:c.id,name:c.name,set:c.set.name,setId:c.set.id,img:c.images.small,imgLg:c.images.large,number:c.number,total:c.set.printedTotal??c.set.total??'?',market,low,nmMarket:ap?.nm??null,nmLow:ap?.nmLow??null,nmMid:ap?.mid??null,nmHigh:ap?.nmHigh??null,directLow:ap?.lp??null,rarity:ri.label,releaseDate,tcgUrl:tcgDirectUrl,types:c.types??null,flavorText:c.flavorText??null,setSymbol:c.set?.images?.symbol??null};
     const favBorder=c.isFav?"border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)":"";
     return `<div class="pcard${ri.rank<=3?' is-rare':''}" style="${favBorder};cursor:pointer" onclick="if(!event.target.closest('button,a,input')){openCardStatById('${c.id}','search')}">\n      <img src="${c.images.small}" loading="lazy" onerror="this.src='${c.images.large||c.images.small}'"/>
       <span class="rtag ${ri.cls}">${ri.label}</span>
+      ${ap&&c.types?.length?'<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:3px">'+typeChips(c.types)+'</div>':''}
       <div class="pcard-name">${c.name}</div>
-      <div class="pcard-set">${c.set.name} · ${c.number}/${c.set.printedTotal??c.set.total??'?'}</div>
+      <div class="pcard-set">${setSymbolImg(c.set?.images?.symbol)}${c.set.name} · ${c.number}/${c.set.printedTotal??c.set.total??'?'}</div>
       ${setOwnershipBadge(c.set.id,c.set.printedTotal??c.set.total)}
       ${c.set.releaseDate?`<div class="set-own-badge" style="margin-bottom:2px">Set Release: ${c.set.releaseDate.replace(/\//g,'-')}</div>`:''}
       <div class="cond-divider"></div>
@@ -2117,7 +2209,7 @@ function openCDM(copyId){
     const trackedOnlyL=watchlist.filter(w=>(w.setId||w.id.split('-').slice(0,-1).join('-'))===setId&&!uOwnedL.includes(w.id)).length;
     leftSet.innerHTML=`
       <div style="font-size:8px;font-weight:700;letter-spacing:0.12em;color:var(--t3);font-family:'Space Mono',monospace;padding-bottom:4px;border-bottom:1px solid var(--b1);margin-bottom:4px">SET INFO</div>
-      <div class="cdm-row"><span class="cdm-row-label">Set</span><span class="cdm-row-val" style="font-size:9px">${c.set}</span></div>
+      <div class="cdm-row"><span class="cdm-row-label">Set</span><span class="cdm-row-val" style="font-size:9px">${setSymbolImg(c.setSymbol)}${c.set}</span></div>
       <div class="cdm-row"><span class="cdm-row-label">Number</span><span class="cdm-row-val">#${c.number} / ${c.total}</span></div>
       ${relDate?`<div class="cdm-row"><span class="cdm-row-label">Release</span><span class="cdm-row-val">${relDate}</span></div>`:''}
       <div class="cdm-row"><span class="cdm-row-label">Collection</span><span class="cdm-row-val"><span style="color:var(--green);font-weight:700">${uOwnedL.length}</span>${trackedOnlyL?` <span style="color:var(--t2);font-weight:400">+${trackedOnlyL}</span>`:''} / ${c.total}</span></div>`;
@@ -2206,6 +2298,7 @@ function openCDM(copyId){
       <div class="cdm-row"><span class="cdm-row-label">Tracked</span><span class="cdm-row-val">${pts.length} days</span></div>
     </div>`:''}
 
+    ${c.flavorText?'<div class="cdm-section"><div class="cdm-section-label">CARD LORE</div><div style="font-size:10px;color:var(--t2);font-family:DM Sans,sans-serif;line-height:1.6;font-style:italic;padding:4px 0">'+(c.flavorText)+'</div></div>':''}
     <div class="cdm-section">
       <div class="cdm-section-label">MY PURCHASE</div>
       <div class="cdm-row"><span class="cdm-row-label">Date bought</span><span class="cdm-row-val">${c.boughtAt?fmtDate(c.boughtAt):'—'}</span></div>
@@ -2434,7 +2527,8 @@ function openCardStat(snapJson, mode, listJson){
   const rarStyle=riCls==='r-ir'?'background:rgba(201,168,76,0.12);color:var(--gold2);border:1px solid rgba(201,168,76,0.3)':riCls==='r-fa'?'background:rgba(196,181,253,0.1);color:var(--purple);border:1px solid rgba(196,181,253,0.25)':riCls==='r-sr'?'background:rgba(96,165,250,0.1);color:#60a5fa;border:1px solid rgba(96,165,250,0.25)':'background:var(--s3);color:var(--t2);border:1px solid var(--b1)';
   document.getElementById('csm-badges').innerHTML=
     `<span class="cdm-badge" style="${rarStyle}">${ri.label||'—'}</span>`+
-    `<span class="cdm-badge" style="${langStyle}">${c.isJP?'JP':c.isBL?'BL':'US'}</span>`;
+    `<span class="cdm-badge" style="${langStyle}">${c.isJP?'JP':c.isBL?'BL':'US'}</span>`+
+    (c.types?.length?`<div style="width:100%;display:flex;flex-wrap:wrap;gap:3px;margin-top:5px">${typeChips(c.types)}</div>`:'');
 
   // Set info
   const ownedInSet=owned.filter(o=>(o.setId||o.id.split('-').slice(0,-1).join('-'))===setId).map(o=>o.id);
@@ -2442,7 +2536,7 @@ function openCardStat(snapJson, mode, listJson){
   const trackedOnly=watchlist.filter(w=>(w.setId||w.id.split('-').slice(0,-1).join('-'))===setId&&!uOwned.includes(w.id)).length;
   document.getElementById('csm-left-set').innerHTML=`
     <div style="font-size:8px;font-weight:700;letter-spacing:0.12em;color:var(--t3);font-family:'Space Mono',monospace;padding-bottom:4px;border-bottom:1px solid var(--b1);margin-bottom:4px">SET INFO</div>
-    <div class="cdm-row"><span class="cdm-row-label">Set</span><span class="cdm-row-val" style="font-size:9px">${c.set||'—'}</span></div>
+    <div class="cdm-row"><span class="cdm-row-label">Set</span><span class="cdm-row-val" style="font-size:9px">${setSymbolImg(c.setSymbol)}${c.set||'—'}</span></div>
     <div class="cdm-row"><span class="cdm-row-label">Number</span><span class="cdm-row-val">#${c.number||'—'} / ${c.total||'?'}</span></div>
     ${relDate?`<div class="cdm-row"><span class="cdm-row-label">Release</span><span class="cdm-row-val">${relDate}</span></div>`:''}
     <div class="cdm-row"><span class="cdm-row-label">You own</span><span class="cdm-row-val"><span style="color:var(--green);font-weight:700">${uOwned.length}</span>${trackedOnly?` +${trackedOnly} watched`:''} / ${c.total||'?'}</span></div>`;
@@ -2486,6 +2580,7 @@ function openCardStat(snapJson, mode, listJson){
       ${c.directLow!=null?`<div class="cdm-row"><span class="cdm-row-label">Direct Low (LP)</span><span class="cdm-row-val">${fmt(c.directLow)}</span></div>`:''}
       ${c.low!=null?`<div class="cdm-row"><span class="cdm-row-label">Low listing</span><span class="cdm-row-val">${fmt(c.low)}</span></div>`:''}
     </div>
+    ${c.flavorText?'<div class="cdm-section"><div class="cdm-section-label">CARD LORE</div><div style="font-size:10px;color:var(--t2);font-family:DM Sans,sans-serif;line-height:1.6;font-style:italic;padding:4px 0">'+(c.flavorText)+'</div></div>':''}
     ${pts.length>=1?`
     <div class="cdm-section">
       <div class="cdm-section-label">PRICE HISTORY</div>
@@ -2596,6 +2691,9 @@ async function refreshWatchlist(){
       if(!watchlist[i].releaseDate&&d.data?.set?.releaseDate) watchlist[i].releaseDate=d.data.set.releaseDate;
       if(!watchlist[i].setId&&d.data?.set?.id) watchlist[i].setId=d.data.set.id;
       if(!watchlist[i].total&&d.data?.set?.printedTotal) watchlist[i].total=d.data.set.printedTotal??d.data.set.total;
+      if(!watchlist[i].types&&d.data?.types) watchlist[i].types=d.data.types;
+      if(!watchlist[i].flavorText&&d.data?.flavorText) watchlist[i].flavorText=d.data.flavorText;
+      if(!watchlist[i].setSymbol&&d.data?.set?.images?.symbol) watchlist[i].setSymbol=d.data.set.images.symbol;
       if(market!=null) recordHistory(watchlist[i]);
     }catch(e){console.warn('wl refresh fail',c.id,e);}
   }));
@@ -2836,6 +2934,9 @@ async function refreshOwned(){
       }catch(e2){}
       if(!owned[i].releaseDate&&d.data?.set?.releaseDate) owned[i].releaseDate=d.data.set.releaseDate;
       if(!owned[i].setId&&d.data?.set?.id) owned[i].setId=d.data.set.id;
+      if(!owned[i].types&&d.data?.types) owned[i].types=d.data.types;
+      if(!owned[i].flavorText&&d.data?.flavorText) owned[i].flavorText=d.data.flavorText;
+      if(!owned[i].setSymbol&&d.data?.set?.images?.symbol) owned[i].setSymbol=d.data.set.images.symbol;
       if(market!=null) recordHistory(owned[i]);
       else if(owned[i].market!=null) recordHistory(owned[i]); // use cached price if fetch returned null
     }catch(e){console.warn('owned refresh fail',c.id,e);}
@@ -3946,12 +4047,13 @@ refreshAllCounts();
 })();
 ownPage=1;applyOwnControls();
 updateFolioSummary();
-// Refresh prices on every open — no manual refresh needed
+// Refresh prices and pre-fetch search cards in parallel on every open
 silentRefreshAll().then(()=>{
   document.getElementById('last-updated').textContent='· '+new Date().toLocaleTimeString();
   applyOwnControls();
   renderDashboard();
 });
+prefetchDefaultCards(); // runs in background, no await — ready by the time user taps Search
 updateExportDateDisplay();
 document.getElementById('sg-date').value=todayVal();
 // Restore saved API key
@@ -3959,13 +4061,196 @@ document.getElementById('sg-date').value=todayVal();
 if(localStorage.getItem('pf_theme')==='light'){document.body.classList.add('light');document.getElementById('theme-btn').textContent='🌙';}
 
 
-</script>
 
+// ── TAB SWIPE NAVIGATION ──────────────────────────────────────────────────
+function setupTabSwipe(){
+  let tsx=0, tsy=0, tsdx=0, tsScrolling=false, tsDragging=false;
+  const mainEl=document.querySelector('.main-content')||document.body;
+  mainEl.addEventListener('touchstart',e=>{
+    // Don't intercept if inside a modal or binder
+    if(e.target.closest('.modal-bg,.cdm-bg,.sell-modal-bg,.binder-overlay')) return;
+    tsx=e.touches[0].clientX; tsy=e.touches[0].clientY;
+    tsdx=0; tsScrolling=false; tsDragging=false;
+  },{passive:true});
+  mainEl.addEventListener('touchmove',e=>{
+    if(e.target.closest('.modal-bg,.cdm-bg,.sell-modal-bg,.binder-overlay')) return;
+    const dx=e.touches[0].clientX-tsx, dy=Math.abs(e.touches[0].clientY-tsy);
+    tsdx=dx;
+    if(!tsDragging&&!tsScrolling){
+      if(dy>Math.abs(dx)+8) tsScrolling=true;
+      else if(Math.abs(dx)>12) tsDragging=true;
+    }
+  },{passive:true});
+  mainEl.addEventListener('touchend',()=>{
+    if(!tsDragging||Math.abs(tsdx)<60) return;
+    const cur=TABS.findIndex(t=>document.getElementById('tab-'+t)?.classList.contains('active'));
+    const dir=tsdx<0?1:-1;
+    const next=cur+dir;
+    if(next>=0&&next<TABS.length) switchTab(TABS[next]);
+    tsDragging=false;
+  },{passive:true});
+}
+
+// ── PULL TO REFRESH ───────────────────────────────────────────────────────
+function setupPullRefresh(){
+  let psy=0, pulling=false, triggered=false;
+  const THRESHOLD=70;
+  const ind=()=>document.getElementById('pull-indicator');
+  document.addEventListener('touchstart',e=>{
+    if(e.target.closest('.modal-bg,.cdm-bg,.sell-modal-bg,.binder-overlay')) return;
+    if(window.scrollY===0){psy=e.touches[0].clientY; pulling=true; triggered=false;}
+  },{passive:true});
+  document.addEventListener('touchmove',e=>{
+    if(!pulling) return;
+    const dy=e.touches[0].clientY-psy;
+    if(dy>10&&window.scrollY===0){
+      const el=ind(); if(!el) return;
+      if(dy>THRESHOLD&&!triggered){
+        el.textContent='↑ RELEASE TO REFRESH';
+        el.classList.add('visible');
+      } else if(dy>20) {
+        el.textContent='↓ PULL TO REFRESH';
+        el.classList.add('visible');
+      }
+      triggered=dy>THRESHOLD;
+    }
+  },{passive:true});
+  document.addEventListener('touchend',()=>{
+    if(!pulling) return; pulling=false;
+    const el=ind(); if(el) el.classList.remove('visible');
+    if(triggered){
+      triggered=false;
+      showBriefToast('Refreshing prices…',2000);
+      silentRefreshAll().then(()=>{
+        document.getElementById('last-updated').textContent='· '+new Date().toLocaleTimeString();
+        applyOwnControls();
+        if(document.getElementById('tab-watchlist')?.classList.contains('active')) applyWlControls();
+        if(document.getElementById('tab-dashboard')?.classList.contains('active')) renderDashboard();
+        showBriefToast('✓ Prices updated',2000);
+      });
+    }
+  },{passive:true});
+}
+
+// ── SWIPE DOWN TO CLOSE MODALS ────────────────────────────────────────────
+function addSwipeDownClose(bgId, closeFn){
+  const bg=document.getElementById(bgId); if(!bg) return;
+  let sy=0, dy=0, dragging=false;
+  const box=()=>bg.querySelector('.cdm-box,.modal-box,.modal,.ie-modal');
+  bg.addEventListener('touchstart',e=>{
+    const b=box(); if(!b||e.target.closest('button,a,input,select,textarea,.cdm-right')) return;
+    sy=e.touches[0].clientY; dy=0; dragging=false;
+  },{passive:true});
+  bg.addEventListener('touchmove',e=>{
+    const b=box(); if(!b) return;
+    dy=e.touches[0].clientY-sy;
+    if(!dragging&&dy>10) dragging=true;
+    if(dragging&&dy>0){b.style.transform=`translateY(${Math.min(dy*0.4,80)}px)`;b.style.opacity=String(Math.max(0.6,1-dy/400));}
+  },{passive:true});
+  bg.addEventListener('touchend',()=>{
+    const b=box(); if(!b) return;
+    b.style.transition='transform .2s ease,opacity .2s';
+    if(dy>80){closeFn();}
+    else{b.style.transform='';b.style.opacity='';}
+    setTimeout(()=>{if(b){b.style.transition='';b.style.transform='';b.style.opacity='';}},220);
+    dragging=false;dy=0;
+  },{passive:true});
+}
+// Wire up after DOM ready
+document.addEventListener('DOMContentLoaded',()=>{
+  // Tab swipe + pull refresh
+  setupTabSwipe();
+  setupPullRefresh();
+  // Sort persistence — restore saved values and attach save listeners
+  const _sortKeys={
+    'wl-sort':'ptrkr_sort_wl','wl-rarity':'ptrkr_sort_wlr',
+    'own-sort':'ptrkr_sort_own','own-rarity':'ptrkr_sort_ownr',
+    'sr-sort':'ptrkr_sort_sr','sr-rarity-filter':'ptrkr_sort_srr',
+    'sold-sort':'ptrkr_sort_sold','gifted-sort':'ptrkr_sort_gifted',
+    'hist-sort':'ptrkr_sort_hist'
+  };
+  Object.entries(_sortKeys).forEach(([id,key])=>{
+    const el=document.getElementById(id); if(!el) return;
+    const val=localStorage.getItem(key); if(val) el.value=val;
+    el.addEventListener('change',()=>localStorage.setItem(key,el.value));
+  });
+  // Rarity chip sync with restored value
+  const savedRarity=localStorage.getItem('ptrkr_sort_srr');
+  if(savedRarity){
+    document.querySelectorAll('.rarity-chips .rc').forEach(c=>{
+      c.classList.toggle('active', c.dataset.val===savedRarity);
+    });
+  }
+  // Sort chip sync with restored value
+  const savedSort=localStorage.getItem('ptrkr_sort_sr');
+  if(savedSort){
+    document.querySelectorAll('#sort-chips .sc').forEach(c=>{
+      c.classList.toggle('active', c.dataset.val===savedSort);
+    });
+  }
+  // Swipe down to close modals
+  setTimeout(()=>{
+    addSwipeDownClose('cdm-bg',closeCDM);
+    addSwipeDownClose('csm-bg',closeCSM);
+    addSwipeDownClose('sgm-bg',closeSGM);
+    addSwipeDownClose('owned-edit-modal',closeOwnedEditModal);
+    addSwipeDownClose('qa-modal-bg',closeQAModal);
+    addSwipeDownClose('share-modal-bg',closeShareModal);
+    addSwipeDownClose('ie-modal-bg',closeIEModal);
+  },500);
+});
+
+// ── SEARCH HISTORY ────────────────────────────────────────────────────────
+let _searchHistory=JSON.parse(localStorage.getItem('ptrkr_sh')||'[]');
+function saveSearchHistory(q){
+  _searchHistory=_searchHistory.filter(s=>s!==q);
+  _searchHistory.unshift(q);
+  _searchHistory=_searchHistory.slice(0,8);
+  localStorage.setItem('ptrkr_sh',JSON.stringify(_searchHistory));
+  renderSearchHistory();
+}
+function removeSearchHistory(q){
+  _searchHistory=_searchHistory.filter(s=>s!==q);
+  localStorage.setItem('ptrkr_sh',JSON.stringify(_searchHistory));
+  renderSearchHistory();
+}
+function renderSearchHistory(){
+  const el=document.getElementById('search-history');
+  if(!el) return;
+  if(!_searchHistory.length){el.innerHTML='';return;}
+  el.innerHTML=_searchHistory.map(q=>`
+    <span class="sh-chip" onclick="runHistorySearch('${q.replace(/'/g,"\'")}')">${q}
+      <span class="sh-x" onclick="event.stopPropagation();removeSearchHistory('${q.replace(/'/g,"\'")}')">×</span>
+    </span>`).join('');
+}
+function runHistorySearch(q){
+  document.getElementById('search-input').value=q;
+  doSearch(1);
+}
+
+function setRarityChip(el, val){
+  document.querySelectorAll('.rarity-chips .rc').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  const sel=document.getElementById('sr-rarity-filter');
+  if(sel){sel.value=val;filterSrPage();}
+}
+
+function setSortChip(el, val){
+  document.querySelectorAll('#sort-chips .sc').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  const sel=document.getElementById('sr-sort');
+  if(sel){sel.value=val;filterSrPage();}
+}
+
+// sort persistence — initialised in DOMContentLoaded below
+
+
+</script>
 <!-- BOTTOM TAB BAR -->
 <nav class="bottom-nav" id="bottom-nav">
   <button class="bnav-btn" id="bnav-dashboard" onclick="switchTab('dashboard')">
     <div class="bnav-icon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
     </div>
     <span class="bnav-label">Dash</span>
   </button>
@@ -3979,223 +4264,36 @@ if(localStorage.getItem('pf_theme')==='light'){document.body.classList.add('ligh
     <div class="bnav-icon">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20l-7-7a5 5 0 010-7 5 5 0 017 0 5 5 0 017 0 5 5 0 010 7l-7 7z"/></svg>
     </div>
-    <span class="bnav-badge" id="wl-count">0</span>
+    <span class="bnav-badge" id="wl-count"></span>
     <span class="bnav-label">Watch</span>
   </button>
   <button class="bnav-btn active" id="bnav-owned" onclick="switchTab('owned')">
     <div class="bnav-icon">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="2" width="18" height="20" rx="2"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="7" y1="7" x2="3" y2="7"/><line x1="7" y1="12" x2="3" y2="12"/><line x1="7" y1="17" x2="3" y2="17"/></svg>
     </div>
-    <span class="bnav-badge" id="owned-count">0</span>
+    <span class="bnav-badge" id="owned-count"></span>
     <span class="bnav-label">FOLIO</span>
   </button>
   <button class="bnav-btn" id="bnav-sold" onclick="switchTab('sold')">
     <div class="bnav-icon">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 001.96-1.61L23 6H6"/></svg>
     </div>
-    <span class="bnav-badge" id="sold-count">0</span>
+    <span class="bnav-badge" id="sold-count"></span>
     <span class="bnav-label">Sold</span>
   </button>
   <button class="bnav-btn" id="bnav-gifted" onclick="switchTab('gifted')">
     <div class="bnav-icon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/></svg>
     </div>
-    <span class="bnav-badge" id="gifted-count">0</span>
+    <span class="bnav-badge" id="gifted-count"></span>
     <span class="bnav-label">Gifted</span>
   </button>
   <button class="bnav-btn" id="bnav-history" onclick="switchTab('history')">
     <div class="bnav-icon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 0 .5-4H1"/><polyline points="1 3 1 7 5 7"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
     </div>
-    <span class="bnav-badge" id="hist-count">0</span>
     <span class="bnav-label">History</span>
   </button>
 </nav>
-
-
-<!-- BINDER OVERLAY -->
-<div class="binder-overlay" id="binder-overlay">
-  <div class="binder-topbar">
-    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-      <span class="binder-ctrl-label">Filter</span>
-      <input type="text" class="binder-ctrl" id="binder-filter" placeholder="Name..." oninput="binderApplyFilter()" style="width:80px"/>
-      <select class="binder-ctrl" id="binder-rarity" onchange="binderApplyFilter()">
-        <option value="">All rarities</option>
-        <option value="ILLUS">Illus Rare</option>
-        <option value="FULL|HYPER">Full Art / Hyper</option>
-        <option value="ULTRA|SPEC">Ultra / Spec</option>
-        <option value="RARE">Rare+</option>
-        <option value="STANDARD">Standard</option>
-      </select>
-      <span class="binder-ctrl-label">Show</span>
-      <select class="binder-ctrl" id="binder-fav" onchange="binderApplyFilter()">
-        <option value="">All cards</option>
-        <option value="fav">⭐ Fav</option>
-        <option value="unfav">Non-fav</option>
-      </select>
-      <span class="binder-ctrl-label">Sort</span>
-      <select class="binder-ctrl" id="binder-sort" onchange="binderApplyFilter()">
-        <option value="bought">Date bought</option>
-        <option value="added">Date added</option>
-        <option value="name">Name A–Z</option>
-        <option value="market-desc">Value ↓</option>
-        <option value="set">Set A–Z</option>
-        <option value="rarity">Rarity</option>
-      </select>
-      <button class="binder-close" onclick="closeBinderOverlay()" style="margin-left:auto">✕ CLOSE</button>
-    </div>
-  </div>
-  <div class="binder-body">
-    <div class="binder-viewport" id="binder-viewport">
-      <div class="binder-track" id="binder-track"></div>
-    </div>
-  </div>
-  <div class="binder-page-dots" id="binder-dots"></div>
-</div>
-
-
-<!-- OWNED EDIT MODAL -->
-<div class="modal-bg" id="owned-edit-modal" style="z-index:410;background:rgba(0,0,0,0.5)" onclick="if(event.target===this)closeOwnedEditModal()">
-  <div class="modal-box">
-    <div class="modal-title">
-      <div style="display:flex;align-items:center;gap:10px">
-        <img id="oem-img" src="" style="width:48px;height:68px;object-fit:cover;border-radius:5px;background:var(--s2);flex-shrink:0"/>
-        <div>
-          <div id="oem-name" style="font-size:11px;font-weight:600;color:var(--text);font-family:'DM Sans',sans-serif;margin-bottom:2px"></div>
-          <div id="oem-set" style="font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif"></div>
-          <div id="oem-market" style="font-size:13px;font-weight:700;color:var(--gold2);font-family:'DM Sans',sans-serif;margin-top:3px"></div>
-        </div>
-      </div>
-      <button class="modal-close" onclick="closeOwnedEditModal()">✕</button>
-    </div>
-    <input type="hidden" id="oem-copyid"/>
-    <div class="edit-row"><span class="edit-label">Price paid (USD)</span><input class="edit-input" id="oem-pp" type="number" min="0" step="0.01" placeholder="0.00"/></div>
-    <div class="edit-row"><span class="edit-label">Date bought</span><input class="edit-input" id="oem-pd" type="date" style="text-align:left"/></div>
-    <div class="edit-row"><span class="edit-label">From</span><input class="edit-input" id="oem-bf" type="text" placeholder="eBay, LGS, trade, pack..."/></div>
-    <div class="edit-row" style="border-top:1px solid var(--b1);padding-top:6px;margin-top:4px">
-      <span class="edit-label">Version</span>
-      <div style="display:flex;gap:4px;margin-top:3px">
-        <button class="cbtn" id="oem-jp" style="flex:1" onclick="oemToggle('jp')">JP</button>
-        <button class="cbtn" id="oem-bl" style="flex:1" onclick="oemToggle('bl')">BL</button>
-      </div>
-      <div style="display:flex;gap:4px;margin-top:3px">
-        <input class="edit-input" id="oem-jpp" type="number" min="0" step="0.01" placeholder="JP price" style="flex:1;min-width:0;display:none"/>
-        <div id="oem-jpp-spc" style="flex:1"></div>
-        <input class="edit-input" id="oem-blp" type="number" min="0" step="0.01" placeholder="BL price" style="flex:1;min-width:0;display:none"/>
-        <div id="oem-blp-spc" style="flex:1"></div>
-      </div>
-    </div>
-    <div style="display:flex;gap:7px;margin-top:10px">
-      <button class="btn" style="flex:1" onclick="saveOwnedEditModal()">✓ SAVE</button>
-      <button class="btn-ghost" onclick="oemClone()">⧉ CLONE</button>
-      <button class="btn-ghost" onclick="closeOwnedEditModal()">CANCEL</button>
-    </div>
-  </div>
-</div>
-
-<!-- CARD DETAIL MODAL -->
-<div class="cdm-bg" id="cdm-bg" onclick="if(event.target===this)closeCDM()">
-  <div class="cdm-box">
-    <div class="cdm-header">
-      <button class="modal-close" onclick="closeCDM()" style="font-size:16px;margin-left:auto">✕</button>
-    </div>
-    <div class="cdm-inner">
-      <div class="cdm-left">
-        <div class="cdm-img-wrap" id="cdm-img-wrap"><img class="cdm-img" id="cdm-img" src=""/></div>
-        <div id="cdm-left-name" style="width:100%;text-align:center"></div>
-        <div class="cdm-badges" id="cdm-badges"></div>
-        <div id="cdm-left-set" style="width:100%"></div>
-        <div class="cdm-actions" id="cdm-actions"></div>
-      </div>
-      <div class="cdm-right" id="cdm-right"></div>
-    </div>
-  </div>
-</div>
-
-<!-- SHARE MODAL -->
-<div class="modal-bg" id="share-modal-bg" onclick="if(event.target===this)closeShareModal()">
-  <div class="modal-box" style="max-width:420px">
-    <div class="modal-title">
-      <span style="font-size:11px;font-weight:700;letter-spacing:0.12em;color:var(--gold2);font-family:'Space Mono',monospace">⇪ SHARE COLLECTION</span>
-      <button class="modal-close" onclick="closeShareModal()">✕</button>
-    </div>
-    <div style="background:var(--s2);border:1px solid var(--b1);border-radius:var(--r);padding:10px 12px;margin-bottom:12px;font-family:'DM Sans',sans-serif">
-      <div style="font-size:10px;font-weight:600;color:var(--text)" id="share-showcase-name">—</div>
-      <div style="font-size:9px;color:var(--t3);margin-top:2px"><span id="share-preview-count">0 cards</span> · <span id="share-preview-val">$0 value</span></div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
-      <label style="display:flex;align-items:center;gap:8px;font-size:9px;color:var(--t2);font-family:'DM Sans',sans-serif;cursor:pointer">
-        <input type="checkbox" id="share-show-vals" checked style="accent-color:var(--gold)"/> Show market values
-      </label>
-      <label style="display:flex;align-items:center;gap:8px;font-size:9px;color:var(--t2);font-family:'DM Sans',sans-serif;cursor:pointer">
-        <input type="checkbox" id="share-rare-only" style="accent-color:var(--gold)"/> Rare+ cards only
-      </label>
-    </div>
-    <div style="font-size:8px;color:var(--t3);font-family:'DM Sans',sans-serif;margin-bottom:12px;line-height:1.6">Purchase prices are never included. Friends will see your showcase card, top cards by value, and your full collection.</div>
-    <button class="btn" id="share-copy-btn" style="width:100%" onclick="generateShareLink()">⇪ COPY SHARE LINK</button>
-  </div>
-</div>
-
-<!-- QUICK ADD TO FOLIO MODAL -->
-<div class="modal-bg" id="qa-modal-bg" onclick="if(event.target===this)closeQAModal()">
-  <div class="modal-box">
-    <div class="modal-title">
-      <div style="display:flex;align-items:center;gap:10px">
-        <img id="qa-img" src="" style="width:40px;height:56px;object-fit:cover;border-radius:4px;background:var(--s2);flex-shrink:0"/>
-        <div>
-          <div id="qa-name" style="font-size:11px;font-weight:600;color:var(--text);font-family:'DM Sans',sans-serif;margin-bottom:2px"></div>
-          <div id="qa-set" style="font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif"></div>
-          <div id="qa-market" style="font-size:12px;font-weight:700;color:var(--gold2);font-family:'DM Sans',sans-serif;margin-top:3px"></div>
-        </div>
-      </div>
-      <button class="modal-close" onclick="closeQAModal()">✕</button>
-    </div>
-    <div class="edit-row"><span class="edit-label">Price paid (USD)</span><input class="edit-input" id="qa-price" type="number" min="0" step="0.01" placeholder="0.00"/></div>
-    <div class="edit-row"><span class="edit-label">Date bought</span><input class="edit-input" id="qa-date" type="date" style="text-align:left"/></div>
-    <div class="edit-row"><span class="edit-label">From</span><input class="edit-input" id="qa-from" type="text" placeholder="eBay, LGS, trade, pack..."/></div>
-    <div style="display:flex;gap:7px;margin-top:10px">
-      <button class="btn" style="flex:1" onclick="confirmQAAdd()">✓ ADD TO FOLIO</button>
-      <button class="btn-ghost" onclick="closeQAModal()">CANCEL</button>
-    </div>
-  </div>
-</div>
-
-<!-- CARD STAT MODAL (Watch + Search) -->
-<div class="modal-bg" id="csm-bg" style="z-index:399" onclick="if(event.target===this)closeCSM()">
-  <div class="cdm-box">
-    <div class="cdm-header">
-      <button class="modal-close" onclick="closeCSM()" style="font-size:16px;margin-left:auto">✕</button>
-    </div>
-    <div class="cdm-inner">
-      <div class="cdm-left">
-        <div class="cdm-img-wrap" id="csm-img-wrap"><img class="cdm-img" id="csm-img" src=""/></div>
-        <div id="csm-left-name" style="width:100%;text-align:center"></div>
-        <div class="cdm-badges" id="csm-badges"></div>
-        <div id="csm-left-set" style="width:100%"></div>
-        <div class="cdm-actions" id="csm-actions"></div>
-      </div>
-      <div class="cdm-right" id="csm-right"></div>
-    </div>
-  </div>
-</div>
-
-<!-- SOLD / GIFTED STAT MODAL -->
-<div class="modal-bg" id="sgm-bg" style="z-index:399" onclick="if(event.target===this)closeSGM()">
-  <div class="cdm-box">
-    <div class="cdm-header">
-      <button class="modal-close" onclick="closeSGM()" style="font-size:16px;margin-left:auto">✕</button>
-    </div>
-    <div class="cdm-inner">
-      <div class="cdm-left">
-        <div class="cdm-img-wrap"><img class="cdm-img" id="sgm-img" src=""/></div>
-        <div id="sgm-left-name" style="width:100%;text-align:center"></div>
-        <div class="cdm-badges" id="sgm-badges"></div>
-        <div id="sgm-left-set" style="width:100%"></div>
-        <div class="cdm-actions" id="sgm-actions"></div>
-      </div>
-      <div class="cdm-right" id="sgm-right"></div>
-    </div>
-  </div>
-</div>
 </body>
 </html>
