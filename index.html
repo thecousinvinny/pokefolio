@@ -3678,7 +3678,8 @@ function renderSharePage(){
       .sp-section-title span{color:#c9a84c;opacity:0.6}
 
       /* TOP 5 cards — 5 columns on wide */
-      .sp-top-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+      .sp-top-grid{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+      .sp-top-card{width:140px;flex-shrink:0}
       .sp-top-card{background:#111;border:1px solid #1e1e1e;border-radius:10px;overflow:hidden;transition:transform .15s}
       .sp-top-card:hover{transform:translateY(-2px)}
       .sp-top-card img{width:100%;display:block}
