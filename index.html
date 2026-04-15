@@ -54,7 +54,7 @@ body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);m
   padding-left:env(safe-area-inset-left);
   padding-right:env(safe-area-inset-right);
 }
-.nav-top{height:auto;min-height:48px;padding:5px 1.25rem;display:flex;align-items:center;gap:8px;position:relative}
+.nav-top{height:auto;min-height:46px;padding:4px 1.25rem;display:flex;align-items:center;gap:8px;position:relative}
 .logo{display:flex;align-items:center;gap:10px;text-decoration:none;flex-shrink:0;position:absolute;left:50%;transform:translateX(-50%);pointer-events:none}
 .logo *{pointer-events:auto}
 .logo-box{width:38px;height:38px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
@@ -85,9 +85,9 @@ body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);m
 .tab:hover{color:var(--t2)}
 .tab.active{color:var(--gold2);border-bottom-color:var(--gold)}
 .badge{display:inline-flex;align-items:center;justify-content:center;min-width:14px;height:14px;background:var(--gold-dim2);color:var(--gold);border:1px solid rgba(201,168,76,0.35);border-radius:3px;font-size:8px;padding:0 3px;margin-left:4px}
-.section{display:none;opacity:0;transition:opacity 120ms ease}.section.active{display:block;animation:fadeIn 120ms ease forwards;background-image:radial-gradient(circle,rgba(255,255,255,0.03) 1px,transparent 1px);background-size:24px 24px}body.light .section.active{background-image:radial-gradient(circle,rgba(0,0,0,0.04) 1px,transparent 1px);background-size:24px 24px}@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.section{display:none;opacity:0;transition:opacity 120ms ease}.section.active{display:block;animation:fadeIn 120ms ease forwards;background-image:radial-gradient(circle,rgba(255,255,255,0.03) 1px,transparent 1px);background-size:24px 24px;padding-bottom:0}body.light .section.active{background-image:radial-gradient(circle,rgba(0,0,0,0.04) 1px,transparent 1px);background-size:24px 24px}@keyframes fadeIn{from{opacity:0}to{opacity:1}}
 
-.wrap{max-width:1340px;margin:0 auto;padding:1.5rem 2rem;padding-left:max(2rem,env(safe-area-inset-left));padding-right:max(2rem,env(safe-area-inset-right))}
+.wrap{max-width:1440px;margin:0 auto;padding:1.25rem 1.5rem;padding-left:max(1.5rem,env(safe-area-inset-left));padding-right:max(1.5rem,env(safe-area-inset-right))}
 
 /* BUTTONS */
 .btn{background:var(--gold);color:#080808;border:none;border-radius:var(--r);font-family:'Space Mono',monospace;font-size:9px;font-weight:700;letter-spacing:0.1em;padding:9px 16px;cursor:pointer;transition:background .15s,transform .1s;white-space:nowrap}
@@ -105,9 +105,10 @@ body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);m
 
 /* 5-COL CARD GRID */
 .card-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
-@media(max-width:1100px){.card-grid{grid-template-columns:repeat(4,1fr)}}
-@media(max-width:820px){.card-grid{grid-template-columns:repeat(3,1fr)}}
-@media(max-width:560px){.card-grid{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:1280px){.card-grid{grid-template-columns:repeat(6,1fr)}}
+@media(max-width:800px){.card-grid{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:600px){.card-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:420px){.card-grid{grid-template-columns:repeat(2,1fr)}}
 
 .pcard{background:var(--s1);border:1px solid var(--b1);border-radius:var(--rl);padding:11px 10px;transition:border-color .15s,transform .15s,opacity .1s;position:relative;overflow:hidden;display:flex;flex-direction:column}.pcard:active{opacity:0.82;transform:scale(0.97);box-shadow:0 0 0 2px rgba(201,168,76,0.4);}
 .pcard::after{content:'';position:absolute;inset:0;border-radius:var(--rl);opacity:0;transition:opacity .2s;pointer-events:none;background:radial-gradient(circle at 50% 0,rgba(201,168,76,0.05),transparent 65%)}
@@ -156,7 +157,7 @@ body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);m
 
 /* METRICS */
 .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1.25rem}
-@media(max-width:700px){.metrics{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:700px){.metrics{grid-template-columns:repeat(2,1fr);gap:6px}}
 .metric{background:var(--s1);border:1px solid var(--b1);border-radius:var(--rl);padding:12px 14px;transition:transform .15s,box-shadow .15s;cursor:default}.metric:active{transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,0.25)}
 .metric-label{font-size:10px;color:var(--t3);letter-spacing:0.04em;text-transform:uppercase;margin-bottom:5px;font-family:'DM Sans',sans-serif;font-weight:600}
 .metric-val{font-size:22px;font-weight:700;font-family:'DM Sans',sans-serif;font-variant-numeric:tabular-nums;color:var(--text);letter-spacing:-0.02em}
@@ -322,104 +323,38 @@ body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);m
 /* ═══════════════════════════════════════════════════════
    TABLET / iPAD RESPONSIVE — 768px to 1024px
    ═══════════════════════════════════════════════════════ */
-@media(max-width:1024px){
-
-  /* Nav: hide API key inputs behind a settings icon on tablet,
-     keep logo centred, keep theme + export visible */
-  .nav-top{padding:5px 1rem;gap:6px}
-  .nav-left input{display:none}              /* hide api key inputs — too cramped */
-  .logo-text{font-size:10px;letter-spacing:0.12em}
-  .hdr-btn{font-size:8px;padding:5px 9px}
-
-  /* Tabs: bigger touch targets */
-  .tab{padding:11px 12px;font-size:8px;letter-spacing:0.09em}
-
-  /* Content area */
-  .wrap{padding:1rem 1rem}
-
-  /* Cards: 3 cols on landscape iPad */
-  .card-grid{grid-template-columns:repeat(3,1fr);gap:8px}
-
-  /* Metrics: 2x2 instead of 4-across */
-  .metrics{grid-template-columns:repeat(2,1fr)}
-  .hist-metrics{grid-template-columns:repeat(3,1fr)}
-
-  /* History: 1 col on tablet portrait */
-  .hist-grid{grid-template-columns:1fr}
-
-  /* Modals: full-width on tablet */
-  .modal{width:92vw;max-width:500px}
-  .ie-modal{width:92vw;max-width:520px}
+@media(max-width:1023px){
+  .wrap{padding:1rem 1.25rem}
+  .card-grid{grid-template-columns:repeat(4,1fr);gap:8px}
+  .db-metrics{grid-template-columns:repeat(4,1fr)}
+  .metrics{grid-template-columns:repeat(4,1fr)}
 }
-
-/* ═══════════════════════════════════════════════════════
-   MOBILE / IPAD PORTRAIT — under 768px
-   ═══════════════════════════════════════════════════════ */
-@media(max-width:768px){
-
-  /* Bigger base font for readability */
-  body{font-size:14px}
-
-  /* Nav: stack logo row + tabs */
-  .nav-top{padding:6px 0.75rem;gap:4px;min-height:44px}
-  .logo-text{font-size:10px}
-  .logo-box{width:32px;height:32px}
-  .auto-refresh-indicator{display:none}   /* too noisy on small screen */
-  #last-updated{display:none}
-
-  /* Tabs: full-width scroll, bigger tap area */
-  .tabs{padding:0 0.5rem;gap:0;justify-content:flex-start}
-  .tab{padding:12px 11px;font-size:8px;letter-spacing:0.08em}
-
-  /* Content */
+@media(max-width:767px){
+  .nav-top{padding:8px 12px}
   .wrap{padding:0.75rem 0.75rem}
-
-  /* Cards: 2 cols on phone/portrait iPad */
-  .card-grid{grid-template-columns:repeat(2,1fr);gap:8px}
-
-  /* Metrics: 2-col */
+  .card-grid{grid-template-columns:repeat(3,1fr);gap:7px}
   .metrics{grid-template-columns:repeat(2,1fr);gap:6px}
-  .hist-metrics{grid-template-columns:repeat(2,1fr)}
-
-  /* Metric values slightly smaller */
   .metric-val{font-size:16px}
-
-  /* History: 1 col */
+  .db-metric-val{font-size:16px}
+  .hist-metrics{grid-template-columns:repeat(2,1fr)}
   .hist-grid{grid-template-columns:1fr}
-
-  /* Controls bar: wrap */
-  .controls-bar{flex-wrap:wrap;gap:5px}
-  .ctrl-input{width:100%;flex:unset}
-  .ctrl-sep{display:none}
-
-  /* Prevent Safari auto-zoom on input focus — must be 16px+ */
-  input,select,textarea{font-size:16px!important}
-
-  /* Buttons: min 44px tall for touch */
-  .btn,.btn-ghost,.cbtn,.hdr-btn,.page-btn{min-height:44px;display:flex;align-items:center;justify-content:center}
-  .cbtn{min-height:38px}   /* card buttons can be slightly smaller */
-  .tab{min-height:44px}
-
-  /* Undo toast: full width at bottom */
-  .undo-toast{left:0.75rem;right:0.75rem;transform:translateY(-200px);width:auto}
-  .undo-toast.show{transform:translateY(0)}
-
-  /* Pagination: bigger numbers */
+  .modal-box{width:95vw;padding:18px}
+  .cdm-box{width:98vw;max-height:96vh}
+  .cdm-left{flex:0 0 160px;padding:12px 10px}
+  .cdm-right{padding:14px 14px}
+  .ctrl-label{display:none}
+  .hdr-btn{font-size:8px;padding:5px 8px}
+  .logo-text{font-size:10px}
   .page-btn{min-width:44px;min-height:44px}
-
-  /* Modals: truly full-screen on phone */
-  .modal,.ie-modal,.sell-modal{width:95vw;padding:18px;max-height:92vh}
-
-  /* Search input row */
-  #search-input{font-size:16px!important}   /* prevent zoom */
 }
-
-/* ═══════════════════════════════════════════════════════
-   iPAD LANDSCAPE — 1024px, special cases
-   ═══════════════════════════════════════════════════════ */
 @media(min-width:768px)and(max-width:1024px)and(orientation:landscape){
-  .card-grid{grid-template-columns:repeat(4,1fr)}
+  .card-grid{grid-template-columns:repeat(5,1fr)}
   .hist-grid{grid-template-columns:1fr 1fr}
+  .metrics{grid-template-columns:repeat(4,1fr)}
+  .db-metrics{grid-template-columns:repeat(4,1fr)}
+  .db-charts-row{grid-template-columns:1fr 1fr}
+  .cdm-box{width:min(920px,96vw);max-height:92vh}
+  .cdm-left{flex:0 0 260px}
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -577,7 +512,7 @@ body.light .bottom-nav{background:rgba(245,244,241,0.9);border-top:1px solid rgb
 /* ── CARD DETAIL MODAL ────────────────────────────────────────────────── */
 .cdm-bg{position:fixed;inset:0;z-index:400;background:rgba(0,0,0,0.76);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
 .cdm-bg.open{opacity:1;pointer-events:all;}
-.cdm-box{background:var(--s1);border:1px solid var(--b2);border-radius:var(--rl);width:min(920px,96vw);max-height:92vh;overflow:hidden;display:flex;flex-direction:column;}
+.cdm-box{background:var(--s1);border:1px solid var(--b2);border-radius:var(--rl);width:min(960px,96vw);max-height:94vh;overflow:hidden;display:flex;flex-direction:column;}
 .cdm-inner{display:flex;gap:0;flex:1;overflow:hidden;min-height:0;}
 .cdm-left{flex:0 0 340px;display:flex;flex-direction:column;align-items:center;padding:18px 16px 16px;border-right:1px solid var(--b1);gap:8px;background:var(--bg);overflow-y:auto;}
 .cdm-img-wrap{width:100%;border-radius:8px;overflow:hidden;}
@@ -1800,11 +1735,11 @@ function renderDashboard(){
   <div class="db-charts-row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
     <div class="db-card">
       <div class="db-card-title">Collection Value Over Time</div>
-      <div class="db-chart-wrap" style="height:160px"><canvas id="db-chart-val" role="img" aria-label="Collection value over time"></canvas></div>
+      <div class="db-chart-wrap" style="height:180px"><canvas id="db-chart-val" role="img" aria-label="Collection value over time"></canvas></div>
     </div>
     <div class="db-card">
       <div class="db-card-title">Sales Revenue</div>
-      <div class="db-chart-wrap" style="height:160px"><canvas id="db-chart-sales" role="img" aria-label="Cumulative sales revenue over time"></canvas></div>
+      <div class="db-chart-wrap" style="height:180px"><canvas id="db-chart-sales" role="img" aria-label="Cumulative sales revenue over time"></canvas></div>
     </div>
   </div>
   `;
@@ -3680,76 +3615,153 @@ function renderSharePage(){
     const json=decodeURIComponent(escape(atob(encoded)));
     const data=JSON.parse(json);
     document.body.innerHTML='';
-    document.body.style.cssText='margin:0;padding:0;background:#0a0a0a;color:#e8e6e1;font-family:"Space Mono",monospace;min-height:100vh';
+    document.body.style.cssText='margin:0;padding:0;background:#080808;color:#e8e6e1;font-family:"Space Mono",monospace;min-height:100vh';
 
     const ri_cls=r=>/SPEC ILLUS|ILLUS RARE/.test(r)?'r-ir':/FULL ART|HYPER/.test(r)?'r-fa':/ULTRA|VSTAR|VMAX|ex |EX|GX|RARE/.test(r)?'r-sr':'r-std';
 
     let html=`
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;600;700&display=swap" rel="stylesheet"/>
     <style>
-      *{box-sizing:border-box}
-      .sp-nav{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid rgba(201,168,76,0.2);background:rgba(0,0,0,0.6)}
-      .sp-logo{font-size:14px;font-weight:700;letter-spacing:0.14em;color:#c9a84c}
-      .sp-stats{font-size:10px;color:#666;letter-spacing:0.06em}
-      .sp-hero{display:flex;flex-direction:column;align-items:center;padding:32px 20px 24px;gap:12px}
-      .sp-showcase-img{width:min(220px,55vw);border-radius:12px}
-      .sp-showcase-name{font-size:16px;font-weight:700;color:#e8e6e1;letter-spacing:0.06em;text-align:center}
-      .sp-showcase-sub{font-size:10px;color:#666;letter-spacing:0.06em;text-align:center}
-      .sp-price{font-size:22px;font-weight:700;color:#c9a84c;font-variant-numeric:tabular-nums}
-      .sp-section{padding:0 20px 24px}
-      .sp-section-title{font-size:8px;font-weight:700;letter-spacing:0.14em;color:#555;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #1a1a1a}
-      .sp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
-      .sp-card{background:#111;border:1px solid #1e1e1e;border-radius:8px;overflow:hidden}
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{background:#080808;font-family:"Space Mono",monospace}
+
+      /* NAV */
+      .sp-nav{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;background:rgba(8,8,8,0.92);backdrop-filter:blur(16px);border-bottom:1px solid rgba(201,168,76,0.15);position:sticky;top:0;z-index:10}
+      .sp-logo{font-size:13px;font-weight:700;letter-spacing:0.16em;color:#c9a84c;display:flex;align-items:center;gap:8px}
+      .sp-stats{font-size:9px;color:#555;letter-spacing:0.08em;font-family:"DM Sans",sans-serif}
+
+      /* MAIN LAYOUT — side by side on wide screens */
+      .sp-body{display:flex;gap:0;min-height:calc(100vh - 49px)}
+
+      /* LEFT PANEL — showcase + stats, fixed width */
+      .sp-left{width:300px;flex-shrink:0;padding:32px 24px;display:flex;flex-direction:column;align-items:center;gap:0;border-right:1px solid #141414;background:radial-gradient(ellipse 100% 60% at 50% 0%,rgba(201,168,76,0.06),transparent);position:sticky;top:49px;height:calc(100vh - 49px);overflow-y:auto}
+      .sp-showcase-label{font-size:7px;font-weight:700;letter-spacing:0.2em;color:#c9a84c;opacity:0.6;margin-bottom:14px;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:8px;width:100%}
+      .sp-showcase-label::before,.sp-showcase-label::after{content:"";flex:1;height:1px;background:rgba(201,168,76,0.2);max-width:40px}
+      .sp-showcase-wrap{position:relative;margin-bottom:20px;width:100%}
+      .sp-showcase-img{width:min(200px,100%);border-radius:12px;display:block;margin:0 auto;box-shadow:0 0 0 1px rgba(201,168,76,0.35),0 0 40px rgba(201,168,76,0.12),0 20px 50px rgba(0,0,0,0.8)}
+      .sp-showcase-glow{position:absolute;inset:-20px;background:radial-gradient(ellipse at 50% 100%,rgba(201,168,76,0.1),transparent 70%);pointer-events:none;z-index:-1}
+      .sp-showcase-rarity{display:inline-block;font-size:7px;font-weight:700;letter-spacing:0.1em;padding:2px 8px;border-radius:20px;margin-bottom:8px}
+      .sp-showcase-name{font-size:15px;font-weight:700;color:#f0ede8;letter-spacing:0.03em;text-align:center;line-height:1.25;margin-bottom:5px}
+      .sp-showcase-sub{font-size:9px;color:#555;letter-spacing:0.05em;text-align:center;font-family:"DM Sans",sans-serif;margin-bottom:10px}
+      .sp-showcase-price{font-size:26px;font-weight:700;color:#c9a84c;font-variant-numeric:tabular-nums;text-align:center;line-height:1;margin-bottom:24px}
+
+      /* STATS GRID */
+      .sp-stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;margin-bottom:24px}
+      .sp-stat{padding:10px 8px;background:#0f0f0f;border:1px solid #1a1a1a;border-radius:8px;text-align:center}
+      .sp-stat-val{font-size:16px;font-weight:700;color:#e8e6e1;font-variant-numeric:tabular-nums;line-height:1;margin-bottom:3px}
+      .sp-stat-val.gold{color:#c9a84c}
+      .sp-stat-label{font-size:7px;color:#444;letter-spacing:0.08em;font-family:"DM Sans",sans-serif}
+
+      /* CTA in left panel */
+      .sp-cta{width:100%;display:flex;flex-direction:column;align-items:center;gap:8px;padding-top:16px;border-top:1px solid #141414;margin-top:auto}
+      .sp-cta-title{font-size:10px;font-weight:700;letter-spacing:0.08em;color:#333;text-align:center}
+      .sp-btn{padding:10px 20px;border-radius:8px;font-size:9px;font-weight:700;letter-spacing:0.1em;cursor:pointer;font-family:"Space Mono",monospace;text-decoration:none;display:inline-block;transition:all .15s;white-space:nowrap}
+      .sp-btn-gold{background:rgba(201,168,76,0.15);color:#c9a84c;border:1px solid rgba(201,168,76,0.4)}
+      .sp-btn-gold:hover{background:rgba(201,168,76,0.25)}
+
+      /* RIGHT PANEL — cards */
+      .sp-right{flex:1;padding:28px;overflow-y:auto;min-width:0}
+      .sp-section{margin-bottom:28px}
+      .sp-section-title{font-size:8px;font-weight:700;letter-spacing:0.14em;color:#333;margin-bottom:12px;padding-bottom:7px;border-bottom:1px solid #141414;display:flex;align-items:center;gap:8px}
+      .sp-section-title span{color:#c9a84c;opacity:0.6}
+
+      /* TOP 5 cards — 5 columns on wide */
+      .sp-top-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+      .sp-top-card{background:#111;border:1px solid #1e1e1e;border-radius:10px;overflow:hidden;transition:transform .15s}
+      .sp-top-card:hover{transform:translateY(-2px)}
+      .sp-top-card img{width:100%;display:block}
+      .sp-top-wrap{position:relative}
+      .sp-top-num{position:absolute;top:6px;left:6px;background:rgba(0,0,0,0.75);color:#c9a84c;font-size:8px;font-weight:700;padding:2px 5px;border-radius:4px;letter-spacing:0.06em}
+
+      /* COLLECTION grid — fill space */
+      .sp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px}
+      .sp-card{background:#0f0f0f;border:1px solid #1a1a1a;border-radius:8px;overflow:hidden;transition:transform .15s}
+      .sp-card:hover{transform:translateY(-1px)}
       .sp-card img{width:100%;display:block}
+
       .sp-card-body{padding:6px 8px 8px}
-      .sp-rtag{font-size:7px;font-weight:700;letter-spacing:0.08em;padding:1px 5px;border-radius:3px;display:inline-block;margin-bottom:3px}
+      .sp-top-card .sp-card-body{padding:7px 9px 9px}
+      .sp-rtag{font-size:7px;font-weight:700;letter-spacing:0.07em;padding:1px 5px;border-radius:10px;display:inline-block;margin-bottom:3px}
       .r-ir{background:rgba(201,168,76,0.12);color:#c9a84c;border:1px solid rgba(201,168,76,0.3)}
       .r-fa{background:rgba(196,181,253,0.1);color:#c4b5fd;border:1px solid rgba(196,181,253,0.25)}
       .r-sr{background:rgba(96,165,250,0.1);color:#60a5fa;border:1px solid rgba(96,165,250,0.25)}
-      .r-std{background:#1a1a1a;color:#666;border:1px solid #222}
-      .sp-card-name{font-size:9px;font-weight:600;color:#e8e6e1;font-family:'DM Sans',sans-serif;line-height:1.3;margin-bottom:1px}
-      .sp-card-set{font-size:8px;color:#555;font-family:'DM Sans',sans-serif}
-      .sp-card-price{font-size:11px;font-weight:700;color:#c9a84c;font-family:'DM Sans',sans-serif;margin-top:3px}
-      .sp-cta{padding:20px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center;border-top:1px solid #1a1a1a}
-      .sp-btn{padding:10px 20px;border-radius:6px;font-size:10px;font-weight:700;letter-spacing:0.1em;cursor:pointer;font-family:'Space Mono',monospace;text-decoration:none;display:inline-block}
-      .sp-btn-gold{background:rgba(201,168,76,0.15);color:#c9a84c;border:1px solid rgba(201,168,76,0.4)}
-      .sp-btn-ghost{background:none;color:#555;border:1px solid #2a2a2a}
-      .sp-trunc{font-size:9px;color:#555;text-align:center;padding:0 20px 16px}
+      .r-std{background:#1a1a1a;color:#444;border:1px solid #222}
+      .sp-card-name{font-size:9px;font-weight:600;color:#e8e6e1;font-family:"DM Sans",sans-serif;line-height:1.3;margin-bottom:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .sp-card-set{font-size:8px;color:#444;font-family:"DM Sans",sans-serif}
+      .sp-card-price{font-size:10px;font-weight:700;color:#c9a84c;font-family:"DM Sans",sans-serif;margin-top:3px}
+      .sp-trunc{font-size:9px;color:#333;text-align:center;padding:12px 0;font-family:"DM Sans",sans-serif}
+
+      /* MOBILE — stack vertically */
+      @media(max-width:700px){
+        .sp-body{flex-direction:column}
+        .sp-left{width:100%;position:static;height:auto;border-right:none;border-bottom:1px solid #141414;padding:28px 20px}
+        .sp-right{padding:20px}
+        .sp-top-grid{grid-template-columns:repeat(3,1fr)}
+        .sp-stats-grid{grid-template-columns:repeat(4,1fr)}
+        .sp-cta{margin-top:16px}
+      }
+      @media(min-width:700px) and (max-width:900px){
+        .sp-left{width:240px}
+        .sp-top-grid{grid-template-columns:repeat(4,1fr)}
+      }
     </style>
     <div class="sp-nav">
-      <span class="sp-logo">⧉ FOLIO</span>
+      <span class="sp-logo">
+        <svg width="16" height="20" viewBox="0 0 28 34" fill="none"><rect x="0" y="4" width="24" height="29" rx="3" fill="rgba(201,168,76,0.06)" stroke="rgba(201,168,76,0.25)" stroke-width="1"/><rect x="4" y="2" width="24" height="29" rx="3" fill="rgba(201,168,76,0.09)" stroke="rgba(201,168,76,0.4)" stroke-width="1"/><rect x="8" y="0" width="20" height="29" rx="3" fill="rgba(201,168,76,0.13)" stroke="#c9a84c" stroke-width="1.5"/><rect x="8" y="0" width="2" height="29" rx="1" fill="#c9a84c"/><circle cx="19" cy="14.5" r="5.5" fill="none" stroke="#c9a84c" stroke-width="1.3"/><line x1="13.5" y1="14.5" x2="24.5" y2="14.5" stroke="#c9a84c" stroke-width="1.3"/><path d="M13.5 14.5 A5.5 5.5 0 0 1 24.5 14.5 Z" fill="#c9a84c" opacity="0.22"/><circle cx="19" cy="14.5" r="2" fill="none" stroke="#c9a84c" stroke-width="1.2"/><circle cx="19" cy="14.5" r="0.9" fill="#c9a84c"/></svg>
+        FOLIO
+      </span>
       <span class="sp-stats">${data.n} cards${data.tv!=null?' · $'+data.tv.toFixed(0)+' value':''}</span>
     </div>`;
 
+    // SHOWCASE HERO
     if(data.sc){
+      const scRarCls=ri_cls(data.sc.rarity||'');
+      const scRarStyle=scRarCls==='r-ir'?'background:rgba(201,168,76,0.12);color:#c9a84c;border:1px solid rgba(201,168,76,0.3)':scRarCls==='r-fa'?'background:rgba(196,181,253,0.1);color:#c4b5fd;border:1px solid rgba(196,181,253,0.25)':scRarCls==='r-sr'?'background:rgba(96,165,250,0.1);color:#60a5fa;border:1px solid rgba(96,165,250,0.25)':'background:#1a1a1a;color:#444;border:1px solid #222';
       html+=`<div class="sp-hero">
-        <img class="sp-showcase-img" src="${data.sc.img}" loading="lazy"/>
-        <div>
-          <div class="sp-showcase-name">${data.sc.name}</div>
-          <div class="sp-showcase-sub">${data.sc.set} · #${data.sc.number}/${data.sc.total}</div>
-          ${data.sc.market!=null?`<div class="sp-price" style="text-align:center;margin-top:6px">$${data.sc.market.toFixed(2)}</div>`:''}
+        <div class="sp-showcase-label">◈ Showcase Card</div>
+        <div class="sp-showcase-wrap">
+          <div class="sp-showcase-glow"></div>
+          <img class="sp-showcase-img" src="${data.sc.img}" loading="eager"/>
         </div>
+        ${data.sc.rarity?`<span class="sp-showcase-rarity" style="${scRarStyle}">${data.sc.rarity}</span>`:''}
+        <div class="sp-showcase-name">${data.sc.name}</div>
+        <div class="sp-showcase-sub">${data.sc.set} · #${data.sc.number}/${data.sc.total}</div>
+        ${data.sc.market!=null?`<div class="sp-showcase-price">$${data.sc.market.toFixed(2)}</div>`:''}
       </div>`;
     }
 
+    // STATS ROW
+    const totalCards=data.n;
+    const totalVal=data.tv;
+    const topVal=data.cards.filter(c=>c.m!=null).sort((a,b)=>b.m-a.m)[0]?.m;
+    html+=`<div class="sp-stat-row">
+      <div class="sp-stat"><div class="sp-stat-val">${totalCards}</div><div class="sp-stat-label">CARDS</div></div>
+      ${totalVal!=null?`<div class="sp-stat"><div class="sp-stat-val gold">$${totalVal>=1000?(totalVal/1000).toFixed(1)+'k':totalVal.toFixed(0)}</div><div class="sp-stat-label">COLLECTION</div></div>`:''}
+      ${topVal!=null?`<div class="sp-stat"><div class="sp-stat-val gold">$${topVal.toFixed(0)}</div><div class="sp-stat-label">TOP CARD</div></div>`:''}
+      <div class="sp-stat"><div class="sp-stat-val">${data.cards.filter(c=>/SPEC ILLUS|ILLUS RARE|FULL ART|HYPER/.test(c.r||'')).length}</div><div class="sp-stat-label">ULTRA RARE</div></div>
+    </div>`;
+
+    // TOP 5
     const top=data.cards.filter(c=>c.m!=null).sort((a,b)=>b.m-a.m).slice(0,5);
     if(top.length){
-      html+=`<div class="sp-section"><div class="sp-section-title">TOP CARDS BY VALUE</div><div class="sp-grid">`;
-      top.forEach(c=>{html+=`<div class="sp-card"><img src="${c.i}" loading="lazy"/><div class="sp-card-body"><span class="sp-rtag ${ri_cls(c.r)}">${c.r}</span><div class="sp-card-name">${c.n}</div><div class="sp-card-set">${c.s}</div>${c.m!=null?`<div class="sp-card-price">$${c.m.toFixed(2)}</div>`:''}</div></div>`;});
+      html+=`<div class="sp-section"><div class="sp-section-title">TOP CARDS BY VALUE <span>★</span></div><div class="sp-top-grid">`;
+      top.forEach((c,idx)=>{
+        html+=`<div class="sp-top-card"><div class="sp-top-wrap"><img src="${c.i}" loading="lazy"/><span class="sp-top-num">#${idx+1}</span></div><div class="sp-card-body"><span class="sp-rtag ${ri_cls(c.r)}">${c.r}</span><div class="sp-card-name">${c.n}</div><div class="sp-card-set">${c.s}</div>${c.m!=null?`<div class="sp-card-price">$${c.m.toFixed(2)}</div>`:''}</div></div>`;
+      });
       html+=`</div></div>`;
     }
 
+    // FULL COLLECTION
     const rest=data.cards.slice(0,60);
-    html+=`<div class="sp-section"><div class="sp-section-title">FULL COLLECTION${data.trunc?' (TOP 50 BY VALUE)':''}</div><div class="sp-grid">`;
-    rest.forEach(c=>{html+=`<div class="sp-card"><img src="${c.i}" loading="lazy"/><div class="sp-card-body"><span class="sp-rtag ${ri_cls(c.r)}">${c.r}</span><div class="sp-card-name">${c.n}</div><div class="sp-card-set">${c.s}</div>${c.m!=null?`<div class="sp-card-price">$${c.m.toFixed(2)}</div>`:''}</div></div>`;});
-    html+=`</div></div>`;
+    if(rest.length>top.length){
+      html+=`<div class="sp-section"><div class="sp-section-title">FULL COLLECTION${data.trunc?' (TOP 50)':''} <span>${rest.length}</span></div><div class="sp-grid">`;
+      rest.forEach(c=>{html+=`<div class="sp-card"><img src="${c.i}" loading="lazy"/><div class="sp-card-body"><span class="sp-rtag ${ri_cls(c.r)}">${c.r}</span><div class="sp-card-name">${c.n}</div><div class="sp-card-set">${c.s}</div>${c.m!=null?`<div class="sp-card-price">$${c.m.toFixed(2)}</div>`:''}</div></div>`;});
+      html+=`</div></div>`;
+    }
 
     if(data.trunc) html+=`<div class="sp-trunc">Showing top 50 cards by value</div>`;
-
-    html+=`<div class="sp-cta">
-      <a class="sp-btn sp-btn-gold" href="${window.location.href.split('#')[0]}">Get FOLIO — Track Your Collection</a>
-    </div>`;
-
-    document.body.innerHTML=html;
+    html+='</div></div>'; // close sp-right + sp-body
+        document.body.innerHTML=html;
     return true;
   }catch(e){console.error('Share page error:',e);return false;}
 }
@@ -3758,13 +3770,6 @@ if(!renderSharePage()){
   // Normal app mode — already handled by existing init
 }
 
-// stub replaced above
-function _oldShareModal(){
-  document.getElementById('share-modal-bg').classList.add('open');
-}
-function closeShareModal(){
-  document.getElementById('share-modal-bg').classList.remove('open');
-}
 function openIEModal(){
   document.getElementById('ie-modal-bg').classList.add('open');
   document.getElementById('export-area').value='';
@@ -4295,5 +4300,140 @@ function setSortChip(el, val){
     <span class="bnav-label">History</span>
   </button>
 </nav>
+<!-- SHARE MODAL -->
+<div class="modal-bg" id="share-modal-bg" onclick="if(event.target===this)closeShareModal()">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-title">
+      <span style="font-size:11px;font-weight:700;letter-spacing:0.12em;color:var(--gold2);font-family:'Space Mono',monospace">⇪ SHARE COLLECTION</span>
+      <button class="modal-close" onclick="closeShareModal()">✕</button>
+    </div>
+    <div style="background:var(--s2);border:1px solid var(--b1);border-radius:var(--r);padding:10px 12px;margin-bottom:12px;font-family:'DM Sans',sans-serif">
+      <div style="font-size:10px;font-weight:600;color:var(--text)" id="share-showcase-name">—</div>
+      <div style="font-size:9px;color:var(--t3);margin-top:2px"><span id="share-preview-count">0 cards</span> · <span id="share-preview-val">$0 value</span></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:9px;color:var(--t2);font-family:'DM Sans',sans-serif;cursor:pointer">
+        <input type="checkbox" id="share-show-vals" checked style="accent-color:var(--gold)"/> Show market values
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:9px;color:var(--t2);font-family:'DM Sans',sans-serif;cursor:pointer">
+        <input type="checkbox" id="share-rare-only" style="accent-color:var(--gold)"/> Rare+ cards only
+      </label>
+    </div>
+    <div style="font-size:8px;color:var(--t3);font-family:'DM Sans',sans-serif;margin-bottom:12px;line-height:1.6">Purchase prices are never included. Friends will see your showcase card, top cards by value, and your full collection.</div>
+    <button class="btn" id="share-copy-btn" style="width:100%" onclick="generateShareLink()">⇪ COPY SHARE LINK</button>
+  </div>
+</div>
+
+<!-- QUICK ADD TO FOLIO MODAL -->
+<div class="modal-bg" id="qa-modal-bg" onclick="if(event.target===this)closeQAModal()">
+  <div class="modal-box">
+    <div class="modal-title">
+      <div style="display:flex;align-items:center;gap:10px">
+        <img id="qa-img" src="" style="width:40px;height:56px;object-fit:cover;border-radius:4px;background:var(--s2);flex-shrink:0"/>
+        <div>
+          <div id="qa-name" style="font-size:11px;font-weight:600;color:var(--text);font-family:'DM Sans',sans-serif;margin-bottom:2px"></div>
+          <div id="qa-set" style="font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif"></div>
+          <div id="qa-market" style="font-size:12px;font-weight:700;color:var(--gold2);font-family:'DM Sans',sans-serif;margin-top:3px"></div>
+        </div>
+      </div>
+      <button class="modal-close" onclick="closeQAModal()">✕</button>
+    </div>
+    <div class="edit-row"><span class="edit-label">Price paid (USD)</span><input class="edit-input" id="qa-price" type="number" min="0" step="0.01" placeholder="0.00"/></div>
+    <div class="edit-row"><span class="edit-label">Date bought</span><input class="edit-input" id="qa-date" type="date" style="text-align:left"/></div>
+    <div class="edit-row"><span class="edit-label">From</span><input class="edit-input" id="qa-from" type="text" placeholder="eBay, LGS, trade, pack..."/></div>
+    <div style="display:flex;gap:7px;margin-top:10px">
+      <button class="btn" style="flex:1" onclick="confirmQAAdd()">✓ ADD TO FOLIO</button>
+      <button class="btn-ghost" onclick="closeQAModal()">CANCEL</button>
+    </div>
+  </div>
+</div>
+
+<!-- OWNED EDIT MODAL -->
+<div class="modal-bg" id="owned-edit-modal" style="z-index:410;background:rgba(0,0,0,0.5)" onclick="if(event.target===this)closeOwnedEditModal()">
+  <div class="modal-box">
+    <div class="modal-title">
+      <span style="font-size:11px;font-weight:700;letter-spacing:0.1em;color:var(--gold2);font-family:'Space Mono',monospace">▼ EDIT CARD</span>
+      <button class="modal-close" onclick="closeOwnedEditModal()">✕</button>
+    </div>
+    <input type="hidden" id="oem-copyid"/>
+    <div style="display:flex;gap:12px;margin-bottom:12px">
+      <img id="oem-img" src="" style="width:60px;height:84px;object-fit:cover;border-radius:5px;background:var(--s2);flex-shrink:0"/>
+      <div style="flex:1">
+        <div id="oem-name" style="font-size:11px;font-weight:600;color:var(--text);font-family:'DM Sans',sans-serif;margin-bottom:6px"></div>
+        <div style="display:flex;gap:6px">
+          <button class="toggle-btn" id="oem-jp" onclick="toggleOEMFlag('jp')">JP</button>
+          <button class="toggle-btn" id="oem-bl" onclick="toggleOEMFlag('bl')">BL</button>
+        </div>
+      </div>
+    </div>
+    <div class="edit-row"><span class="edit-label">Price paid (USD)</span><input class="edit-input" id="oem-price" type="number" min="0" step="0.01" placeholder="0.00"/></div>
+    <div class="edit-row"><span class="edit-label">JP Price</span><input class="edit-input" id="oem-jp-price" type="number" min="0" step="0.01" placeholder="0.00"/></div>
+    <div class="edit-row"><span class="edit-label">Date bought</span><input class="edit-input" id="oem-date" type="date" style="text-align:left"/></div>
+    <div class="edit-row"><span class="edit-label">From</span><input class="edit-input" id="oem-from" type="text" placeholder="eBay, LGS, trade, pack..."/></div>
+    <div style="display:flex;gap:7px;margin-top:10px">
+      <button class="btn" style="flex:1" onclick="saveOwnedEdit()">✓ SAVE</button>
+      <button class="btn-ghost" onclick="cloneCard(document.getElementById('oem-copyid').value)">⧉ CLONE</button>
+      <button class="btn-ghost" onclick="closeOwnedEditModal()">CANCEL</button>
+    </div>
+  </div>
+</div>
+
+<!-- CDM — FOLIO CARD DETAIL MODAL -->
+<div class="cdm-bg" id="cdm-bg" onclick="if(event.target===this)closeCDM()">
+  <div class="cdm-box">
+    <div class="cdm-header">
+      <button class="modal-close" onclick="closeCDM()" style="font-size:16px;margin-left:auto">✕</button>
+    </div>
+    <div class="cdm-inner">
+      <div class="cdm-left">
+        <div class="cdm-img-wrap" id="cdm-img-wrap"><img class="cdm-img" id="cdm-img" src=""/></div>
+        <div id="cdm-left-name"></div>
+        <div class="cdm-badges" id="cdm-badges"></div>
+        <div id="cdm-left-set"></div>
+        <div class="cdm-actions" id="cdm-actions"></div>
+      </div>
+      <div class="cdm-right" id="cdm-right"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CARD STAT MODAL (Watch + Search) -->
+<div class="modal-bg" id="csm-bg" style="z-index:399" onclick="if(event.target===this)closeCSM()">
+  <div class="cdm-box">
+    <div class="cdm-header">
+      <button class="modal-close" onclick="closeCSM()" style="font-size:16px;margin-left:auto">✕</button>
+    </div>
+    <div class="cdm-inner">
+      <div class="cdm-left">
+        <div class="cdm-img-wrap" id="csm-img-wrap"><img class="cdm-img" id="csm-img" src=""/></div>
+        <div id="csm-left-name" style="width:100%;text-align:center"></div>
+        <div class="cdm-badges" id="csm-badges"></div>
+        <div id="csm-left-set" style="width:100%"></div>
+        <div class="cdm-actions" id="csm-actions"></div>
+      </div>
+      <div class="cdm-right" id="csm-right"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SOLD / GIFTED STAT MODAL -->
+<div class="modal-bg" id="sgm-bg" style="z-index:399" onclick="if(event.target===this)closeSGM()">
+  <div class="cdm-box">
+    <div class="cdm-header">
+      <button class="modal-close" onclick="closeSGM()" style="font-size:16px;margin-left:auto">✕</button>
+    </div>
+    <div class="cdm-inner">
+      <div class="cdm-left">
+        <div class="cdm-img-wrap"><img class="cdm-img" id="sgm-img" src=""/></div>
+        <div id="sgm-left-name" style="width:100%;text-align:center"></div>
+        <div class="cdm-badges" id="sgm-badges"></div>
+        <div id="sgm-left-set" style="width:100%"></div>
+        <div class="cdm-actions" id="sgm-actions"></div>
+      </div>
+      <div class="cdm-right" id="sgm-right"></div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
