@@ -3535,13 +3535,65 @@ function removeLedger(id){delete ledger[id];save();refreshAllCounts();renderHist
 
 // ── SHARE / SHOWCASE PAGE ─────────────────────────────────────────────────
 function openShareModal(){
-  // Populate preview
   const sc=showcaseCopyId?owned.find(o=>o.copyId===showcaseCopyId):null;
-  const totalVal=owned.reduce((s,c)=>s+(c.market??0),0);
+  const ownedVal=owned.reduce((s,c)=>s+(c.market??0),0);
+  const wlVal=watchlist.reduce((s,c)=>s+(c.market??0),0);
   document.getElementById('share-preview-count').textContent=owned.length+' cards';
-  document.getElementById('share-preview-val').textContent='$'+totalVal.toFixed(0)+' value';
+  document.getElementById('share-preview-val').textContent='$'+ownedVal.toFixed(0)+' value';
   document.getElementById('share-showcase-name').textContent=sc?sc.name:'No showcase card set';
+  document.getElementById('wl-share-count').textContent=watchlist.length+' cards';
+  document.getElementById('wl-share-val').textContent='$'+wlVal.toFixed(0)+' market value';
   document.getElementById('share-modal-bg').classList.add('open');
+}
+
+function openWlShareModal(){
+  const totalVal=watchlist.reduce((s,c)=>s+(c.market??0),0);
+  document.getElementById('wl-share-count').textContent=watchlist.length+' cards';
+  document.getElementById('wl-share-val').textContent='$'+totalVal.toFixed(0)+' market value';
+  document.getElementById('share-modal-bg').classList.add('open');
+}
+function closeWlShareModal(){ closeShareModal(); }
+
+function generateWlShareLink(){
+  const showVals=document.getElementById('wl-share-show-vals').checked;
+  const rareOnly=document.getElementById('wl-share-rare-only').checked;
+  let cards=[...watchlist];
+  if(rareOnly) cards=cards.filter(c=>raritySnap(c).rank<=5);
+
+  const payload={
+    v:1,
+    mode:'watchlist',
+    n:cards.length,
+    tv:showVals?watchlist.reduce((s,c)=>s+(c.market??0),0):null,
+    sc:null,
+    cards:cards.map(c=>({
+      id:c.id,n:c.name,i:c.img,s:c.set,num:c.number,t:c.total,
+      r:raritySnap(c).label,
+      m:showVals?c.market:null,
+      jp:c.isJP||undefined,bl:c.isBL||undefined
+    }))
+  };
+
+  const json=JSON.stringify(payload);
+  const encoded=btoa(unescape(encodeURIComponent(json)));
+  const url=window.location.href.split('#')[0]+'#share='+encoded;
+
+  if(url.length>8000){
+    payload.cards=payload.cards.filter(c=>c.m!=null).sort((a,b)=>(b.m??0)-(a.m??0)).slice(0,50);
+    payload.n=payload.cards.length; payload.trunc=true;
+    const enc2=btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+    copyWlShareUrl(window.location.href.split('#')[0]+'#share='+enc2, true);
+  } else {
+    copyWlShareUrl(url, false);
+  }
+}
+function copyWlShareUrl(url, truncated){
+  const btn=document.getElementById('wl-share-copy-btn');
+  navigator.clipboard.writeText(url).then(()=>{
+    btn.textContent=truncated?'✓ COPIED (top 50)':'✓ LINK COPIED!';
+    btn.style.color='var(--green)';
+    setTimeout(()=>{btn.textContent='⇪ COPY WATCH LIST LINK';btn.style.color='';},3000);
+  }).catch(()=>{ prompt('Copy this link:',url); });
 }
 function closeShareModal(){ document.getElementById('share-modal-bg').classList.remove('open'); }
 
@@ -3555,6 +3607,7 @@ function generateShareLink(){
 
   const payload={
     v:1,
+    mode:'collection',
     n:cards.length,
     tv:showVals?owned.reduce((s,c)=>s+(c.market??0),0):null,
     sc:sc?{id:sc.id,name:sc.name,img:sc.img,set:sc.set,number:sc.number,total:sc.total,rarity:raritySnap(sc).label,market:showVals?sc.market:null}:null,
@@ -3722,6 +3775,21 @@ function renderSharePage(){
       </span>
       <span class="sp-stats">${data.n} cards${data.tv!=null?' · $'+data.tv.toFixed(0)+' value':''}</span>
     </div>`;
+
+    // WATCHLIST MODE — simple full-width grid, no left panel
+    if(data.mode==='watchlist'){
+      html+='<div style="max-width:1200px;margin:0 auto;padding:28px">';
+      html+=`<div style="font-size:8px;font-weight:700;letter-spacing:0.16em;color:#333;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid #141414;display:flex;align-items:center;gap:8px">WATCH LIST <span style="color:#c9a84c;opacity:0.6">${data.n} CARDS${data.tv!=null?' · $'+data.tv.toFixed(0)+' MARKET VALUE':''}</span></div>`;
+      html+='<div class="sp-grid">';
+      data.cards.forEach(c=>{html+=`<div class="sp-card"><img src="${c.i}" loading="lazy"/><div class="sp-card-body"><span class="sp-rtag ${ri_cls(c.r)}">${c.r}</span><div class="sp-card-name">${c.n}</div><div class="sp-card-set">${c.s}</div>${c.m!=null?`<div class="sp-card-price">$${c.m.toFixed(2)}</div>`:''}</div></div>`;});
+      html+='</div>';
+      if(data.trunc) html+='<div class="sp-trunc">Showing top 50 cards by value</div>';
+      html+=`<div class="sp-cta"><div class="sp-cta-title">TRACK YOUR COLLECTION</div><a class="sp-btn sp-btn-gold" href="${window.location.href.split('#')[0]}">⧉ Get FOLIO — Free</a></div>`;
+      html+='</div>';
+      document.body.innerHTML=html;
+      document.documentElement.style.visibility='';
+      return true;
+    }
 
     // LEFT PANEL: stat bar first, then showcase card
     // Stat bar
@@ -4428,25 +4496,45 @@ function setSortChip(el, val){
 </nav>
 <!-- SHARE MODAL -->
 <div class="modal-bg" id="share-modal-bg" onclick="if(event.target===this)closeShareModal()">
-  <div class="modal-box" style="max-width:420px">
+  <div class="modal-box" style="max-width:440px">
     <div class="modal-title">
-      <span style="font-size:11px;font-weight:700;letter-spacing:0.12em;color:var(--gold2);font-family:'Space Mono',monospace">⇪ SHARE COLLECTION</span>
+      <span style="font-size:11px;font-weight:700;letter-spacing:0.12em;color:var(--gold2);font-family:'Space Mono',monospace">⇪ SHARE</span>
       <button class="modal-close" onclick="closeShareModal()">✕</button>
     </div>
-    <div style="background:var(--s2);border:1px solid var(--b1);border-radius:var(--r);padding:10px 12px;margin-bottom:12px;font-family:'DM Sans',sans-serif">
+
+    <!-- FOLIO SECTION -->
+    <div style="font-size:8px;font-weight:700;letter-spacing:0.14em;color:var(--t3);font-family:'Space Mono',monospace;margin-bottom:8px">FOLIO COLLECTION</div>
+    <div style="background:var(--s2);border:1px solid var(--b1);border-radius:var(--r);padding:10px 12px;margin-bottom:10px;font-family:'DM Sans',sans-serif">
       <div style="font-size:10px;font-weight:600;color:var(--text)" id="share-showcase-name">—</div>
       <div style="font-size:9px;color:var(--t3);margin-top:2px"><span id="share-preview-count">0 cards</span> · <span id="share-preview-val">$0 value</span></div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
-      <label style="display:flex;align-items:center;gap:8px;font-size:9px;color:var(--t2);font-family:'DM Sans',sans-serif;cursor:pointer">
-        <input type="checkbox" id="share-show-vals" checked style="accent-color:var(--gold)"/> Show market values
+    <div style="display:flex;gap:16px;margin-bottom:10px">
+      <label style="display:flex;align-items:center;gap:6px;font-size:9px;color:var(--t2);font-family:'DM Sans',sans-serif;cursor:pointer">
+        <input type="checkbox" id="share-show-vals" checked style="accent-color:var(--gold)"/> Show values
       </label>
-      <label style="display:flex;align-items:center;gap:8px;font-size:9px;color:var(--t2);font-family:'DM Sans',sans-serif;cursor:pointer">
-        <input type="checkbox" id="share-rare-only" style="accent-color:var(--gold)"/> Rare+ cards only
+      <label style="display:flex;align-items:center;gap:6px;font-size:9px;color:var(--t2);font-family:'DM Sans',sans-serif;cursor:pointer">
+        <input type="checkbox" id="share-rare-only" style="accent-color:var(--gold)"/> Rare+ only
       </label>
     </div>
-    <div style="font-size:8px;color:var(--t3);font-family:'DM Sans',sans-serif;margin-bottom:12px;line-height:1.6">Purchase prices are never included. Friends will see your showcase card, top cards by value, and your full collection.</div>
-    <button class="btn" id="share-copy-btn" style="width:100%" onclick="generateShareLink()">⇪ COPY SHARE LINK</button>
+    <button class="btn" id="share-copy-btn" style="width:100%;margin-bottom:20px" onclick="generateShareLink()">⇪ SHARE FOLIO</button>
+
+    <div style="height:1px;background:var(--b1);margin-bottom:20px"></div>
+
+    <!-- WATCH LIST SECTION -->
+    <div style="font-size:8px;font-weight:700;letter-spacing:0.14em;color:var(--t3);font-family:'Space Mono',monospace;margin-bottom:8px">WATCH LIST</div>
+    <div style="background:var(--s2);border:1px solid var(--b1);border-radius:var(--r);padding:10px 12px;margin-bottom:10px;font-family:'DM Sans',sans-serif">
+      <div style="font-size:10px;font-weight:600;color:var(--text)">Watch List</div>
+      <div style="font-size:9px;color:var(--t3);margin-top:2px"><span id="wl-share-count">0 cards</span> · <span id="wl-share-val">—</span></div>
+    </div>
+    <div style="display:flex;gap:16px;margin-bottom:10px">
+      <label style="display:flex;align-items:center;gap:6px;font-size:9px;color:var(--t2);font-family:'DM Sans',sans-serif;cursor:pointer">
+        <input type="checkbox" id="wl-share-show-vals" checked style="accent-color:var(--gold)"/> Show values
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:9px;color:var(--t2);font-family:'DM Sans',sans-serif;cursor:pointer">
+        <input type="checkbox" id="wl-share-rare-only" style="accent-color:var(--gold)"/> Rare+ only
+      </label>
+    </div>
+    <button class="btn" id="wl-share-copy-btn" style="width:100%" onclick="generateWlShareLink()">⇪ SHARE WATCH LIST</button>
   </div>
 </div>
 
