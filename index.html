@@ -3554,6 +3554,12 @@ function openWlShareModal(){
 }
 function closeWlShareModal(){ closeShareModal(); }
 
+// Share payload helpers
+function encodeShare(payload){
+  const clean=Object.fromEntries(Object.entries(payload).filter(([,v])=>v!=null));
+  return btoa(unescape(encodeURIComponent(JSON.stringify(clean))));
+}
+
 function generateWlShareLink(){
   const showVals=document.getElementById('wl-share-show-vals').checked;
   const rareOnly=document.getElementById('wl-share-rare-only').checked;
@@ -3565,24 +3571,21 @@ function generateWlShareLink(){
     mode:'watchlist',
     n:cards.length,
     tv:showVals?watchlist.reduce((s,c)=>s+(c.market??0),0):null,
-    sc:null,
     cards:cards.map(c=>({
-      id:c.id,n:c.name,i:c.img,s:c.set,num:c.number,t:c.total,
+      id:c.id,n:c.name,i:c.img,s:c.set,
       r:raritySnap(c).label,
       m:showVals?c.market:null,
       jp:c.isJP||undefined,bl:c.isBL||undefined
     }))
   };
 
-  const json=JSON.stringify(payload);
-  const encoded=btoa(unescape(encodeURIComponent(json)));
+  const encoded=encodeShare(payload);
   const url=window.location.href.split('#')[0]+'#share='+encoded;
 
   if(url.length>8000){
     payload.cards=payload.cards.filter(c=>c.m!=null).sort((a,b)=>(b.m??0)-(a.m??0)).slice(0,50);
     payload.n=payload.cards.length; payload.trunc=true;
-    const enc2=btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
-    copyWlShareUrl(window.location.href.split('#')[0]+'#share='+enc2, true);
+    copyWlShareUrl(window.location.href.split('#')[0]+'#share='+encodeShare(payload), true);
   } else {
     copyWlShareUrl(url, false);
   }
@@ -3592,7 +3595,7 @@ function copyWlShareUrl(url, truncated){
   navigator.clipboard.writeText(url).then(()=>{
     btn.textContent=truncated?'✓ COPIED (top 50)':'✓ LINK COPIED!';
     btn.style.color='var(--green)';
-    setTimeout(()=>{btn.textContent='⇪ COPY WATCH LIST LINK';btn.style.color='';},3000);
+    setTimeout(()=>{btn.textContent='⇪ SHARE WATCH LIST';btn.style.color='';},3000);
   }).catch(()=>{ prompt('Copy this link:',url); });
 }
 function closeShareModal(){ document.getElementById('share-modal-bg').classList.remove('open'); }
@@ -3612,33 +3615,20 @@ function generateShareLink(){
     tv:showVals?owned.reduce((s,c)=>s+(c.market??0),0):null,
     sc:sc?{id:sc.id,name:sc.name,img:sc.img,set:sc.set,number:sc.number,total:sc.total,rarity:raritySnap(sc).label,market:showVals?sc.market:null}:null,
     cards:cards.map(c=>({
-      id:c.id,
-      n:c.name,
-      i:c.img,
-      s:c.set,
-      num:c.number,
-      t:c.total,
+      id:c.id,n:c.name,i:c.img,s:c.set,
       r:raritySnap(c).label,
       m:showVals?c.market:null,
-      jp:c.isJP||undefined,
-      bl:c.isBL||undefined
+      jp:c.isJP||undefined,bl:c.isBL||undefined
     }))
   };
 
-  const json=JSON.stringify(payload);
-  // Simple base64 encode (LZ-string not available, base64 is fine for typical collection sizes)
-  const encoded=btoa(unescape(encodeURIComponent(json)));
+  const encoded=encodeShare(payload);
   const url=window.location.href.split('#')[0]+'#share='+encoded;
 
   if(url.length>8000){
-    // Too long — offer top 50 by value
-    payload.cards=payload.cards
-      .filter(c=>c.m!=null).sort((a,b)=>(b.m??0)-(a.m??0)).slice(0,50);
-    payload.n=payload.cards.length;
-    payload.trunc=true;
-    const enc2=btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
-    const url2=window.location.href.split('#')[0]+'#share='+enc2;
-    copyShareUrl(url2, true);
+    payload.cards=payload.cards.filter(c=>c.m!=null).sort((a,b)=>(b.m??0)-(a.m??0)).slice(0,50);
+    payload.n=payload.cards.length; payload.trunc=true;
+    copyShareUrl(window.location.href.split('#')[0]+'#share='+encodeShare(payload), true);
   } else {
     copyShareUrl(url, false);
   }
@@ -3663,6 +3653,8 @@ function renderSharePage(){
     const encoded=hash.slice(7);
     const json=decodeURIComponent(escape(atob(encoded)));
     const data=JSON.parse(json);
+    // Normalise mode field (may be 'collection', 'watchlist', or absent in old links)
+    if(!data.mode) data.mode=data.sc?'collection':'watchlist';
     document.body.innerHTML='';
     document.body.style.cssText='margin:0;padding:0;background:#080808;color:#e8e6e1;font-family:"Space Mono",monospace;min-height:100vh';
 
@@ -4098,6 +4090,9 @@ function setOwnershipBadge(setId,setTotal){
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────
+// Skip all app init if this is a share page — renderSharePage handles everything
+if(!window.location.hash.startsWith('#share=')){
+
 // Ensure all owned have copyIds
 owned=owned.map(c=>({...c,copyId:c.copyId||uid()}));
 
@@ -4149,7 +4144,7 @@ document.getElementById('sg-date').value=todayVal();
 // Restore theme
 if(localStorage.getItem('pf_theme')==='light'){document.body.classList.add('light');document.getElementById('theme-btn').textContent='🌙';}
 
-
+} // end share mode guard
 
 // ── TAB SWIPE NAVIGATION ──────────────────────────────────────────────────
 function setupTabSwipe(){
