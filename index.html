@@ -3860,7 +3860,8 @@ function buildExportData(){
   if(exportMode==='all'||exportMode==='watchlist') d.watchlist=watchlist;
   if(exportMode==='all'||exportMode==='owned')     d.owned=owned;
   if(exportMode==='all'||exportMode==='history')   d.ledger=ledger;
-  if(exportMode==='all'){d.gifted=gifted;d.sold=sold;d.showcaseCopyId=showcaseCopyId||null;}
+  if(exportMode==='all'){d.gifted=gifted;d.sold=sold;}
+  d.showcaseCopyId=showcaseCopyId||null;
   d.priceHistory=priceHistory; // always export price history to prevent data loss
   return JSON.stringify(d,null,2);
 }
@@ -3923,6 +3924,11 @@ function doImport(mode){
     (d.gifted||[]).forEach(c=>{if(!gifted.some(g=>g.copyId===c.copyId))gifted.push(c);});
     (d.sold||[]).forEach(c=>{if(!sold.some(s=>s.copyId===c.copyId))sold.push(c);});
     if(d.priceHistory) Object.assign(priceHistory,d.priceHistory);
+    // Restore showcase if present and the card still exists after merge
+    if(d.showcaseCopyId){
+      const stillExists=owned.some(o=>o.copyId===d.showcaseCopyId);
+      if(stillExists){showcaseCopyId=d.showcaseCopyId;localStorage.setItem('ptrkr_showcase',showcaseCopyId);}
+    }
     // MERGE ledger: add new entries AND update editable fields on existing ones
     if(d.ledger){
       Object.entries(d.ledger).forEach(([k,v])=>{
