@@ -178,6 +178,8 @@ function renderMerch(){
   }).join('');
 }
 
+
+
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -479,6 +481,13 @@ body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);m
 .rc:active,.rc.active{background:rgba(201,168,76,0.15);border-color:var(--gold);color:var(--gold)}
 .sc{background:var(--s2);border:1px solid var(--b1);border-radius:20px;padding:4px 10px;font-size:8px;font-weight:700;letter-spacing:0.08em;color:var(--t3);font-family:'Space Mono',monospace;cursor:pointer;white-space:nowrap;transition:all .15s;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 .sc:active,.sc.active{background:rgba(201,168,76,0.1);border-color:rgba(201,168,76,0.5);color:var(--gold2)}
+
+
+
+
+.price-delta{position:absolute;top:36px;right:6px;font-size:7px;font-weight:700;padding:2px 5px;border-radius:3px;letter-spacing:0.05em;line-height:1;z-index:2;pointer-events:none}
+.price-delta.up{background:rgba(76,175,125,0.18);color:var(--green);border:1px solid rgba(76,175,125,0.3)}
+.price-delta.down{background:rgba(192,80,80,0.15);color:var(--red);border:1px solid rgba(192,80,80,0.25)}
 
 /* EMPTY / LOADING / ERROR */
 .empty{text-align:center;padding:4rem 1rem;color:var(--t3)}
@@ -1212,7 +1221,7 @@ ownPage=1;applyOwnControls();}
   if(t==='sold'){soldPage=1;renderSold();}
   if(t==='gifted'){giftedPage=1;renderGifted();}
   if(t==='history'){histPage=1;renderHistory();}
-  if(t==='search'){loadDefaultSearch();renderSearchHistory();}
+  if(t==='search'){if(_lastSrQuery){document.getElementById('search-input').value=_lastSrQuery;document.getElementById('search-clear').style.display=_lastSrQuery?'flex':'none';}else{loadDefaultSearch();}renderSearchHistory();}
   if(t==='merch') renderMerch();
 }
 function renderCurrentTab(){
@@ -1337,6 +1346,25 @@ function typeChips(types){
 function setSymbolImg(url){
   if(!url) return '';
   return '<img src="'+url+'" style="height:14px;width:auto;object-fit:contain;opacity:0.75;vertical-align:middle;margin-right:3px" loading="lazy" onerror="this.remove()"/>';
+}
+
+
+function priceDeltaBadge(cardId, currentMarket){
+  if(currentMarket==null) return '';
+  const hist=priceHistory[cardId];
+  if(!hist?.points?.length) return '';
+  const pts=hist.points.filter(p=>p.market!=null).sort((a,b)=>a.t-b.t);
+  if(pts.length<2) return '';
+  const todayStr=new Date().toDateString();
+  const todayPt=pts.slice().reverse().find(p=>new Date(p.t).toDateString()===todayStr);
+  const prevPt=pts.slice().reverse().find(p=>new Date(p.t).toDateString()!==todayStr);
+  if(!todayPt||!prevPt) return '';
+  const diff=todayPt.market-prevPt.market;
+  const pct=diff/prevPt.market*100;
+  if(Math.abs(pct)<0.5) return '';
+  const cls=diff>0?'up':'down';
+  const arrow=diff>0?'▲':'▼';
+  return `<span class="price-delta ${cls}">${arrow}${Math.abs(pct).toFixed(0)}%</span>`;
 }
 
 function raritySnap(c){
@@ -1476,7 +1504,8 @@ function filterSort(list,ft,fr,so){
 
 // ── DEFAULT SEARCH (shown when tab first opens) ───────────────────────────
 let _defaultLoaded=false;
-let _defaultCards=null; // pre-fetched cache
+let _defaultCards=null;
+let _lastSrQuery=''; // pre-fetched cache
 
 // Pre-fetch immediately on app load in background
 async function prefetchDefaultCards(){
@@ -1541,7 +1570,8 @@ function skeletonGrid(n=48){
 // ── SEARCH ──────────────────────────────────────────────────────────────────
 async function doSearch(page){
   const raw=document.getElementById('search-input').value.trim();
-  if(!raw){_defaultLoaded=false;loadDefaultSearch();return;}
+  if(!raw){_defaultLoaded=false;_lastSrQuery='';loadDefaultSearch();return;}
+  _lastSrQuery=raw;
   saveSearchHistory(raw);
   srPage=page; srRaw=[];
   const el=document.getElementById('search-results');
@@ -1831,13 +1861,16 @@ function confirmQAAdd(){
   const fromVal=document.getElementById('qa-from').value.trim();
   if(fromVal) snap.boughtFrom=fromVal;
   owned.push(snap);ledgerSetOwned(snap);
-  if(_qaWlId){
-    watchlist=watchlist.filter(w=>w.id!==_qaWlId);
-    _qaWlId=null;
-  }
+  // Remove from watchlist if present (regardless of which tab it was added from)
+  const wlBefore=watchlist.length;
+  watchlist=watchlist.filter(w=>w.id!==snap.id);
+  if(_qaWlId){_qaWlId=null;}
+  if(watchlist.length<wlBefore) save(); // extra save if watchlist changed
   save();refreshAllCounts();
   closeQAModal();
-  applyWlControls();applyOwnControls();
+  applyWlControls();
+  // Preserve current page — use refreshOwnedInPlace instead of applyOwnControls (which resets to page 1)
+  refreshOwnedInPlace();
   const b=document.getElementById('ownb-'+(snap.id||''));
   if(b){b.textContent='✓ IN FOLIO';b.style.color='';b.style.borderColor='';}
   showBriefToast('✓ Added '+snap.name+' to FOLIO',3000);
@@ -3016,7 +3049,7 @@ function renderWatchlist(){
     const isSelected=ownSelected.has(c.copyId);
     const isShowcase=showcaseCopyId===c.copyId;
     const cardBorder=isShowcase?'':(favBorder);
-    return `<div class="pcard${ri.rank<=3?' is-rare':''} pcard-bulk${isShowcase?' pcard-showcase':''}" data-copy="${c.copyId}" style="${cardBorder};cursor:pointer" onclick="if(!event.target.closest('button,a,input')){openCardStatById('${c.id}','watch')}">
+    const cardHtml=`<div class="pcard${ri.rank<=3?' is-rare':''} pcard-bulk${isShowcase?' pcard-showcase':''}" data-copy="${c.copyId}" style="${cardBorder};cursor:pointer" onclick="if(!event.target.closest('button,a,input')){openCardStatById('${c.id}','watch')}">
       <img src="${c.img}" loading="lazy"/>
       <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px;min-width:0">
         <span class="rtag ${ri.cls}" style="margin-bottom:0;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ri.label}</span>
@@ -3036,6 +3069,7 @@ function renderWatchlist(){
         <button class="cbtn del-btn" onclick="confirmRemove(this,'${c.name}',()=>removeWl('${c.id}'))">✕ REMOVE</button>
       </div>
     </div>`;
+    return cardHtml;
   }).join('');
   el.innerHTML=`<div class="sec-label">${wlFiltered.length} CARD${wlFiltered.length!==1?'S':''}</div><div class="card-grid-wrap"><div class="card-grid">${cards}</div></div>`;
   pel.innerHTML=pagHTML(wlPage,wlFiltered.length,'goWlPage');
@@ -3271,7 +3305,9 @@ function renderOwned(){
     const isSelected=ownSelected.has(c.copyId);
     const isShowcase=showcaseCopyId===c.copyId;
     const cardBorder=isShowcase?'':(favBorder);
-    return `<div class="pcard${ri.rank<=3?' is-rare':''} pcard-bulk${isShowcase?' pcard-showcase':''}" data-copy="${c.copyId}" style="${cardBorder}${isSelected?';outline:2px solid var(--gold);outline-offset:1px':''};cursor:pointer" onclick="if(!event.target.closest('button,a,input')){openCDM('${c.copyId}')}">\n      ${bulkEditOpen?`<input type="checkbox" class="sr-checkbox" ${isSelected?'checked':''} onchange="toggleOwnSelect('${c.copyId}',this.checked)" onclick="event.stopPropagation()"/>`:''}      <img src="${c.img}" loading="lazy"/>
+    return `<div class="pcard${ri.rank<=3?' is-rare':''} pcard-bulk${isShowcase?' pcard-showcase':''}" data-copy="${c.copyId}" style="${cardBorder}${isSelected?';outline:2px solid var(--gold);outline-offset:1px':''};cursor:pointer" onclick="if(!event.target.closest('button,a,input')){openCDM('${c.copyId}')}">\n      ${bulkEditOpen?`<input type="checkbox" class="sr-checkbox" ${isSelected?'checked':''} onchange="toggleOwnSelect('${c.copyId}',this.checked)" onclick="event.stopPropagation()"/>`:''}
+      ${priceDeltaBadge(c.id, c.market)}
+      <img src="${c.img}" loading="lazy"/>
       <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px;min-width:0">
         <span class="rtag ${ri.cls}" style="margin-bottom:0;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ri.label}${copyLbl?`<span class="copy-badge">${copyLbl.trim()}</span>`:''}</span>
         <span style="flex-shrink:0;font-size:7px;font-weight:700;padding:1px 5px;border-radius:3px;letter-spacing:0.04em;${c.isJP?'background:rgba(220,80,80,0.15);color:#f87171;border:1px solid rgba(220,80,80,0.35)':c.isBL?'background:var(--purple-dim);color:var(--purple);border:1px solid rgba(196,181,253,0.35)':'background:rgba(59,130,246,0.12);color:#60a5fa;border:1px solid rgba(59,130,246,0.35)'}">${c.isJP?'JP':c.isBL?'BL':'US'}</span>
@@ -3298,12 +3334,15 @@ function renderOwned(){
         <div style="display:flex;gap:3px">
           <a class="tcg-link" href="${c.tcgUrl||tcgUrl(c.name)}" target="_blank" style="flex:2">↗ TCG</a>
           ${(c.isFav||showcaseCopyId===c.copyId)?'':
-          `<button class="cbtn" style="flex:1;color:var(--red);border-color:rgba(192,80,80,0.3)" onclick="ownAct(${i},'sell')">SELL</button>
-           <button class="cbtn" style="flex:1;color:var(--purple);border-color:rgba(196,181,253,0.3)" onclick="ownAct(${i},'gift')">GIFT</button>`}
+          `<button class="cbtn" style="flex:1;color:var(--red);border-color:rgba(192,80,80,0.3)" onclick="event.stopPropagation();ownAct(${i},'sell')">SELL</button>
+           <button class="cbtn" style="flex:1;color:var(--purple);border-color:rgba(196,181,253,0.3)" onclick="event.stopPropagation();ownAct(${i},'gift')">GIFT</button>`}
         </div>
       </div>
     </div>`;
+    // Wrap in swipe structure
+    return cardHtml;
   }).join('');
+  el.innerHTML=grid;
   if(ownCompact){
     const compactCards=slice.map((c,i)=>{
       const ri=raritySnap(c);
@@ -4417,7 +4456,23 @@ owned.forEach(c=>{
   if(!ledger[c.id].statusAt) ledger[c.id].statusAt=c.boughtAt||ledger[c.id].ownAt||c.addedAt||Date.now();
 });
 save();
-refreshAllCounts();
+// Backfill marketAtBuy from price history for existing cards that don't have it
+owned.forEach(c=>{
+  if(c.marketAtBuy!=null) return; // already set
+  const hist=priceHistory[c.id];
+  if(!hist?.points?.length) return;
+  const pts=hist.points.filter(p=>p.market!=null).sort((a,b)=>a.t-b.t);
+  if(!pts.length) return;
+  if(c.boughtAt){
+    // Find point closest to boughtAt date
+    const closest=pts.reduce((a,b)=>Math.abs(b.t-c.boughtAt)<Math.abs(a.t-c.boughtAt)?b:a);
+    c.marketAtBuy=closest.market;
+  } else {
+    // No bought date — use earliest recorded price
+    c.marketAtBuy=pts[0].market;
+  }
+});
+save();
 // Render the default landing tab (Folio) immediately on load
 
 // Seed today's price for every card that has a market price stored
@@ -4441,6 +4496,78 @@ document.getElementById('sg-date').value=todayVal();
 // Restore saved API key
 // Restore theme
 if(localStorage.getItem('pf_theme')==='light'){document.body.classList.add('light');document.getElementById('theme-btn').textContent='🌙';}
+
+
+// ── PINCH TO TOGGLE COMPACT ───────────────────────────────────────────────
+(function setupPinchCompact(){
+  let lastDist=null, pinching=false;
+  document.addEventListener('touchstart',e=>{
+    if(e.touches.length===2&&document.getElementById('tab-owned')?.classList.contains('active')){
+      lastDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+      pinching=true;
+    }
+  },{passive:true});
+  document.addEventListener('touchmove',e=>{
+    if(!pinching||e.touches.length!==2) return;
+    const dist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+    lastDist=dist;
+  },{passive:true});
+  document.addEventListener('touchend',e=>{
+    if(!pinching) return;
+    pinching=false;
+    const dist=e.touches.length===0?lastDist:Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+    // Will be handled on touchstart capturing initial and final
+  },{passive:true});
+  // Simpler: detect pinch-in vs pinch-out via scale change
+  let pinchStart=null;
+  document.addEventListener('touchstart',e=>{
+    if(e.touches.length===2&&document.getElementById('tab-owned')?.classList.contains('active')){
+      pinchStart=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+    } else { pinchStart=null; }
+  },{passive:true});
+  document.addEventListener('touchend',e=>{
+    if(pinchStart==null||!document.getElementById('tab-owned')?.classList.contains('active')) return;
+    if(e.changedTouches.length<2&&e.touches.length<1) return;
+    // Handled by comparing start to last move
+  },{passive:true});
+  let ps=null,pm=null;
+  document.addEventListener('touchstart',e=>{
+    if(e.touches.length===2&&document.getElementById('tab-owned')?.classList.contains('active'))
+      ps=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+    else ps=null;
+  },{passive:true});
+  document.addEventListener('touchmove',e=>{
+    if(ps!=null&&e.touches.length===2)
+      pm=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+  },{passive:true});
+  document.addEventListener('touchend',e=>{
+    if(ps==null||pm==null) return;
+    const ratio=pm/ps;
+    if(Math.abs(ratio-1)>0.25){
+      const goCompact=ratio<1; // pinch in = compact, pinch out = full
+      if(goCompact!==ownCompact){
+        ownCompact=goCompact;
+        const btn=document.getElementById('own-compact-btn');
+        if(btn){btn.textContent=ownCompact?'⊞ FULL':'⊟ COMPACT';btn.style.borderColor=ownCompact?'var(--gold)':'var(--b1)';btn.style.color=ownCompact?'var(--gold)':'var(--t3)';}
+        applyOwnControls();
+        showBriefToast(ownCompact?'Compact view':'Full view',1500);
+      }
+    }
+    ps=null;pm=null;
+  },{passive:true});
+})();
+
+
+// ── ENTER KEY CONFIRMS ACTIVE MODAL ──────────────────────────────────────
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Enter'||e.target.tagName==='TEXTAREA') return;
+  // Don't fire if focused on a button (would double-trigger)
+  if(e.target.tagName==='BUTTON') return;
+  if(document.getElementById('qa-modal-bg')?.classList.contains('open')){e.preventDefault();confirmQAAdd();return;}
+  if(document.getElementById('owned-edit-modal')?.classList.contains('open')){e.preventDefault();saveOwnedEditFromModal();return;}
+  if(document.getElementById('merch-modal-bg')?.classList.contains('open')){e.preventDefault();saveMerchItem();return;}
+  if(document.getElementById('sg-modal-bg')?.classList.contains('open')&&document.getElementById('sell-confirm-btn')){e.preventDefault();document.getElementById('sell-confirm-btn')?.click();return;}
+});
 
 } // end share mode guard
 
