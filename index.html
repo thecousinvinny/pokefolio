@@ -863,16 +863,7 @@ body.light .bottom-nav{background:rgba(245,244,241,0.9);border-top:1px solid rgb
       <span class="sc" data-val="number" onclick="setSortChip(this,'number')">NUMBER</span>
     </div>
     <!-- hidden selects kept for JS filterSrPage() compatibility -->
-    <select id="sr-rarity-filter" style="display:none" onchange="filterSrPage()">
-      <option value="">All rarities</option>
-      <option value="ILLUS">Illus Rare</option>
-      <option value="FULL|HYPER">Full Art / Hyper</option>
-      <option value="ULTRA|SPEC">Ultra Rare / Spec</option>
-      <option value="ULTRA">Ultra Rare</option>
-      <option value="SPEC">Spec Illus</option>
-      <option value="RARE">Rare+</option>
-      <option value="STANDARD">Standard</option>
-    </select>
+    <select id="sr-rarity-filter" style="display:none" onchange="filterSrPage()"><option value="">All rarities</option><option value="SPEC">Spec Illus</option><option value="ILLUS">Illus Rare</option><option value="HYPER">Hyper</option><option value="ULTRA">Ultra Rare</option><option value="__EX__">ex/V/GX</option><option value="__RARE__">Rare</option><option value="STANDARD">Standard</option><option value="__FAV__">Fav</option></select>
     <select id="sr-sort" style="display:none" onchange="filterSrPage()">
       <option value="rarity">Rarity</option>
       <option value="name">Name A–Z</option>
@@ -921,7 +912,7 @@ body.light .bottom-nav{background:rgba(245,244,241,0.9);border-top:1px solid rgb
       <span class="sc sort-chips" data-val="rarity" onclick="setTabSortChip(this,'watchlist','wl-sort',applyWlControls)">RARITY</span>
       <span class="sc sort-chips" data-val="set" onclick="setTabSortChip(this,'watchlist','wl-sort',applyWlControls)">SET</span>
     </div>
-    <select id="wl-rarity" style="display:none" onchange="applyWlControls()"><option value="">All rarities</option><option value="ILLUS">Illus Rare</option><option value="FULL|HYPER">Full Art / Hyper</option><option value="ULTRA|SPEC">Ultra / Spec</option><option value="RARE">Rare+</option><option value="STANDARD">Standard</option></select>
+    <select id="wl-rarity" style="display:none" onchange="applyWlControls()"><option value="">All rarities</option><option value="SPEC">Spec Illus</option><option value="ILLUS">Illus Rare</option><option value="HYPER">Hyper</option><option value="ULTRA">Ultra Rare</option><option value="__EX__">ex/V/GX</option><option value="__RARE__">Rare</option><option value="STANDARD">Standard</option><option value="__FAV__">Fav</option></select>
     <select id="wl-sort" style="display:none" onchange="applyWlControls()"><option value="added">Date added</option><option value="name">Name A–Z</option><option value="name-desc">Name Z–A</option><option value="market-desc">Market ↓</option><option value="market-asc">Market ↑</option><option value="set">Set A–Z</option><option value="rarity">Rarity</option></select>
     <input type="text" class="ctrl-input" id="wl-filter" style="display:none" oninput="applyWlControls()"/>
     <div id="watchlist-cards"></div>
@@ -938,7 +929,7 @@ body.light .bottom-nav{background:rgba(245,244,241,0.9);border-top:1px solid rgb
     </div>
     <div class="rarity-chips" style="margin-bottom:6px">
       <span class="ctrl-label" style="display:flex;align-items:center;margin-right:4px;font-size:8px">FILTER</span>
-      <span class="rc active" data-val="" onclick="setTabRarityChip(this,'owned','own-rarity',applyOwnControls)">ALL</span>
+      <span class="rc" data-val="" onclick="setTabRarityChip(this,'owned','own-rarity',applyOwnControls)">ALL</span>
       <span class="rc" data-val="SPEC" onclick="setTabRarityChip(this,'owned','own-rarity',applyOwnControls)">SPEC ILLUS</span>
       <span class="rc" data-val="ILLUS" onclick="setTabRarityChip(this,'owned','own-rarity',applyOwnControls)">ILLUS RARE</span>
       <span class="rc" data-val="HYPER" onclick="setTabRarityChip(this,'owned','own-rarity',applyOwnControls)">HYPER</span>
@@ -946,7 +937,7 @@ body.light .bottom-nav{background:rgba(245,244,241,0.9);border-top:1px solid rgb
       <span class="rc" data-val="__EX__" onclick="setTabRarityChip(this,'owned','own-rarity',applyOwnControls)">ex / V / GX</span>
       <span class="rc" data-val="__RARE__" onclick="setTabRarityChip(this,'owned','own-rarity',applyOwnControls)">RARE</span>
       <span class="rc" data-val="STANDARD" onclick="setTabRarityChip(this,'owned','own-rarity',applyOwnControls)">STANDARD</span>
-      <span class="rc" data-val="__FAV__" onclick="setTabRarityChip(this,'owned','own-rarity',applyOwnControls)">★ FAV</span>
+      <span class="rc active" data-val="__FAV__" onclick="setTabRarityChip(this,'owned','own-rarity',applyOwnControls)">★ FAV</span>
       <div style="width:1px;background:var(--b1);margin:0 4px;align-self:stretch"></div>
       <span class="ctrl-label" style="display:flex;align-items:center;margin-right:4px;font-size:8px">SORT</span>
       <span class="sc active sort-chips" data-val="bought" onclick="setTabSortChip(this,'owned','own-sort',applyOwnControls)">BOUGHT</span>
@@ -960,7 +951,7 @@ body.light .bottom-nav{background:rgba(245,244,241,0.9);border-top:1px solid rgb
       <button id="own-binder-btn" class="toggle-btn" onclick="toggleBinderMode()" style="white-space:nowrap;flex-shrink:0">⧉ BINDER</button>
       <button id="own-compact-btn" class="toggle-btn" onclick="ownCompact=!ownCompact;document.getElementById('own-compact-btn').textContent=ownCompact?'⊞ FULL':'⊟ COMPACT';document.getElementById('own-compact-btn').style.borderColor=ownCompact?'var(--gold)':'var(--b1)';document.getElementById('own-compact-btn').style.color=ownCompact?'var(--gold)':'var(--t3)';applyOwnControls()" style="white-space:nowrap;flex-shrink:0">⊟ COMPACT</button>
     </div>
-    <select id="own-rarity" style="display:none" onchange="applyOwnControls()"><option value="">All rarities</option><option value="ILLUS">Illus Rare</option><option value="FULL|HYPER">Full Art / Hyper</option><option value="ULTRA|SPEC">Ultra / Spec</option><option value="RARE">Rare+</option><option value="STANDARD">Standard</option></select>
+    <select id="own-rarity" style="display:none" onchange="applyOwnControls()"><option value="">All rarities</option><option value="SPEC">Spec Illus</option><option value="ILLUS">Illus Rare</option><option value="HYPER">Hyper</option><option value="ULTRA">Ultra Rare</option><option value="__EX__">ex/V/GX</option><option value="__RARE__">Rare</option><option value="STANDARD">Standard</option><option value="__FAV__">Fav</option></select>
     <select id="own-fav" style="display:none" onchange="applyOwnControls()"><option value="">All cards</option><option value="fav">Favourites</option><option value="unfav">Non-favourites</option></select>
     <select id="own-sort" style="display:none" onchange="applyOwnControls()"><option value="bought">Date bought</option><option value="added">Date added</option><option value="name">Name A–Z</option><option value="name-desc">Name Z–A</option><option value="market-desc">Value ↓</option><option value="market-asc">Value ↑</option><option value="set">Set A–Z</option><option value="rarity">Rarity</option></select>
     <input type="text" class="ctrl-input" id="own-filter" style="display:none" oninput="applyOwnControls()"/>
@@ -1213,7 +1204,9 @@ function switchTab(t){
   TABS.forEach((n,i)=>{const tab=document.querySelectorAll('.tab')[i];if(tab)tab.classList.toggle('active',n===t);});
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.getElementById('tab-'+t).classList.add('active');
-  if(t==='owned'){ownPage=1;applyOwnControls();}
+  if(t==='owned'){const _ownRaritySel=document.getElementById('own-rarity');
+if(_ownRaritySel&&!_ownRaritySel.dataset.filterVal){_ownRaritySel.dataset.filterVal='__FAV__';}
+ownPage=1;applyOwnControls();}
   if(t==='dashboard') renderDashboard();
   if(t==='watchlist'){wlPage=1;applyWlControls();}
   if(t==='sold'){soldPage=1;renderSold();}
@@ -1456,8 +1449,10 @@ function filterSort(list,ft,fr,so){
     const wantFav=parts.includes('__FAV__');
     const otherParts=parts.filter(p=>p!=='STANDARD'&&p!=='__EX__'&&p!=='__RARE__'&&p!=='__FAV__');
     list=list.filter(c=>{
-      if(wantFav && !c.isFav) return false;
       const ri=raritySnap(c);
+      if(wantFav && c.isFav) return true;
+      // If FAV is the only filter, exclude non-favs
+      if(wantFav && !wantStd && !wantEx && !wantRare && !otherParts.length) return false;
       if(wantStd && ri.rank>=7) return true;
       if(wantEx && ri.rank===5) return true;
       if(wantRare && ri.rank===6) return true;
@@ -1635,7 +1630,7 @@ async function doSearch(page){
 
 function filterSrPage(){
   const ft=document.getElementById('sr-name-filter')?.value||'';
-  const fr=document.getElementById('sr-rarity-filter')?.value||'';
+  const fr=(document.getElementById('sr-rarity-filter')?.dataset.filterVal??'');
   const so=document.getElementById('sr-sort')?.value||'rarity';
   let cards=srRaw;
   if(ft) cards=cards.filter(c=>c.name.toLowerCase().includes(ft.toLowerCase())||(c.set?.name||'').toLowerCase().includes(ft.toLowerCase()));
@@ -2866,7 +2861,7 @@ function setupCSMSwipe(){
 function applyWlControls(){
   wlFiltered=filterSort([...watchlist],
     document.getElementById('wl-filter')?.value||'',
-    document.getElementById('wl-rarity')?.value||'',
+    (document.getElementById('wl-rarity')?.dataset.filterVal??''),
     document.getElementById('wl-sort')?.value||'added');
   wlPage=1;renderWatchlist();
 }
@@ -3075,13 +3070,9 @@ function toggleFav(copyId){
 
 function applyOwnControls(){
   let list=[...owned];
-  // Hide standard/rare (rank>=5) unless favourited
-  const favFilter=document.getElementById('own-fav')?.value||'';
-  if(favFilter==='fav')   list=list.filter(c=>c.isFav);
-  if(favFilter==='unfav') list=list.filter(c=>!c.isFav);
   ownFiltered=filterSort(list,
     document.getElementById('own-filter')?.value||'',
-    document.getElementById('own-rarity')?.value||'',
+    (document.getElementById('own-rarity')?.dataset.filterVal??''),
     document.getElementById('own-sort')?.value||'bought');
   ownPage=1;
   if(ownBinder) renderBinder(); else renderOwned();
@@ -3089,12 +3080,9 @@ function applyOwnControls(){
 function refreshOwnedInPlace(){
   // Re-filter and re-render without resetting page — used after edits
   let list=[...owned];
-  const favFilter=document.getElementById('own-fav')?.value||'';
-  if(favFilter==='fav')   list=list.filter(c=>c.isFav);
-  if(favFilter==='unfav') list=list.filter(c=>!c.isFav);
   ownFiltered=filterSort(list,
     document.getElementById('own-filter')?.value||'',
-    document.getElementById('own-rarity')?.value||'',
+    (document.getElementById('own-rarity')?.dataset.filterVal??''),
     document.getElementById('own-sort')?.value||'bought');
   // clamp page
   const tp=Math.ceil(ownFiltered.length/PER);
@@ -4428,6 +4416,8 @@ refreshAllCounts();
   [...owned,...watchlist].forEach(c=>{if(c.market!=null)recordHistory(c);});
   save();
 })();
+const _ownRaritySel=document.getElementById('own-rarity');
+if(_ownRaritySel&&!_ownRaritySel.dataset.filterVal){_ownRaritySel.dataset.filterVal='__FAV__';}
 ownPage=1;applyOwnControls();
 updateFolioSummary();
 // Refresh prices and pre-fetch search cards in parallel on every open
@@ -4560,10 +4550,10 @@ document.addEventListener('DOMContentLoaded',()=>{
   });
 
   // Helper: restore multi-select rarity chips for a tab
-  function restoreRarityChips(rowSelector, savedVal){
+  function restoreRarityChips(rowSelector, savedVal, filterId){
     const row=document.querySelector(rowSelector); if(!row) return;
     const allChip=row.querySelector('.rc[data-val=""]');
-    if(!savedVal){return;} // nothing saved, leave default (ALL active)
+    if(!savedVal){return;}
     const parts=savedVal.split('|').filter(Boolean);
     row.querySelectorAll('.rc').forEach(c=>c.classList.remove('active'));
     if(!parts.length){
@@ -4573,13 +4563,16 @@ document.addEventListener('DOMContentLoaded',()=>{
         const chip=row.querySelector(`.rc[data-val="${p}"]`);
         if(chip) chip.classList.add('active');
       });
-      // also handle compound vals like FULL|HYPER stored as one chip
       if(!row.querySelector('.rc.active:not([data-val=""])')){
-        // try matching the whole combined string as a single chip
         const chip=row.querySelector(`.rc[data-val="${savedVal}"]`);
         if(chip) chip.classList.add('active');
         else if(allChip) allChip.classList.add('active');
       }
+    }
+    // Restore dataset.filterVal so filter reads correctly
+    if(filterId){
+      const sel=document.getElementById(filterId);
+      if(sel) sel.dataset.filterVal=savedVal;
     }
   }
 
@@ -4592,15 +4585,15 @@ document.addEventListener('DOMContentLoaded',()=>{
   }
 
   // Restore all tabs
-  restoreRarityChips('#rarity-chips', localStorage.getItem('ptrkr_sort_srr'));
+  restoreRarityChips('#rarity-chips', localStorage.getItem('ptrkr_sort_srr'), 'sr-rarity-filter');
   restoreSortChips('#rarity-chips', localStorage.getItem('ptrkr_sort_sr'));
 
   // Watch
-  restoreRarityChips('#tab-watchlist .rarity-chips', localStorage.getItem('ptrkr_sort_watchlistr'));
+  restoreRarityChips('#tab-watchlist .rarity-chips', localStorage.getItem('ptrkr_sort_watchlistr'), 'wl-rarity');
   restoreSortChips('#tab-watchlist .rarity-chips', localStorage.getItem('ptrkr_sort_watchlist'));
 
   // Folio
-  restoreRarityChips('#tab-owned .rarity-chips', localStorage.getItem('ptrkr_sort_ownedr'));
+  restoreRarityChips('#tab-owned .rarity-chips', localStorage.getItem('ptrkr_sort_ownedr')||'__FAV__', 'own-rarity');
   restoreSortChips('#tab-owned .rarity-chips', localStorage.getItem('ptrkr_sort_owned'));
 
   // Sold
@@ -4666,7 +4659,8 @@ function setRarityChip(el, val){
   const active=Array.from(row.querySelectorAll('.rc[data-val].active')).map(c=>c.dataset.val).filter(v=>v);
   const combined=active.join('|');
   const sel=document.getElementById('sr-rarity-filter');
-  if(sel){sel.value=combined;filterSrPage();}
+  if(sel) sel.dataset.filterVal=combined;
+  filterSrPage();
 }
 
 
@@ -4675,26 +4669,23 @@ function setTabRarityChip(el, tabPrefix, filterId, applyFn){
   const row=el.closest('.rarity-chips');
   const allChip=row.querySelector('.rc[data-val=""]');
   if(val===''){
-    // ALL — deactivate everything else, activate ALL
     row.querySelectorAll('.rc').forEach(c=>c.classList.remove('active'));
     el.classList.add('active');
   } else {
-    // Toggle this chip
     el.classList.toggle('active');
-    // If nothing selected, fall back to ALL
     const anyActive=Array.from(row.querySelectorAll('.rc[data-val]')).filter(c=>c.dataset.val&&c.classList.contains('active'));
     if(!anyActive.length){
       if(allChip) allChip.classList.add('active');
     } else {
-      // Deactivate ALL chip since specific filters are chosen
       if(allChip) allChip.classList.remove('active');
     }
   }
-  // Build combined filter string from all active non-empty chips
   const active=Array.from(row.querySelectorAll('.rc[data-val].active')).map(c=>c.dataset.val).filter(v=>v);
   const combined=active.join('|');
+  // Store on element dataset instead of select value (avoids option mismatch)
   const sel=document.getElementById(filterId);
-  if(sel){sel.value=combined;applyFn();}
+  if(sel) sel.dataset.filterVal=combined;
+  applyFn();
   localStorage.setItem('ptrkr_sort_'+tabPrefix+'r', combined);
 }
 function setTabSortChip(el, tabPrefix, sortId, applyFn){
