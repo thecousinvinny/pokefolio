@@ -1450,7 +1450,8 @@ function filterSort(list,ft,fr,so){
     const otherParts=parts.filter(p=>p!=='STANDARD'&&p!=='__EX__'&&p!=='__RARE__'&&p!=='__FAV__');
     list=list.filter(c=>{
       const ri=raritySnap(c);
-      if(wantFav && c.isFav) return true;
+      const isFavOrShowcase=c.isFav||(showcaseCopyId&&c.copyId===showcaseCopyId);
+      if(wantFav && isFavOrShowcase) return true;
       // If FAV is the only filter, exclude non-favs
       if(wantFav && !wantStd && !wantEx && !wantRare && !otherParts.length) return false;
       if(wantStd && ri.rank>=7) return true;
