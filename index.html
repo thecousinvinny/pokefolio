@@ -7,7 +7,178 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="FOLIO"/>
 <title>FOLIO</title>
-<script>if(location.hash.startsWith('#share='))document.documentElement.style.visibility='hidden'</script>
+<script>if(location.hash.startsWith('#share='))document.documentElement.style.visibility='hidden'
+// ── MERCH ─────────────────────────────────────────────────────────────────
+let _merchFilter='', _merchSort='date-desc';
+
+function setMerchFilter(el, val){
+  el.closest('.rarity-chips').querySelectorAll('.rc').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  _merchFilter=val; renderMerch();
+}
+function setMerchSort(el, val){
+  el.closest('.rarity-chips').querySelectorAll('.sc').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  _merchSort=val; renderMerch();
+}
+
+function openMerchAdd(){
+  document.getElementById('merch-modal-title').textContent='+ ADD ITEM';
+  document.getElementById('merch-edit-id').value='';
+  document.getElementById('merch-name').value='';
+  document.getElementById('merch-set').value='';
+  document.getElementById('merch-type').value='Booster Box';
+  document.getElementById('merch-qty').value='1';
+  document.getElementById('merch-paid').value='';
+  document.getElementById('merch-market').value='';
+  document.getElementById('merch-date').value=new Date().toISOString().slice(0,10);
+  document.getElementById('merch-from').value='';
+  document.getElementById('merch-notes').value='';
+  document.getElementById('merch-modal-bg').classList.add('open');
+}
+function openMerchEdit(id){
+  const item=merch.find(m=>m.id===id); if(!item) return;
+  document.getElementById('merch-modal-title').textContent='▼ EDIT ITEM';
+  document.getElementById('merch-edit-id').value=id;
+  document.getElementById('merch-name').value=item.name||'';
+  document.getElementById('merch-set').value=item.set||'';
+  document.getElementById('merch-type').value=item.type||'Booster Box';
+  document.getElementById('merch-qty').value=item.qty||1;
+  document.getElementById('merch-paid').value=item.paid!=null?item.paid:'';
+  document.getElementById('merch-market').value=item.market!=null?item.market:'';
+  document.getElementById('merch-date').value=item.date||'';
+  document.getElementById('merch-from').value=item.from||'';
+  document.getElementById('merch-notes').value=item.notes||'';
+  document.getElementById('merch-modal-bg').classList.add('open');
+}
+function closeMerchModal(){ document.getElementById('merch-modal-bg').classList.remove('open'); }
+
+function saveMerchItem(){
+  const editId=document.getElementById('merch-edit-id').value;
+  const item={
+    id: editId||('m'+Date.now()),
+    name: document.getElementById('merch-name').value.trim(),
+    set:  document.getElementById('merch-set').value.trim(),
+    type: document.getElementById('merch-type').value,
+    qty:  parseInt(document.getElementById('merch-qty').value)||1,
+    paid: parseFloat(document.getElementById('merch-paid').value)||null,
+    market: parseFloat(document.getElementById('merch-market').value)||null,
+    date: document.getElementById('merch-date').value||null,
+    from: document.getElementById('merch-from').value.trim()||null,
+    notes: document.getElementById('merch-notes').value.trim()||null,
+    addedAt: editId?(merch.find(m=>m.id===editId)?.addedAt||Date.now()):Date.now()
+  };
+  if(!item.name){ alert('Product name is required.'); return; }
+  if(editId){
+    const idx=merch.findIndex(m=>m.id===editId);
+    if(idx>=0) merch[idx]=item;
+    // Update existing ledger entry
+    const li=merchLedger.findIndex(l=>l.merchId===editId&&l.action==='acquired');
+    if(li>=0){const l=merchLedger[li];l.name=item.name;l.set=item.set;l.type=item.type;l.paid=item.paid;l.qty=item.qty;l.date=item.date;l.from=item.from;}
+  } else {
+    merch.unshift(item);
+    // Push acquired event to merch ledger
+    merchLedger.unshift({id:'ml'+Date.now(),merchId:item.id,name:item.name,set:item.set,type:item.type,
+      qty:item.qty,paid:item.paid,market:item.market,date:item.date,from:item.from,
+      action:'acquired',at:item.addedAt});
+  }
+  save(); closeMerchModal(); renderMerch(); updateMerchCount();
+}
+
+function deleteMerchItem(id){
+  const item=merch.find(m=>m.id===id);
+  if(!item) return;
+  const snap=JSON.stringify(merch);
+  const snapL=JSON.stringify(merchLedger);
+  merch=merch.filter(m=>m.id!==id);
+  merchLedger.unshift({id:'ml'+Date.now(),merchId:id,name:item.name,set:item.set,type:item.type,
+    qty:item.qty,paid:item.paid,action:'removed',at:Date.now()});
+  save(); renderMerch(); updateMerchCount();
+  pushUndo('Removed '+item.name, ()=>{merch=JSON.parse(snap);merchLedger=JSON.parse(snapL);save();renderMerch();updateMerchCount();});
+}
+
+function updateMerchCount(){
+  const el=document.getElementById('merch-count');
+  if(el){ el.textContent=merch.length||''; el.style.display=merch.length?'':'none'; }
+}
+
+function renderMerchMetrics(list){
+  const totalPaid=list.reduce((s,m)=>(m.paid!=null?s+m.paid*m.qty:s),0);
+  const totalMarket=list.reduce((s,m)=>(m.market!=null?s+m.market*m.qty:s),0);
+  const hasPaid=list.some(m=>m.paid!=null);
+  const hasMarket=list.some(m=>m.market!=null);
+  const pnl=hasMarket&&hasPaid?totalMarket-totalPaid:null;
+  document.getElementById('mm-count').textContent=list.reduce((s,m)=>s+m.qty,0);
+  document.getElementById('mm-paid').textContent=hasPaid?fmt(totalPaid):'—';
+  document.getElementById('mm-market').textContent=hasMarket?fmt(totalMarket):'—';
+  const pnlEl=document.getElementById('mm-pnl');
+  if(pnl!=null){
+    pnlEl.textContent=(pnl>=0?'+':'')+fmt(pnl);
+    pnlEl.className='metric-val '+(pnl>0?'green':pnl<0?'red':'muted');
+  } else { pnlEl.textContent='—'; pnlEl.className='metric-val muted'; }
+}
+
+function renderMerch(){
+  const el=document.getElementById('merch-list'); if(!el) return;
+  let list=[...merch];
+  if(_merchFilter) list=list.filter(m=>m.type===_merchFilter);
+  // sort
+  if(_merchSort==='name') list.sort((a,b)=>a.name.localeCompare(b.name));
+  else if(_merchSort==='paid-desc') list.sort((a,b)=>(b.paid??-1)-(a.paid??-1));
+  else if(_merchSort==='market-desc') list.sort((a,b)=>(b.market??-1)-(a.market??-1));
+  else if(_merchSort==='pnl-desc') list.sort((a,b)=>{
+    const pa=(a.market??0)*a.qty-(a.paid??0)*a.qty, pb=(b.market??0)*b.qty-(b.paid??0)*b.qty; return pb-pa;
+  });
+  else list.sort((a,b)=>(b.addedAt??0)-(a.addedAt??0));
+
+  renderMerchMetrics(list);
+
+  if(!list.length){
+    el.innerHTML=`<div class="empty"><div class="empty-glyph">⊡</div><div class="empty-title">${_merchFilter?'No '+_merchFilter+' items':'No merch yet'}</div><div class="empty-sub" style="margin-top:8px"><button class="btn" onclick="openMerchAdd()">+ Add your first item</button></div></div>`;
+    return;
+  }
+
+  const TYPE_ICONS={
+    'Booster Box':'⬛','Elite Trainer Box':'⬜','Booster Pack':'▪','Bundle':'◈','Tin':'⬡','Collection Box':'◉','Promo Box':'★','Other':'·'
+  };
+
+  el.innerHTML=list.map(item=>{
+    const paid=item.paid!=null?fmt(item.paid*item.qty):null;
+    const market=item.market!=null?fmt(item.market*item.qty):null;
+    const pnl=(item.market!=null&&item.paid!=null)?(item.market-item.paid)*item.qty:null;
+    const pnlColor=pnl>0?'var(--green)':pnl<0?'var(--red)':'var(--t3)';
+    const pnlStr=pnl!=null?`<span style="color:${pnlColor};font-weight:700">${pnl>=0?'+':''}${fmt(pnl)}</span>`:null;
+    const dateStr=item.date?new Date(item.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'}):null;
+    const icon=TYPE_ICONS[item.type]||'·';
+    return `<div style="background:var(--s1);border:1px solid var(--b1);border-radius:var(--rl);padding:12px 14px;margin-bottom:8px;display:flex;gap:12px;align-items:flex-start">
+      <div style="width:36px;height:36px;background:var(--s3);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;border:1px solid var(--b1)">${icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+          <span style="font-size:11px;font-weight:700;color:var(--text);font-family:'DM Sans',sans-serif">${item.name}</span>
+          ${item.qty>1?`<span style="font-size:9px;color:var(--gold2);font-weight:700">×${item.qty}</span>`:''}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+          <span style="font-size:8px;font-weight:700;letter-spacing:0.08em;background:var(--s3);border:1px solid var(--b1);border-radius:12px;padding:2px 8px;color:var(--t2)">${item.type}</span>
+          ${item.set?`<span style="font-size:8px;color:var(--t3);font-family:'DM Sans',sans-serif;align-self:center">${item.set}</span>`:''}
+          ${dateStr?`<span style="font-size:8px;color:var(--t3);font-family:'DM Sans',sans-serif;align-self:center">${dateStr}</span>`:''}
+          ${item.from?`<span style="font-size:8px;color:var(--t3);font-family:'DM Sans',sans-serif;align-self:center">from ${item.from}</span>`:''}
+        </div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap">
+          ${paid?`<div style="font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif">Paid <span style="color:var(--text);font-weight:600">${paid}</span>${item.qty>1?` <span style="color:var(--t3)">(${fmt(item.paid)} ea)</span>`:''}</div>`:''}
+          ${market?`<div style="font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif">Market <span style="color:var(--gold2);font-weight:600">${market}</span>${item.qty>1?` <span style="color:var(--t3)">(${fmt(item.market)} ea)</span>`:''}</div>`:''}
+          ${pnlStr?`<div style="font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif">P&L ${pnlStr}</div>`:''}
+        </div>
+        ${item.notes?`<div style="font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif;margin-top:5px;font-style:italic">${item.notes}</div>`:''}
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="btn-ghost" style="font-size:8px;padding:4px 10px" onclick="openMerchEdit('${item.id}')">▼ EDIT</button>
+        <button class="btn-ghost" style="font-size:8px;padding:4px 10px;color:var(--red);border-color:var(--red)" onclick="deleteMerchItem('${item.id}')">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -858,6 +1029,39 @@ body.light .bottom-nav{background:rgba(245,244,241,0.9);border-top:1px solid rgb
     <div id="gifted-pagination"></div>
   </div>
 
+
+  <!-- MERCH TAB -->
+  <div id="tab-merch" class="section">
+    <div class="metrics" id="merch-metrics">
+      <div class="metric"><div class="metric-label">Items owned</div><div class="metric-val" id="mm-count">0</div></div>
+      <div class="metric"><div class="metric-label">Total paid</div><div class="metric-val muted" id="mm-paid">—</div></div>
+      <div class="metric"><div class="metric-label">Market value</div><div class="metric-val gold" id="mm-market">—</div></div>
+      <div class="metric"><div class="metric-label">Gain / Loss</div><div class="metric-val" id="mm-pnl">—</div></div>
+    </div>
+    <div class="rarity-chips" style="margin-bottom:10px">
+      <span class="ctrl-label" style="display:flex;align-items:center;margin-right:4px;font-size:8px">FILTER</span>
+      <span class="rc active" data-val="" onclick="setMerchFilter(this,'')">ALL</span>
+      <span class="rc" data-val="Booster Box" onclick="setMerchFilter(this,'Booster Box')">BOX</span>
+      <span class="rc" data-val="Elite Trainer Box" onclick="setMerchFilter(this,'Elite Trainer Box')">ETB</span>
+      <span class="rc" data-val="Booster Pack" onclick="setMerchFilter(this,'Booster Pack')">PACK</span>
+      <span class="rc" data-val="Bundle" onclick="setMerchFilter(this,'Bundle')">BUNDLE</span>
+      <span class="rc" data-val="Tin" onclick="setMerchFilter(this,'Tin')">TIN</span>
+      <span class="rc" data-val="Collection Box" onclick="setMerchFilter(this,'Collection Box')">COLLECTION</span>
+      <span class="rc" data-val="Other" onclick="setMerchFilter(this,'Other')">OTHER</span>
+      <div style="width:1px;background:var(--b1);margin:0 4px;align-self:stretch"></div>
+      <span class="ctrl-label" style="display:flex;align-items:center;margin-right:4px;font-size:8px">SORT</span>
+      <span class="sc active" data-val="date-desc" onclick="setMerchSort(this,'date-desc')">RECENT</span>
+      <span class="sc" data-val="paid-desc" onclick="setMerchSort(this,'paid-desc')">PAID ↓</span>
+      <span class="sc" data-val="market-desc" onclick="setMerchSort(this,'market-desc')">VALUE ↓</span>
+      <span class="sc" data-val="pnl-desc" onclick="setMerchSort(this,'pnl-desc')">GAIN ↓</span>
+      <span class="sc" data-val="name" onclick="setMerchSort(this,'name')">A–Z</span>
+      <div style="margin-left:auto;flex-shrink:0">
+        <button class="btn" style="font-size:8px;padding:5px 12px" onclick="openMerchAdd()">+ ADD ITEM</button>
+      </div>
+    </div>
+    <div id="merch-list"></div>
+  </div>
+
   <!-- HISTORY TAB -->
   <div id="tab-history" class="section">
     <div class="hist-metrics">
@@ -876,6 +1080,7 @@ body.light .bottom-nav{background:rgba(245,244,241,0.9);border-top:1px solid rgb
         <option value="owned">Owned</option>
         <option value="sold">Sold</option>
         <option value="gifted">Gifted</option>
+        <option value="merch">Merch</option>
       </select>
       <div class="ctrl-sep"></div>
       <span class="ctrl-label">Sort</span>
@@ -913,6 +1118,8 @@ let owned       =JSON.parse(localStorage.getItem('ptrkr_own')  ||'[]');
 let gifted      =JSON.parse(localStorage.getItem('ptrkr_gifted')||'[]');
 let sold        =JSON.parse(localStorage.getItem('ptrkr_sold') ||'[]');
 let priceHistory=JSON.parse(localStorage.getItem('ptrkr_ph')   ||'{}');
+let merch       =JSON.parse(localStorage.getItem('ptrkr_merch') ||'[]');
+let merchLedger =JSON.parse(localStorage.getItem('ptrkr_merchl')||'[]');
 // One-time dedup: remove duplicate same-day points from stored history
 (function(){Object.keys(priceHistory).forEach(id=>{const pts=priceHistory[id]?.points;if(!pts?.length)return;const seen=new Map();pts.forEach(p=>{const day=new Date(p.t).toDateString();if(!seen.has(day)||p.t>seen.get(day).t)seen.set(day,p);});priceHistory[id].points=[...seen.values()].sort((a,b)=>a.t-b.t);});localStorage.setItem('ptrkr_ph',JSON.stringify(priceHistory));})();
 let ledger      =JSON.parse(localStorage.getItem('ptrkr_ledger')||'{}');
@@ -971,12 +1178,15 @@ function save(){
   localStorage.setItem('ptrkr_wl',    JSON.stringify(watchlist));
   localStorage.setItem('ptrkr_own',   JSON.stringify(owned));
   localStorage.setItem('ptrkr_gifted',JSON.stringify(gifted));
+  localStorage.setItem('ptrkr_merch', JSON.stringify(merch));
+  localStorage.setItem('ptrkr_merchl',JSON.stringify(merchLedger));
   localStorage.setItem('ptrkr_sold',  JSON.stringify(sold));
   localStorage.setItem('ptrkr_ph',    JSON.stringify(priceHistory));
   localStorage.setItem('ptrkr_ledger',JSON.stringify(ledger));
   if(showcaseCopyId) localStorage.setItem('ptrkr_showcase',showcaseCopyId); else localStorage.removeItem('ptrkr_showcase');
 }
 function refreshAllCounts(){
+  updateMerchCount();
   const wlEl=document.getElementById('wl-count');if(wlEl){wlEl.textContent=watchlist.length||'';wlEl.style.display=watchlist.length?'flex':'none';}
   const ownEl=document.getElementById('owned-count');if(ownEl){ownEl.textContent=owned.length||'';ownEl.style.display=owned.length?'flex':'none';}
   const gEl=document.getElementById('gifted-count');if(gEl){gEl.textContent=gifted.length||'';gEl.style.display=gifted.length?'flex':'none';}
@@ -984,7 +1194,7 @@ function refreshAllCounts(){
   const hEl=document.getElementById('hist-count');if(hEl){hEl.textContent=Object.keys(ledger).length||'';hEl.style.display=Object.keys(ledger).length?'flex':'none';}
 }
 
-const TABS=['dashboard','search','watchlist','owned','sold','gifted','history'];
+const TABS=['dashboard','search','watchlist','owned','sold','gifted','merch','history'];
 function switchTab(t){
   // If tapping the already-active tab, scroll to top
   const curActive=TABS.find(n=>document.getElementById('tab-'+n)?.classList.contains('active'));
@@ -1004,6 +1214,7 @@ function switchTab(t){
   if(t==='gifted'){giftedPage=1;renderGifted();}
   if(t==='history'){histPage=1;renderHistory();}
   if(t==='search'){loadDefaultSearch();renderSearchHistory();}
+  if(t==='merch') renderMerch();
 }
 function renderCurrentTab(){
   const idx=[...document.querySelectorAll('.tab')].findIndex(b=>b.classList.contains('active'));
@@ -3433,11 +3644,15 @@ function renderHistory(){
   const so=document.getElementById('hist-sort')?.value||'status-desc';
 
   let entries=Object.values(ledger);
+  // Add merch ledger entries (only 'acquired' events, not 'removed')
+  const merchEntries=merchLedger.filter(l=>l.action==='acquired').map(l=>({...l,_merch:true,statusAt:l.at}));
+  if(!st||st==='merch') entries=[...entries,...merchEntries];
   if(ft) entries=entries.filter(e=>e.name.toLowerCase().includes(ft)||(e.set||'').toLowerCase().includes(ft));
   if(st==='watching') entries=entries.filter(e=>watchlist.some(w=>w.id===e.id));
   if(st==='owned')    entries=entries.filter(e=>owned.some(o=>o.id===e.id));
   if(st==='sold')     entries=entries.filter(e=>e.status==='sold');
   if(st==='gifted')   entries=entries.filter(e=>e.status==='gifted');
+  if(st==='merch')    entries=entries.filter(e=>e._merch);
 
   entries.sort((a,b)=>{
     if(so==='status-desc') return(b.statusAt??b.ownAt??b.wlAt??0)-(a.statusAt??a.ownAt??a.wlAt??0);
@@ -3472,7 +3687,32 @@ function renderHistory(){
   const tp=Math.ceil(total/PER);if(histPage>tp)histPage=tp;
   const slice=entries.slice((histPage-1)*PER,histPage*PER);
 
+  const MERCH_ICONS={'Booster Box':'⬛','Elite Trainer Box':'⬜','Booster Pack':'▪','Bundle':'◈','Tin':'⬡','Collection Box':'◉','Promo Box':'★','Other':'·'};
   const rows=slice.map(e=>{
+    if(e._merch){
+      const paidTotal=e.paid!=null?e.paid*e.qty:null;
+      const marketTotal=e.market!=null?e.market*e.qty:null;
+      const pnl=paidTotal!=null&&marketTotal!=null?marketTotal-paidTotal:null;
+      const pnlStr=pnl!=null?(pnl>=0?'+':'')+fmt(pnl):null;
+      const pnlCls=pnl==null?'muted':pnl>0?'green':'red';
+      const dateStr=e.date?new Date(e.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'}):fmtDate(e.at);
+      const icon=MERCH_ICONS[e.type]||'·';
+      return `<div class="hist-row">
+        <div style="width:60px;height:84px;background:var(--s2);border:1px solid var(--b1);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">${icon}</div>
+        <div class="hist-body">
+          <div style="margin-bottom:3px"><span style="font-size:7px;font-weight:700;padding:1px 6px;border-radius:3px;letter-spacing:0.06em;background:rgba(201,168,76,0.1);color:var(--gold2);border:1px solid rgba(201,168,76,0.3)">${e.type}</span></div>
+          <div class="hist-name">${e.name}${e.qty>1?` <span style="color:var(--gold2)">×${e.qty}</span>`:''}</div>
+          <div class="hist-set">${e.set||''}</div>
+          <div class="hist-stats">
+            ${paidTotal!=null?`<div class="hstat"><div class="hstat-l">Paid</div><div class="hstat-v muted">${fmt(paidTotal)}</div></div>`:''}
+            ${marketTotal!=null?`<div class="hstat"><div class="hstat-l">Market</div><div class="hstat-v gold">${fmt(marketTotal)}</div></div>`:''}
+            ${pnlStr?`<div class="hstat"><div class="hstat-l">P&amp;L</div><div class="hstat-v ${pnlCls}">${pnlStr}</div></div>`:''}
+          </div>
+          <div class="hist-events"><span class="hevent"><span class="hevent-dot own"></span>ACQUIRED ${dateStr}${e.from?' from '+e.from:''}</span></div>
+        </div>
+        <div class="hist-side"><span class="hist-status owned-badge">MERCH</span></div>
+      </div>`;
+    }
     const isWatching=watchlist.some(w=>w.id===e.id);
     const isOwned=owned.some(o=>o.id===e.id);
     const isGifted=e.status==='gifted',isSold=e.status==='sold';
@@ -3500,6 +3740,7 @@ function renderHistory(){
     if(e.giftedAt) events.push(`<span class="hevent"><span class="hevent-dot" style="background:var(--purple)"></span>GIFTED ${fmtDate(e.giftedAt)}${e.giftedTo?' to '+e.giftedTo:''}</span>`);
     if(e.soldAt)   events.push(`<span class="hevent"><span class="hevent-dot" style="background:var(--red)"></span>SOLD ${fmtDate(e.soldAt)}${e.soldPrice!=null?' · '+fmt(e.soldPrice):''}</span>`);
 
+      // ── CARD ROW ──────────────────────────────────────────────────────
     return `<div class="hist-row${ri.rank<=3?' is-rare':''}">
       <img class="hist-img" src="${e.img}" loading="lazy"/>
       <div class="hist-body">
@@ -3860,7 +4101,7 @@ function buildExportData(){
   if(exportMode==='all'||exportMode==='watchlist') d.watchlist=watchlist;
   if(exportMode==='all'||exportMode==='owned')     d.owned=owned;
   if(exportMode==='all'||exportMode==='history')   d.ledger=ledger;
-  if(exportMode==='all'){d.gifted=gifted;d.sold=sold;}
+  if(exportMode==='all'){d.gifted=gifted;d.sold=sold;d.merch=merch;d.merchLedger=merchLedger;}
   d.showcaseCopyId=showcaseCopyId||null;
   d.priceHistory=priceHistory; // always export price history to prevent data loss
   return JSON.stringify(d,null,2);
@@ -3901,6 +4142,8 @@ function doImport(mode){
   if(mode==='replace'){
     if(d.watchlist) watchlist=d.watchlist;if(d.owned) owned=d.owned;
     if(d.gifted)    gifted=d.gifted||[];if(d.sold)  sold=d.sold||[];
+    if(d.merch)     merch=d.merch||[];
+    if(d.merchLedger) merchLedger=d.merchLedger||[];
     if(d.priceHistory) priceHistory=d.priceHistory;if(d.ledger) ledger=d.ledger;
     if(d.showcaseCopyId!==undefined){showcaseCopyId=d.showcaseCopyId;if(showcaseCopyId)localStorage.setItem('ptrkr_showcase',showcaseCopyId);else localStorage.removeItem('ptrkr_showcase');}
     wlAdded=(d.watchlist||[]).length;ownAdded=(d.owned||[]).length;ledAdded=Object.keys(d.ledger||{}).length;
@@ -4167,12 +4410,13 @@ function setupTabSwipe(){
     const dx=e.touches[0].clientX-tsx, dy=Math.abs(e.touches[0].clientY-tsy);
     tsdx=dx;
     if(!tsDragging&&!tsScrolling){
-      if(dy>Math.abs(dx)+8) tsScrolling=true;
-      else if(Math.abs(dx)>12) tsDragging=true;
+      // Require horizontal to clearly dominate vertical before flagging as drag
+      if(dy>Math.abs(dx)*0.6+16) tsScrolling=true;
+      else if(Math.abs(dx)>20&&Math.abs(dx)>dy*1.5) tsDragging=true;
     }
   },{passive:true});
   mainEl.addEventListener('touchend',()=>{
-    if(!tsDragging||Math.abs(tsdx)<60) return;
+    if(!tsDragging||Math.abs(tsdx)<120) return;
     const cur=TABS.findIndex(t=>document.getElementById('tab-'+t)?.classList.contains('active'));
     const dir=tsdx<0?1:-1;
     const next=cur+dir;
@@ -4488,6 +4732,13 @@ function setSortChip(el, val){
     <span class="bnav-badge" id="gifted-count"></span>
     <span class="bnav-label">Gifted</span>
   </button>
+  <button class="bnav-btn" id="bnav-merch" onclick="switchTab('merch')">
+    <div class="bnav-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+    </div>
+    <span class="bnav-badge" id="merch-count"></span>
+    <span class="bnav-label">Merch</span>
+  </button>
   <button class="bnav-btn" id="bnav-history" onclick="switchTab('history')">
     <div class="bnav-icon">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -4536,6 +4787,69 @@ function setSortChip(el, val){
       </label>
     </div>
     <button class="btn" id="wl-share-copy-btn" style="width:100%" onclick="generateWlShareLink()">⇪ SHARE WATCH LIST</button>
+  </div>
+</div>
+
+
+<!-- MERCH ADD/EDIT MODAL -->
+<div class="modal-bg" id="merch-modal-bg" onclick="if(event.target===this)closeMerchModal()">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-title">
+      <span id="merch-modal-title" style="font-size:11px;font-weight:700;letter-spacing:0.12em;color:var(--gold2);font-family:'Space Mono',monospace">+ ADD ITEM</span>
+      <button class="modal-close" onclick="closeMerchModal()">✕</button>
+    </div>
+    <input type="hidden" id="merch-edit-id"/>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px">
+      <div style="grid-column:span 2">
+        <div class="edit-label" style="margin-bottom:3px">Product name</div>
+        <input class="edit-input" id="merch-name" type="text" placeholder="e.g. Scarlet & Violet 151 Booster Box" style="width:100%"/>
+      </div>
+      <div>
+        <div class="edit-label" style="margin-bottom:3px">Set</div>
+        <input class="edit-input" id="merch-set" type="text" placeholder="e.g. 151, Obsidian Flames" style="width:100%"/>
+      </div>
+      <div>
+        <div class="edit-label" style="margin-bottom:3px">Product type</div>
+        <select class="edit-input" id="merch-type" style="width:100%">
+          <option value="Booster Box">Booster Box</option>
+          <option value="Elite Trainer Box">Elite Trainer Box</option>
+          <option value="Booster Pack">Booster Pack</option>
+          <option value="Bundle">Bundle</option>
+          <option value="Tin">Tin</option>
+          <option value="Collection Box">Collection Box</option>
+          <option value="Promo Box">Promo Box</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div>
+        <div class="edit-label" style="margin-bottom:3px">Quantity</div>
+        <input class="edit-input" id="merch-qty" type="number" min="1" value="1" style="width:100%"/>
+      </div>
+      <div>
+        <div class="edit-label" style="margin-bottom:3px">Price paid (USD)</div>
+        <input class="edit-input" id="merch-paid" type="number" min="0" step="0.01" placeholder="0.00" style="width:100%"/>
+      </div>
+      <div>
+        <div class="edit-label" style="margin-bottom:3px">Current market (USD)</div>
+        <input class="edit-input" id="merch-market" type="number" min="0" step="0.01" placeholder="0.00" style="width:100%"/>
+      </div>
+      <div>
+        <div class="edit-label" style="margin-bottom:3px">Date bought</div>
+        <input class="edit-input" id="merch-date" type="date" style="width:100%;text-align:left"/>
+      </div>
+      <div>
+        <div class="edit-label" style="margin-bottom:3px">Bought from</div>
+        <input class="edit-input" id="merch-from" type="text" placeholder="eBay, LGS, Amazon..." style="width:100%"/>
+      </div>
+      <div style="grid-column:span 2">
+        <div class="edit-label" style="margin-bottom:3px">Notes</div>
+        <input class="edit-input" id="merch-notes" type="text" placeholder="Optional notes..." style="width:100%"/>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn" style="flex:1" onclick="saveMerchItem()">✓ SAVE</button>
+      <button class="btn-ghost" onclick="closeMerchModal()">CANCEL</button>
+    </div>
   </div>
 </div>
 
