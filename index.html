@@ -3845,6 +3845,7 @@ function generateWlShareLink(){
   const rareOnly=document.getElementById('wl-share-rare-only').checked;
   let cards=[...watchlist];
   if(rareOnly) cards=cards.filter(c=>raritySnap(c).rank<=5);
+  cards.sort((a,b)=>(b.market??-1)-(a.market??-1));
 
   const payload={
     v:1,
@@ -3863,7 +3864,9 @@ function generateWlShareLink(){
   const url=window.location.href.split('#')[0]+'#share='+encoded;
 
   if(url.length>8000){
-    payload.cards=payload.cards.filter(c=>c.m!=null).sort((a,b)=>(b.m??0)-(a.m??0)).slice(0,50);
+    payload.cards=showVals
+      ? payload.cards.filter(c=>c.m!=null).sort((a,b)=>(b.m??0)-(a.m??0)).slice(0,50)
+      : payload.cards.slice(0,50);
     payload.n=payload.cards.length; payload.trunc=true;
     copyWlShareUrl(window.location.href.split('#')[0]+'#share='+encodeShare(payload), true);
   } else {
@@ -3887,6 +3890,8 @@ function generateShareLink(){
 
   let cards=[...owned];
   if(rareOnly) cards=cards.filter(c=>raritySnap(c).rank<=5);
+  // Always sort by market value descending so share page shows best cards first
+  cards.sort((a,b)=>(b.market??-1)-(a.market??-1));
 
   const payload={
     v:1,
@@ -3906,7 +3911,10 @@ function generateShareLink(){
   const url=window.location.href.split('#')[0]+'#share='+encoded;
 
   if(url.length>8000){
-    payload.cards=payload.cards.filter(c=>c.m!=null).sort((a,b)=>(b.m??0)-(a.m??0)).slice(0,50);
+    // Truncate to top 50 — by value if available, else by rarity rank
+    payload.cards=showVals
+      ? payload.cards.filter(c=>c.m!=null).sort((a,b)=>(b.m??0)-(a.m??0)).slice(0,50)
+      : payload.cards.slice(0,50);
     payload.n=payload.cards.length; payload.trunc=true;
     copyShareUrl(window.location.href.split('#')[0]+'#share='+encodeShare(payload), true);
   } else {
