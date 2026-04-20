@@ -1778,6 +1778,25 @@ function openAddToFOLIO(snap){
   document.getElementById('qa-modal-bg').classList.add('open');
   setTimeout(()=>document.getElementById('qa-price').focus(),100);
 }
+
+function qaToggle(type){
+  const isJP=type==='jp';
+  const btnId=isJP?'qa-jp':'qa-bl';
+  const rowId=isJP?'qa-jp-row':'qa-bl-row';
+  const otherBtnId=isJP?'qa-bl':'qa-jp';
+  const otherRowId=isJP?'qa-bl-row':'qa-jp-row';
+  const btn=document.getElementById(btnId);
+  const active=btn.classList.contains('active');
+  // toggle this one
+  btn.classList.toggle('active',!active);
+  btn.style.cssText=!active?(isJP?'flex:1;color:var(--gold);border-color:rgba(201,168,76,0.4);background:var(--gold-dim)':'flex:1;color:var(--purple);border-color:rgba(196,181,253,0.4);background:var(--purple-dim)'):'flex:1';
+  document.getElementById(rowId).style.display=!active?'block':'none';
+  // deactivate the other
+  const otherBtn=document.getElementById(otherBtnId);
+  otherBtn.classList.remove('active');
+  otherBtn.style.cssText='flex:1';
+  document.getElementById(otherRowId).style.display='none';
+}
 function closeQAModal(){
   document.getElementById('qa-modal-bg').classList.remove('open');
   _qaSnap=null;
@@ -1786,6 +1805,8 @@ function confirmQAAdd(){
   if(!_qaSnap) return;
   const snap={..._qaSnap};
   snap.copyId=uid();snap.addedAt=Date.now();
+  const isQaJP=document.getElementById('qa-jp')?.classList.contains('active');
+  const isQaBL=document.getElementById('qa-bl')?.classList.contains('active');
   const priceVal=parseFloat(document.getElementById('qa-price').value);
   if(!isNaN(priceVal)&&priceVal>=0) snap.purchasePrice=priceVal;
   const dateVal=document.getElementById('qa-date').value;
@@ -2252,20 +2273,18 @@ function openOwnedEditModal(copyId){
   document.getElementById('oem-bf').value=c.boughtFrom||'';
   // JP
   const jpBtn=document.getElementById('oem-jp');
-  const jpInp=document.getElementById('oem-jpp');
-  const jpSpc=document.getElementById('oem-jpp-spc');
+  const jpRow=document.getElementById('oem-jpp-row');
   jpBtn.textContent=c.isJP?'✓ JP':'JP';
   jpBtn.style.cssText=c.isJP?'flex:1;color:var(--gold);border-color:rgba(201,168,76,0.4);background:var(--gold-dim)':'flex:1';
-  jpInp.style.display=c.isJP?'block':'none'; jpInp.value=c.jpPrice??'';
-  jpSpc.style.display=c.isJP?'none':'block';
+  if(jpRow) jpRow.style.display=c.isJP?'block':'none';
+  document.getElementById('oem-jpp').value=c.jpPrice??'';
   // BL
   const blBtn=document.getElementById('oem-bl');
-  const blInp=document.getElementById('oem-blp');
-  const blSpc=document.getElementById('oem-blp-spc');
+  const blRow=document.getElementById('oem-blp-row');
   blBtn.textContent=c.isBL?'✓ BL':'BL';
   blBtn.style.cssText=c.isBL?'flex:1;color:var(--purple);border-color:rgba(196,181,253,0.4);background:var(--purple-dim)':'flex:1';
-  blInp.style.display=c.isBL?'block':'none'; blInp.value=c.blPrice??'';
-  blSpc.style.display=c.isBL?'none':'block';
+  if(blRow) blRow.style.display=c.isBL?'block':'none';
+  document.getElementById('oem-blp').value=c.blPrice??'';
   document.getElementById('owned-edit-modal').classList.add('open');
 }
 function closeOwnedEditModal(){ document.getElementById('owned-edit-modal').classList.remove('open'); }
@@ -2274,18 +2293,21 @@ function oemToggle(type){
   const c=owned.find(o=>o.copyId===copyId);if(!c) return;
   if(type==='jp'){
     c.isJP=!c.isJP; if(!c.isJP) c.jpPrice=null;
-    const btn=document.getElementById('oem-jp'),inp=document.getElementById('oem-jpp'),spc=document.getElementById('oem-jpp-spc');
+    const btn=document.getElementById('oem-jp');
+    const row=document.getElementById('oem-jpp-row');
     btn.textContent=c.isJP?'✓ JP':'JP';
     btn.style.cssText=c.isJP?'flex:1;color:var(--gold);border-color:rgba(201,168,76,0.4);background:var(--gold-dim)':'flex:1';
-    inp.style.display=c.isJP?'block':'none'; spc.style.display=c.isJP?'none':'block';
+    if(row) row.style.display=c.isJP?'block':'none';
   } else {
     c.isBL=!c.isBL; if(!c.isBL) c.blPrice=null;
-    const btn=document.getElementById('oem-bl'),inp=document.getElementById('oem-blp'),spc=document.getElementById('oem-blp-spc');
+    const btn=document.getElementById('oem-bl');
+    const row=document.getElementById('oem-blp-row');
     btn.textContent=c.isBL?'✓ BL':'BL';
     btn.style.cssText=c.isBL?'flex:1;color:var(--purple);border-color:rgba(196,181,253,0.4);background:var(--purple-dim)':'flex:1';
-    inp.style.display=c.isBL?'block':'none'; spc.style.display=c.isBL?'none':'block';
+    if(row) row.style.display=c.isBL?'block':'none';
   }
 }
+function saveOwnedEdit(){ saveOwnedEditModal(); }
 function saveOwnedEditModal(){
   const copyId=document.getElementById('oem-copyid').value;
   const c=owned.find(o=>o.copyId===copyId);if(!c) return;
@@ -4867,7 +4889,13 @@ function setSortChip(el, val){
       </div>
       <button class="modal-close" onclick="closeQAModal()">✕</button>
     </div>
+    <div style="display:flex;gap:6px;margin-bottom:10px">
+      <button class="toggle-btn" id="qa-jp" style="flex:1" onclick="qaToggle('jp')">JP</button>
+      <button class="toggle-btn" id="qa-bl" style="flex:1" onclick="qaToggle('bl')">BL</button>
+    </div>
     <div class="edit-row"><span class="edit-label">Price paid (USD)</span><input class="edit-input" id="qa-price" type="number" min="0" step="0.01" placeholder="0.00"/></div>
+    <div id="qa-jp-row" style="display:none"><div class="edit-row"><span class="edit-label">JP Price (¥ or $)</span><input class="edit-input" id="qa-jp-price" type="number" min="0" step="0.01" placeholder="0.00"/></div></div>
+    <div id="qa-bl-row" style="display:none"><div class="edit-row"><span class="edit-label">BL Price (USD)</span><input class="edit-input" id="qa-bl-price" type="number" min="0" step="0.01" placeholder="0.00"/></div></div>
     <div class="edit-row"><span class="edit-label">Date bought</span><input class="edit-input" id="qa-date" type="date" style="text-align:left"/></div>
     <div class="edit-row"><span class="edit-label">From</span><input class="edit-input" id="qa-from" type="text" placeholder="eBay, LGS, trade, pack..."/></div>
     <div style="display:flex;gap:7px;margin-top:10px">
@@ -4877,35 +4905,7 @@ function setSortChip(el, val){
   </div>
 </div>
 
-<!-- OWNED EDIT MODAL -->
-<div class="modal-bg" id="owned-edit-modal" style="z-index:410;background:rgba(0,0,0,0.5)" onclick="if(event.target===this)closeOwnedEditModal()">
-  <div class="modal-box">
-    <div class="modal-title">
-      <span style="font-size:11px;font-weight:700;letter-spacing:0.1em;color:var(--gold2);font-family:'Space Mono',monospace">▼ EDIT CARD</span>
-      <button class="modal-close" onclick="closeOwnedEditModal()">✕</button>
-    </div>
-    <input type="hidden" id="oem-copyid"/>
-    <div style="display:flex;gap:12px;margin-bottom:12px">
-      <img id="oem-img" src="" style="width:60px;height:84px;object-fit:cover;border-radius:5px;background:var(--s2);flex-shrink:0"/>
-      <div style="flex:1">
-        <div id="oem-name" style="font-size:11px;font-weight:600;color:var(--text);font-family:'DM Sans',sans-serif;margin-bottom:6px"></div>
-        <div style="display:flex;gap:6px">
-          <button class="toggle-btn" id="oem-jp" onclick="toggleOEMFlag('jp')">JP</button>
-          <button class="toggle-btn" id="oem-bl" onclick="toggleOEMFlag('bl')">BL</button>
-        </div>
-      </div>
-    </div>
-    <div class="edit-row"><span class="edit-label">Price paid (USD)</span><input class="edit-input" id="oem-price" type="number" min="0" step="0.01" placeholder="0.00"/></div>
-    <div class="edit-row"><span class="edit-label">JP Price</span><input class="edit-input" id="oem-jp-price" type="number" min="0" step="0.01" placeholder="0.00"/></div>
-    <div class="edit-row"><span class="edit-label">Date bought</span><input class="edit-input" id="oem-date" type="date" style="text-align:left"/></div>
-    <div class="edit-row"><span class="edit-label">From</span><input class="edit-input" id="oem-from" type="text" placeholder="eBay, LGS, trade, pack..."/></div>
-    <div style="display:flex;gap:7px;margin-top:10px">
-      <button class="btn" style="flex:1" onclick="saveOwnedEdit()">✓ SAVE</button>
-      <button class="btn-ghost" onclick="cloneCard(document.getElementById('oem-copyid').value)">⧉ CLONE</button>
-      <button class="btn-ghost" onclick="closeOwnedEditModal()">CANCEL</button>
-    </div>
-  </div>
-</div>
+
 
 <!-- CDM — FOLIO CARD DETAIL MODAL -->
 <div class="cdm-bg" id="cdm-bg" onclick="if(event.target===this)closeCDM()">
