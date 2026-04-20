@@ -697,9 +697,9 @@ body.light .bottom-nav{background:rgba(245,244,241,0.9);border-top:1px solid rgb
 .cdm-set{font-size:9px;color:var(--t3);font-family:'DM Sans',sans-serif;letter-spacing:0.04em;}
 .cdm-section{display:flex;flex-direction:column;gap:3px;}
 .cdm-section-label{font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--t3);font-family:'Space Mono',monospace;margin-bottom:3px;padding-bottom:4px;border-bottom:1px solid var(--b1);}
-.cdm-row{display:flex;justify-content:space-between;align-items:baseline;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);}
+.cdm-row{display:flex;justify-content:space-between;align-items:baseline;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);width:100%;}
 .cdm-row:last-child{border-bottom:none;}
-.cdm-row-label{font-size:10px;color:var(--t3);font-family:'DM Sans',sans-serif;}
+.cdm-row-label{font-size:10px;color:var(--t3);font-family:'DM Sans',sans-serif;white-space:nowrap;margin-right:8px;}
 .cdm-row-val{font-size:10px;font-weight:600;color:var(--text);font-family:'DM Sans',sans-serif;text-align:right;max-width:60%;}
 .cdm-market-val{font-size:22px;font-weight:700;color:var(--gold2);font-variant-numeric:tabular-nums;font-family:'DM Sans',sans-serif;}
 .cdm-chart-wrap{background:var(--s2);border-radius:var(--r);padding:10px 8px 6px;margin-top:2px;}
@@ -848,9 +848,10 @@ body.light .bottom-nav{background:rgba(245,244,241,0.9);border-top:1px solid rgb
       <span class="rc active" data-val="" onclick="setRarityChip(this,'')">ALL</span>
       <span class="rc" data-val="SPEC" onclick="setRarityChip(this,'SPEC')">SPEC ILLUS</span>
       <span class="rc" data-val="ILLUS" onclick="setRarityChip(this,'ILLUS')">ILLUS RARE</span>
-      <span class="rc" data-val="FULL|HYPER" onclick="setRarityChip(this,'FULL|HYPER')">FULL ART</span>
+      <span class="rc" data-val="HYPER" onclick="setRarityChip(this,'HYPER')">HYPER</span>
       <span class="rc" data-val="ULTRA" onclick="setRarityChip(this,'ULTRA')">ULTRA RARE</span>
-      <span class="rc" data-val="RARE" onclick="setRarityChip(this,'RARE')">RARE+</span>
+      <span class="rc" data-val="__EX__" onclick="setRarityChip(this,'__EX__')">ex / V / GX</span>
+      <span class="rc" data-val="__RARE__" onclick="setRarityChip(this,'__RARE__')">RARE</span>
       <span class="rc" data-val="STANDARD" onclick="setRarityChip(this,'STANDARD')">STANDARD</span>
       <div style="width:1px;background:var(--b1);margin:0 4px;align-self:stretch"></div>
       <span class="ctrl-label" style="display:flex;align-items:center;margin-right:4px;font-size:8px">SORT</span>
@@ -904,10 +905,12 @@ body.light .bottom-nav{background:rgba(245,244,241,0.9);border-top:1px solid rgb
     <div class="rarity-chips" style="margin-bottom:6px">
       <span class="ctrl-label" style="display:flex;align-items:center;margin-right:4px;font-size:8px">FILTER</span>
       <span class="rc active" data-val="" onclick="setTabRarityChip(this,'watchlist','wl-rarity',applyWlControls)">ALL</span>
+      <span class="rc" data-val="SPEC" onclick="setTabRarityChip(this,'watchlist','wl-rarity',applyWlControls)">SPEC ILLUS</span>
       <span class="rc" data-val="ILLUS" onclick="setTabRarityChip(this,'watchlist','wl-rarity',applyWlControls)">ILLUS RARE</span>
-      <span class="rc" data-val="FULL|HYPER" onclick="setTabRarityChip(this,'watchlist','wl-rarity',applyWlControls)">FULL ART</span>
-      <span class="rc" data-val="ULTRA|SPEC" onclick="setTabRarityChip(this,'watchlist','wl-rarity',applyWlControls)">ULTRA / SPEC</span>
-      <span class="rc" data-val="RARE" onclick="setTabRarityChip(this,'watchlist','wl-rarity',applyWlControls)">RARE+</span>
+      <span class="rc" data-val="HYPER" onclick="setTabRarityChip(this,'watchlist','wl-rarity',applyWlControls)">HYPER</span>
+      <span class="rc" data-val="ULTRA" onclick="setTabRarityChip(this,'watchlist','wl-rarity',applyWlControls)">ULTRA RARE</span>
+      <span class="rc" data-val="__EX__" onclick="setTabRarityChip(this,'watchlist','wl-rarity',applyWlControls)">ex / V / GX</span>
+      <span class="rc" data-val="__RARE__" onclick="setTabRarityChip(this,'watchlist','wl-rarity',applyWlControls)">RARE</span>
       <span class="rc" data-val="STANDARD" onclick="setTabRarityChip(this,'watchlist','wl-rarity',applyWlControls)">STANDARD</span>
       <div style="width:1px;background:var(--b1);margin:0 4px;align-self:stretch"></div>
       <span class="ctrl-label" style="display:flex;align-items:center;margin-right:4px;font-size:8px">SORT</span>
@@ -936,11 +939,14 @@ body.light .bottom-nav{background:rgba(245,244,241,0.9);border-top:1px solid rgb
     <div class="rarity-chips" style="margin-bottom:6px">
       <span class="ctrl-label" style="display:flex;align-items:center;margin-right:4px;font-size:8px">FILTER</span>
       <span class="rc active" data-val="" onclick="setTabRarityChip(this,'owned','own-rarity',applyOwnControls)">ALL</span>
+      <span class="rc" data-val="SPEC" onclick="setTabRarityChip(this,'owned','own-rarity',applyOwnControls)">SPEC ILLUS</span>
       <span class="rc" data-val="ILLUS" onclick="setTabRarityChip(this,'owned','own-rarity',applyOwnControls)">ILLUS RARE</span>
-      <span class="rc" data-val="FULL|HYPER" onclick="setTabRarityChip(this,'owned','own-rarity',applyOwnControls)">FULL ART</span>
-      <span class="rc" data-val="ULTRA|SPEC" onclick="setTabRarityChip(this,'owned','own-rarity',applyOwnControls)">ULTRA / SPEC</span>
-      <span class="rc" data-val="RARE" onclick="setTabRarityChip(this,'owned','own-rarity',applyOwnControls)">RARE+</span>
+      <span class="rc" data-val="HYPER" onclick="setTabRarityChip(this,'owned','own-rarity',applyOwnControls)">HYPER</span>
+      <span class="rc" data-val="ULTRA" onclick="setTabRarityChip(this,'owned','own-rarity',applyOwnControls)">ULTRA RARE</span>
+      <span class="rc" data-val="__EX__" onclick="setTabRarityChip(this,'owned','own-rarity',applyOwnControls)">ex / V / GX</span>
+      <span class="rc" data-val="__RARE__" onclick="setTabRarityChip(this,'owned','own-rarity',applyOwnControls)">RARE</span>
       <span class="rc" data-val="STANDARD" onclick="setTabRarityChip(this,'owned','own-rarity',applyOwnControls)">STANDARD</span>
+      <span class="rc" data-val="__FAV__" onclick="setTabRarityChip(this,'owned','own-rarity',applyOwnControls)">★ FAV</span>
       <div style="width:1px;background:var(--b1);margin:0 4px;align-self:stretch"></div>
       <span class="ctrl-label" style="display:flex;align-items:center;margin-right:4px;font-size:8px">SORT</span>
       <span class="sc active sort-chips" data-val="bought" onclick="setTabSortChip(this,'owned','own-sort',applyOwnControls)">BOUGHT</span>
@@ -1445,11 +1451,17 @@ function filterSort(list,ft,fr,so){
   if(fr){
     const parts=fr.split('|').filter(Boolean);
     const wantStd=parts.includes('STANDARD');
-    const otherParts=parts.filter(p=>p!=='STANDARD');
+    const wantEx=parts.includes('__EX__');
+    const wantRare=parts.includes('__RARE__');
+    const wantFav=parts.includes('__FAV__');
+    const otherParts=parts.filter(p=>p!=='STANDARD'&&p!=='__EX__'&&p!=='__RARE__'&&p!=='__FAV__');
     list=list.filter(c=>{
-      const ri=c.rarity??'STANDARD';
-      if(wantStd && ri.includes('STANDARD')) return true;
-      if(otherParts.length && otherParts.some(p=>ri.includes(p))) return true;
+      if(wantFav && !c.isFav) return false;
+      const ri=raritySnap(c);
+      if(wantStd && ri.rank>=7) return true;
+      if(wantEx && ri.rank===5) return true;
+      if(wantRare && ri.rank===6) return true;
+      if(otherParts.length && otherParts.some(p=>ri.label.includes(p))) return true;
       return false;
     });
   }
@@ -1630,10 +1642,14 @@ function filterSrPage(){
   if(fr){
     const parts=fr.split('|').filter(Boolean);
     const wantStd=parts.includes('STANDARD');
-    const otherParts=parts.filter(p=>p!=='STANDARD');
+    const wantEx=parts.includes('__EX__');
+    const wantRare=parts.includes('__RARE__');
+    const otherParts=parts.filter(p=>p!=='STANDARD'&&p!=='__EX__'&&p!=='__RARE__');
     cards=cards.filter(c=>{
       const ri=rarityOf(c);
       if(wantStd && ri.rank>=7) return true;
+      if(wantEx && ri.rank===5) return true;
+      if(wantRare && ri.rank===6) return true;
       if(otherParts.length && otherParts.some(p=>ri.label.includes(p))) return true;
       return false;
     });
@@ -1676,9 +1692,8 @@ function renderSrPage(){
     const favBorder=c.isFav?"border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)":"";
     return `<div class="pcard${ri.rank<=3?' is-rare':''}" style="${favBorder};cursor:pointer" onclick="if(!event.target.closest('button,a,input')){openCardStatById('${c.id}','search')}">\n      <img src="${c.images.small}" loading="lazy" onerror="this.src='${c.images.large||c.images.small}'"/>
       <span class="rtag ${ri.cls}">${ri.label}</span>
-      ${ap&&c.types?.length?'<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:3px">'+typeChips(c.types)+'</div>':''}
       <div class="pcard-name">${c.name}</div>
-      <div class="pcard-set">${setSymbolImg(c.set?.images?.symbol)}${c.set.name} · ${c.number}/${c.set.printedTotal??c.set.total??'?'}</div>
+      <div class="pcard-set">${c.set.name} · ${c.number}/${c.set.printedTotal??c.set.total??'?'}</div>
       ${setOwnershipBadge(c.set.id,c.set.printedTotal??c.set.total)}
       ${c.set.releaseDate?`<div class="set-own-badge" style="margin-bottom:2px">Set Release: ${c.set.releaseDate.replace(/\//g,'-')}</div>`:''}
       <div class="cond-divider"></div>
@@ -1757,6 +1772,8 @@ function addToWl(snap){
   }
 function addToOwned(snap){
   snap.copyId=uid();snap.addedAt=Date.now();
+  // Snapshot current market price at time of add
+  snap.marketAtBuy=snap.market??snap.nmMarket??null;
   owned.push(snap);ledgerSetOwned(snap);save();refreshAllCounts();
   // Don't grey out the button — allow multiple copies
   const b=document.getElementById('ownb-'+snap.id);
@@ -1807,6 +1824,8 @@ function confirmQAAdd(){
   if(!_qaSnap) return;
   const snap={..._qaSnap};
   snap.copyId=uid();snap.addedAt=Date.now();
+  // Snapshot current market price at time of add
+  snap.marketAtBuy=snap.market??snap.nmMarket??null;
   const isQaJP=document.getElementById('qa-jp')?.classList.contains('active');
   const isQaBL=document.getElementById('qa-bl')?.classList.contains('active');
   const priceVal=parseFloat(document.getElementById('qa-price').value);
@@ -2375,12 +2394,14 @@ function openCDM(copyId){
   // Set info on left
   const leftSet=document.getElementById('cdm-left-set');
   if(leftSet){
+    leftSet.style.width='100%';
+    leftSet.style.textAlign='left';
     const ownedInSetL=owned.filter(o=>(o.setId||o.id.split('-').slice(0,-1).join('-'))===setId).map(o=>o.id);
     const uOwnedL=[...new Set(ownedInSetL)];
     const trackedOnlyL=watchlist.filter(w=>(w.setId||w.id.split('-').slice(0,-1).join('-'))===setId&&!uOwnedL.includes(w.id)).length;
     leftSet.innerHTML=`
       <div style="font-size:8px;font-weight:700;letter-spacing:0.12em;color:var(--t3);font-family:'Space Mono',monospace;padding-bottom:4px;border-bottom:1px solid var(--b1);margin-bottom:4px">SET INFO</div>
-      <div class="cdm-row"><span class="cdm-row-label">Set</span><span class="cdm-row-val" style="font-size:9px">${setSymbolImg(c.setSymbol)}${c.set}</span></div>
+      <div class="cdm-row"><span class="cdm-row-label">Set</span><span class="cdm-row-val" style="font-size:9px">${c.set}</span></div>
       <div class="cdm-row"><span class="cdm-row-label">Number</span><span class="cdm-row-val">#${c.number} / ${c.total}</span></div>
       ${relDate?`<div class="cdm-row"><span class="cdm-row-label">Release</span><span class="cdm-row-val">${relDate}</span></div>`:''}
       <div class="cdm-row"><span class="cdm-row-label">Collection</span><span class="cdm-row-val"><span style="color:var(--green);font-weight:700">${uOwnedL.length}</span>${trackedOnlyL?` <span style="color:var(--t2);font-weight:400">+${trackedOnlyL}</span>`:''} / ${c.total}</span></div>`;
@@ -2475,7 +2496,8 @@ function openCDM(copyId){
       <div class="cdm-row"><span class="cdm-row-label">Date bought</span><span class="cdm-row-val">${c.boughtAt?fmtDate(c.boughtAt):'—'}</span></div>
       <div class="cdm-row"><span class="cdm-row-label">From</span><span class="cdm-row-val">${c.boughtFrom||'—'}</span></div>
       <div class="cdm-row"><span class="cdm-row-label">Price paid</span><span class="cdm-row-val">${pp!=null?fmt(pp):'—'}</span></div>
-      <div class="cdm-row"><span class="cdm-row-label">Gain / Loss</span><span class="cdm-row-val" style="${pnl==null?'':pnl>0?'color:var(--green)':'color:var(--red)'}">${pnl!=null?(pnl>=0?'+':'')+fmt(pnl):'—'}</span></div>
+      ${c.marketAtBuy!=null?`<div class="cdm-row"><span class="cdm-row-label">MP when bought</span><span class="cdm-row-val muted">${fmt(c.marketAtBuy)}</span></div>`:''}
+      ${pp!=null&&pnl!=null?`<div class="cdm-row"><span class="cdm-row-label">Gain / Loss</span><span class="cdm-row-val" style="${pnl>0?'color:var(--green)':pnl<0?'color:var(--red)':''}">${(pnl>=0?'+':'')+fmt(pnl)}</span></div>`:''}
     </div>
   `;
 
@@ -2699,7 +2721,7 @@ function openCardStat(snapJson, mode, listJson){
   document.getElementById('csm-badges').innerHTML=
     `<span class="cdm-badge" style="${rarStyle}">${ri.label||'—'}</span>`+
     `<span class="cdm-badge" style="${langStyle}">${c.isJP?'JP':c.isBL?'BL':'US'}</span>`+
-    (c.types?.length?`<div style="width:100%;display:flex;flex-wrap:wrap;gap:3px;margin-top:5px">${typeChips(c.types)}</div>`:'');
+    ('');
 
   // Set info
   const ownedInSet=owned.filter(o=>(o.setId||o.id.split('-').slice(0,-1).join('-'))===setId).map(o=>o.id);
@@ -2707,7 +2729,7 @@ function openCardStat(snapJson, mode, listJson){
   const trackedOnly=watchlist.filter(w=>(w.setId||w.id.split('-').slice(0,-1).join('-'))===setId&&!uOwned.includes(w.id)).length;
   document.getElementById('csm-left-set').innerHTML=`
     <div style="font-size:8px;font-weight:700;letter-spacing:0.12em;color:var(--t3);font-family:'Space Mono',monospace;padding-bottom:4px;border-bottom:1px solid var(--b1);margin-bottom:4px">SET INFO</div>
-    <div class="cdm-row"><span class="cdm-row-label">Set</span><span class="cdm-row-val" style="font-size:9px">${setSymbolImg(c.setSymbol)}${c.set||'—'}</span></div>
+    <div class="cdm-row"><span class="cdm-row-label">Set</span><span class="cdm-row-val" style="font-size:9px">${c.set||'—'}</span></div>
     <div class="cdm-row"><span class="cdm-row-label">Number</span><span class="cdm-row-val">#${c.number||'—'} / ${c.total||'?'}</span></div>
     ${relDate?`<div class="cdm-row"><span class="cdm-row-label">Release</span><span class="cdm-row-val">${relDate}</span></div>`:''}
     <div class="cdm-row"><span class="cdm-row-label">You own</span><span class="cdm-row-val"><span style="color:var(--green);font-weight:700">${uOwned.length}</span>${trackedOnly?` +${trackedOnly} watched`:''} / ${c.total||'?'}</span></div>`;
@@ -3447,6 +3469,7 @@ function restoreToOwned(from,idx){
   delete entry.soldAt;delete entry.soldPrice;delete entry.soldTo;
   delete entry.giftedAt;delete entry.giftedTo;
   entry.addedAt=Date.now();
+  if(!entry.marketAtBuy) entry.marketAtBuy=entry.market??null;
   const soldSnap=JSON.stringify(sold);
   const giftedSnap=JSON.stringify(gifted);
   owned.push(entry);
