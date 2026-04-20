@@ -1257,7 +1257,9 @@ document.addEventListener('touchstart',e=>{
 // HELPERS
 const fmt=v=>v!=null?'$'+Number(v).toFixed(2):'—';
 const fmtDate=ts=>ts?new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';
-const todayVal=()=>new Date().toISOString().slice(0,10);
+const localDateStr=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+const localDateFromTs=ts=>{const d=new Date(ts);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+const todayVal=()=>localDateStr();
 const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36);
 
 function getPrice(card){
@@ -2260,7 +2262,7 @@ window.addEventListener('resize',()=>{if(ownBinder&&document.getElementById('bin
 function openOwnedEditModal(copyId){
   const c=owned.find(o=>o.copyId===copyId);if(!c) return;
   const pp=c.purchasePrice;
-  const pdVal=c.boughtAt?new Date(c.boughtAt).toISOString().slice(0,10):'';
+  const pdVal=c.boughtAt?localDateFromTs(c.boughtAt):'';
   const dm=(c.isJP&&c.jpPrice!=null?c.jpPrice:c.isBL&&c.blPrice!=null?c.blPrice:c.market);
   document.getElementById('oem-img').src=c.img;
   document.getElementById('oem-name').textContent=c.name;
@@ -2307,7 +2309,7 @@ function oemToggle(type){
     if(row) row.style.display=c.isBL?'block':'none';
   }
 }
-function saveOwnedEdit(){ saveOwnedEditModal(); }
+function saveOwnedEditFromModal(){ saveOwnedEditModal(); }
 function saveOwnedEditModal(){
   const copyId=document.getElementById('oem-copyid').value;
   const c=owned.find(o=>o.copyId===copyId);if(!c) return;
@@ -2323,6 +2325,9 @@ function saveOwnedEditModal(){
   if(c.isBL){const v=parseFloat(document.getElementById('oem-blp').value);if(!isNaN(v)&&v>0){c.blPrice=v;if(ledger[c.id]){ledger[c.id].isBL=true;ledger[c.id].blPrice=v;}}}
   else if(ledger[c.id]){ledger[c.id].isBL=false;ledger[c.id].blPrice=null;}
   save();closeOwnedEditModal();refreshOwnedInPlace();
+  // Refresh CDM if open so price/date show immediately
+  const cdmOpen=document.getElementById('cdm-bg')?.classList.contains('open');
+  if(cdmOpen) openCDM(copyId);
   showBriefToast('✓ Saved '+c.name,2000);
 }
 function oemClone(){
@@ -3248,7 +3253,7 @@ function renderOwned(){
     const{suggest,trend}=suggestSell(c.id,c.market);
     const sugCls=trend==='up'?'up':trend==='down'?'down':'flat';
     const sugLabel=trend==='up'?`SUGGEST SELL ${fmt(suggest)}`:trend==='down'?'HOLD — TREND ↓':'FAIR VALUE';
-    const pdVal=c.boughtAt?new Date(c.boughtAt).toISOString().slice(0,10):'';
+    const pdVal=c.boughtAt?localDateFromTs(c.boughtAt):'';
     const favBorder=c.isFav?"border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)":"";
     const setId=c.setId||c.id.split('-').slice(0,-1).join('-');
     const relDate=c.releaseDate?c.releaseDate.replace(/\//g,'-'):'';
@@ -4935,7 +4940,7 @@ function setSortChip(el, val){
     <div class="edit-row"><span class="edit-label">Date bought</span><input class="edit-input" id="oem-pd" type="date" style="text-align:left"/></div>
     <div class="edit-row"><span class="edit-label">From</span><input class="edit-input" id="oem-bf" type="text" placeholder="eBay, LGS, trade, pack..."/></div>
     <div style="display:flex;gap:7px;margin-top:12px">
-      <button class="btn" style="flex:1" onclick="saveOwnedEdit()">✓ SAVE</button>
+      <button class="btn" style="flex:1" onclick="saveOwnedEditFromModal()">✓ SAVE</button>
       <button class="btn-ghost" onclick="cloneCard(document.getElementById('oem-copyid').value)">⧉ CLONE</button>
       <button class="btn-ghost" onclick="closeOwnedEditModal()">CANCEL</button>
     </div>
