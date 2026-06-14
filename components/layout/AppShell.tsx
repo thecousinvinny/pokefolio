@@ -28,19 +28,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 function FloatingTabBar() {
   const pathname = usePathname()
   const activeIdx = NAV.findIndex(n => pathname === n.href || pathname.startsWith(n.href + '/'))
-  const iconRefs = useRef<(HTMLDivElement | null)[]>([])
+  const tabRefs = useRef<(HTMLDivElement | null)[]>([])
   const navRef = useRef<HTMLElement>(null)
   const [pill, setPill] = useState<{ left: number; top: number; w: number; h: number } | null>(null)
-  const isFirst = useRef(true)
 
   useEffect(() => {
-    const icon = iconRefs.current[activeIdx]
+    const tab = tabRefs.current[activeIdx]
     const nav = navRef.current
-    if (!icon || !nav) return
+    if (!tab || !nav) return
     const nr = nav.getBoundingClientRect()
-    const ir = icon.getBoundingClientRect()
-    setPill({ left: ir.left - nr.left, top: ir.top - nr.top, w: ir.width, h: ir.height })
-    isFirst.current = false
+    const tr = tab.getBoundingClientRect()
+    setPill({ left: tr.left - nr.left, top: tr.top - nr.top, w: tr.width, h: tr.height })
   }, [activeIdx, pathname])
 
   return (
@@ -57,20 +55,14 @@ function FloatingTabBar() {
         alignItems: 'center',
         height: 68,
         borderRadius: 34,
-        background: 'rgba(20, 22, 38, 0.28)',
-        backdropFilter: 'blur(40px) saturate(200%) brightness(0.88)',
-        WebkitBackdropFilter: 'blur(40px) saturate(200%) brightness(0.88)',
-        border: '1px solid rgba(255, 255, 255, 0.13)',
-        boxShadow: [
-          'inset 0 1px 0 rgba(255, 255, 255, 0.10)',
-          'inset 0 -1px 0 rgba(0, 0, 0, 0.18)',
-          '0 24px 64px rgba(0, 0, 0, 0.65)',
-          '0 4px 20px rgba(0, 0, 0, 0.38)',
-        ].join(', '),
+        background: 'rgba(255, 255, 255, 0.05)',
+        backdropFilter: 'blur(20px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
         padding: '0 6px',
       }}>
 
-      {/* Sliding gold pill — moves between active tabs with spring bounce */}
+      {/* Frosted glass pill — slides between active tabs with spring bounce */}
       {pill && (
         <div style={{
           position: 'absolute',
@@ -78,15 +70,11 @@ function FloatingTabBar() {
           top: pill.top,
           width: pill.w,
           height: pill.h,
-          borderRadius: 999,
-          background: 'rgba(255, 255, 255, 0.13)',
-          backdropFilter: 'blur(24px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-          border: '1px solid rgba(255, 255, 255, 0.26)',
-          boxShadow: [
-            'inset 0 1.5px 0 rgba(255, 255, 255, 0.52)',
-            'inset 0 -1px 0 rgba(0, 0, 0, 0.10)',
-          ].join(', '),
+          borderRadius: 9999,
+          background: 'rgba(255, 255, 255, 0.15)',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
           pointerEvents: 'none',
           zIndex: 0,
           transition: 'left 0.38s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.38s cubic-bezier(0.34, 1.56, 0.64, 1), width 0.38s cubic-bezier(0.34, 1.56, 0.64, 1), height 0.38s cubic-bezier(0.34, 1.56, 0.64, 1)',
@@ -103,10 +91,8 @@ function FloatingTabBar() {
             style={{
               flex: 1,
               display: 'flex',
-              flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 3,
               textDecoration: 'none',
               color: active ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.40)',
               transition: 'color 0.20s ease',
@@ -114,27 +100,26 @@ function FloatingTabBar() {
               position: 'relative',
               zIndex: 1,
             }}>
+            {/* pill ref wraps both icon + label so the pill covers both */}
             <div
-              ref={el => { iconRefs.current[i] = el }}
+              ref={el => { tabRefs.current[i] = el }}
               style={{
-                padding: '7px 20px',
-                borderRadius: 14,
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
-                justifyContent: 'center',
+                gap: 3,
+                padding: '8px 16px',
               }}>
               <Icon active={active} />
+              <span style={{
+                fontSize: 10,
+                fontWeight: active ? 700 : 500,
+                letterSpacing: '0.01em',
+                lineHeight: 1,
+              }}>
+                {label}
+              </span>
             </div>
-            <span style={{
-              fontSize: 10,
-              fontWeight: active ? 700 : 500,
-              letterSpacing: '0.01em',
-              lineHeight: 1,
-              marginTop: -1,
-              transition: 'font-weight 0.15s ease',
-            }}>
-              {label}
-            </span>
           </Link>
         )
       })}
