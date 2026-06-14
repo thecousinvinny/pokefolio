@@ -18,9 +18,20 @@ CREATE TABLE IF NOT EXISTS pokemon_cards (
   rarity            TEXT,
   image_sm          TEXT,
   image_lg          TEXT,
+  language          TEXT DEFAULT 'EN',
+  flavor_text       TEXT,
+  set_printed_total INTEGER,
+  set_release_date  TEXT,
+  tcgplayer_url     TEXT,
 
   -- Pricing
   market_price      NUMERIC(10,2),
+  market_low        NUMERIC(10,2),
+  market_mid        NUMERIC(10,2),
+  market_high       NUMERIC(10,2),
+  market_direct_low NUMERIC(10,2),
+  price_yesterday   NUMERIC(10,2),
+  market_at_buy     NUMERIC(10,2),
   price_updated_at  TIMESTAMPTZ,
 
   -- Collection metadata
@@ -29,9 +40,11 @@ CREATE TABLE IF NOT EXISTS pokemon_cards (
   condition         TEXT NOT NULL DEFAULT 'NM'
                     CHECK (condition IN ('NM', 'LP', 'MP', 'HP', 'DMG')),
   price_paid        NUMERIC(10,2),
+  bought_from       TEXT,
   target_price      NUMERIC(10,2),
   alerts_enabled    BOOLEAN DEFAULT false,
   is_favorite       BOOLEAN DEFAULT false,
+  is_showcase       BOOLEAN DEFAULT false,
   date_added        TIMESTAMPTZ DEFAULT NOW(),
   notes             TEXT,
 
@@ -49,6 +62,7 @@ CREATE TABLE IF NOT EXISTS pokemon_sales (
   set_name        TEXT,
   image_sm        TEXT,
   card_snapshot   JSONB,
+  sale_type       TEXT DEFAULT 'sale' CHECK (sale_type IN ('sale', 'gift')),
 
   date_sold       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   sold_price      NUMERIC(10,2) NOT NULL,
