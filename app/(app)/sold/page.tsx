@@ -1,11 +1,15 @@
 'use client'
+import { useState } from 'react'
 import Image from 'next/image'
+import { Modal } from '@/components/ui/Modal'
 import { useCollection } from '@/components/CollectionContext'
 import { formatPrice, formatDate } from '@/lib/utils'
 import type { SaleRecord } from '@/types'
 
 export default function SoldPage() {
   const { sales, loading } = useCollection()
+  const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null)
+  const selectedSale = selectedSaleId ? (sales.find(s => s.id === selectedSaleId) ?? null) : null
 
   const totalEarned = sales.reduce((s, sale) => s + sale.net_profit, 0)
   const bestSale = sales.reduce<SaleRecord | null>((best, sale) =>
@@ -61,10 +65,14 @@ export default function SoldPage() {
         <h2 className="font-bold text-base mb-3">History</h2>
         <div className="space-y-3">
           {sales.map(sale => (
-            <SaleRow key={sale.id} sale={sale} />
+            <SaleRow key={sale.id} sale={sale} onClick={() => setSelectedSaleId(sale.id)} />
           ))}
         </div>
       </section>
+
+      {selectedSale && (
+        <SaleDetailModal sale={selectedSale} onClose={() => setSelectedSaleId(null)} />
+      )}
     </div>
   )
 }
@@ -128,9 +136,15 @@ function getLast6Months(sales: SaleRecord[]): { label: string; profit: number }[
 
 // ─── Sale row ─────────────────────────────────────────────────────────────────
 
-function SaleRow({ sale }: { sale: SaleRecord }) {
+function SaleRow({ sale, onClick }: { sale: SaleRecord; onClick: () => void }) {
+  const isGift = sale.sale_type === 'gift'
   return (
-    <div className="surface-card p-3 flex items-center gap-3">
+    <div
+      onClick={onClick}
+      className="surface-card p-3 flex items-center gap-3"
+      style={{ cursor: 'pointer', transition: 'opacity 0.12s' }}
+      onMouseEnter={e => (e.currentTarget.style.opacity = '0.8')}
+      onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>
       {/* Thumbnail */}
       <div className="relative flex-shrink-0 rounded-lg overflow-hidden"
         style={{ width: 44, height: 62, background: 'var(--bg)' }}>
@@ -141,12 +155,17 @@ function SaleRow({ sale }: { sale: SaleRecord }) {
 
       {/* Details */}
       <div className="flex-1 min-w-0">
-        <p className="font-bold text-sm truncate">{sale.card_name}</p>
+        <div className="flex items-center gap-2">
+          <p className="font-bold text-sm truncate">{sale.card_name}</p>
+          {isGift && (
+            <span style={{ fontSize: 8, fontWeight: 900, color: '#fff', background: 'var(--violet)', padding: '1px 5px', borderRadius: 100, whiteSpace: 'nowrap' }}>GIFT</span>
+          )}
+        </div>
         <p className="text-xs mt-0.5" style={{ color: 'var(--text3)' }}>
-          {formatDate(sale.date_sold)}
+          {sale.set_name} · {formatDate(sale.date_sold)}
         </p>
         <p className="text-xs mt-0.5" style={{ color: 'var(--text3)' }}>
-          Sold {formatPrice(sale.sold_price)}
+          {isGift ? 'Gifted' : `Sold ${formatPrice(sale.sold_price)}`}
           {(sale.fees + sale.shipping) > 0 && ` · fees ${formatPrice(sale.fees + sale.shipping)}`}
         </p>
       </div>
@@ -157,7 +176,84 @@ function SaleRow({ sale }: { sale: SaleRecord }) {
           style={{ color: sale.net_profit >= 0 ? 'var(--emerald)' : 'var(--crimson)' }}>
           {sale.net_profit >= 0 ? '+' : ''}{formatPrice(sale.net_profit)}
         </p>
+        <p className="text-xs mt-0.5" style={{ color: 'var(--text3)' }}>net</p>
       </div>
+    </div>
+  )
+}
+
+// ─── Sale detail modal ────────────────────────────────────────────────────────
+
+function SaleDetailModal({ sale, onClose }: { sale: SaleRecord; onClose: () => void }) {
+  const isGift = sale.sale_type === 'gift'
+
+  return (
+    <Modal open onClose={onClose} maxWidth={440}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+        {/* Card header */}
+        <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+          {sale.image_sm && (
+            <div style={{ position: 'relative', width: 68, height: 95, flexShrink: 0, borderRadius: 8, overflow: 'hidden', background: 'var(--bg)' }}>
+              <Image src={sale.image_sm} alt={sale.card_name} fill className="object-cover" />
+            </div>
+          )}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>{sale.card_name}</h2>
+              <span style={{
+                fontSize: 9, fontWeight: 900, letterSpacing: '0.05em',
+                color: '#fff', background: isGift ? 'var(--violet)' : 'var(--emerald)',
+                padding: '2px 7px', borderRadius: 100,
+              }}>
+                {isGift ? 'GIFT' : 'SALE'}
+              </span>
+            </div>
+            {sale.set_name && (
+              <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--text3)' }}>{sale.set_name}</p>
+            )}
+            <p style={{ margin: '3px 0 0', fontSize: 11, color: 'var(--text3)' }}>{formatDate(sale.date_sold)}</p>
+          </div>
+        </div>
+
+        {/* Financials */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          {!isGift && (
+            <StatCard label="Sale Price" value={formatPrice(sale.sold_price)} color="var(--gold)" />
+          )}
+          <StatCard label="Cost Basis" value={formatPrice(sale.cost_basis)} />
+          {sale.fees > 0 && <StatCard label="Fees" value={formatPrice(sale.fees)} />}
+          {sale.shipping > 0 && <StatCard label="Shipping" value={formatPrice(sale.shipping)} />}
+        </div>
+
+        {/* Net profit big display */}
+        <div style={{
+          padding: '16px', borderRadius: 12, textAlign: 'center',
+          background: sale.net_profit >= 0 ? 'rgba(69,219,141,0.08)' : 'rgba(242,69,96,0.08)',
+          border: `1px solid ${sale.net_profit >= 0 ? 'rgba(69,219,141,0.20)' : 'rgba(242,69,96,0.20)'}`,
+        }}>
+          <p style={{ margin: '0 0 4px', fontSize: 9, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text3)' }}>
+            Net {isGift ? 'Cost' : 'Profit'}
+          </p>
+          <p style={{ margin: 0, fontSize: 34, fontWeight: 900, color: sale.net_profit >= 0 ? 'var(--emerald)' : 'var(--crimson)' }}>
+            {sale.net_profit >= 0 ? '+' : ''}{formatPrice(sale.net_profit)}
+          </p>
+          {!isGift && sale.cost_basis > 0 && (
+            <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--text3)' }}>
+              {((sale.net_profit / sale.cost_basis) * 100).toFixed(1)}% return
+            </p>
+          )}
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function StatCard({ label, value, color = 'var(--text)' }: { label: string; value: string; color?: string }) {
+  return (
+    <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--s2)', border: '1px solid var(--border)' }}>
+      <p style={{ margin: '0 0 3px', fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text3)' }}>{label}</p>
+      <p style={{ margin: 0, fontSize: 15, fontWeight: 800, color }}>{value}</p>
     </div>
   )
 }

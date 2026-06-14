@@ -206,9 +206,19 @@ export function PortfolioTile({ card, onClick, onLongPress, onSell, onGift, sele
             {card.set_name}{card.set_number ? ` · #${card.set_number}` : ''}
           </span>
         </div>
-        <span style={{ fontSize: 17, fontWeight: 900, lineHeight: 1, color: 'var(--gold)' }}>
-          {card.market_price != null ? formatPrice(card.market_price, true) : '—'}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 17, fontWeight: 900, lineHeight: 1, color: 'var(--gold)' }}>
+            {card.market_price != null ? formatPrice(card.market_price, true) : '—'}
+          </span>
+          {card.tcgplayer_url && (
+            <a
+              href={card.tcgplayer_url} target="_blank" rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              style={{ fontSize: 9, fontWeight: 800, color: 'var(--text3)', textDecoration: 'none', padding: '2px 5px', borderRadius: 4, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', lineHeight: 1.4, whiteSpace: 'nowrap' }}>
+              ↗ TCG
+            </a>
+          )}
+        </div>
       </div>
 
       {/* Actions */}
@@ -278,9 +288,19 @@ export function BrowseTile({ card, onClick, onAddToPortfolio, onAddToWishlist, i
             {card.set.name}{card.number ? ` · #${card.number}` : ''}
           </span>
         </div>
-        <span style={{ fontSize: 17, fontWeight: 900, lineHeight: 1, color: price != null ? 'var(--gold)' : 'var(--text3)' }}>
-          {price != null ? formatPrice(price, true) : '—'}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 17, fontWeight: 900, lineHeight: 1, color: price != null ? 'var(--gold)' : 'var(--text3)' }}>
+            {price != null ? formatPrice(price, true) : '—'}
+          </span>
+          {card.tcgplayer?.url && (
+            <a
+              href={card.tcgplayer.url} target="_blank" rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              style={{ fontSize: 9, fontWeight: 800, color: 'var(--text3)', textDecoration: 'none', padding: '2px 5px', borderRadius: 4, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', lineHeight: 1.4, whiteSpace: 'nowrap' }}>
+              ↗ TCG
+            </a>
+          )}
+        </div>
       </div>
 
       {/* Actions */}

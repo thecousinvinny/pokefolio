@@ -40,9 +40,10 @@ interface CardDetailModalProps {
   card: PokemonCard | null
   onClose: () => void
   initialView?: 'detail' | 'sell' | 'gift'
+  view?: 'portfolio' | 'wishlist'
 }
 
-export function CardDetailModal({ card, onClose, initialView = 'detail' }: CardDetailModalProps) {
+export function CardDetailModal({ card, onClose, initialView = 'detail', view = 'portfolio' }: CardDetailModalProps) {
   const { updateCard, setFavorite, setShowcase, removeCard } = useCollection()
   const [condition, setCondition] = useState<number>(
     card ? CONDITION_ORDER.indexOf(card.condition) : 0
@@ -52,6 +53,8 @@ export function CardDetailModal({ card, onClose, initialView = 'detail' }: CardD
   const [isEditing, setIsEditing] = useState(false)
   const [editPaid, setEditPaid] = useState('')
   const [editFrom, setEditFrom] = useState('')
+  const [editingTarget, setEditingTarget] = useState(false)
+  const [editTarget, setEditTarget] = useState('')
 
   const priceHistory = useMemo(
     () => card?.market_price ? generatePriceHistory(card.market_price) : [],
@@ -65,8 +68,17 @@ export function CardDetailModal({ card, onClose, initialView = 'detail' }: CardD
   const adjValue = (card.market_price ?? 0) * CONDITION_MULTIPLIERS[currentCondition]
   const profit = card.price_paid != null ? adjValue - card.price_paid : null
   const profitPct = profit != null && card.price_paid ? (profit / card.price_paid) * 100 : null
-  const sparkColor = profit == null ? 'var(--sky)' : profit >= 0 ? 'var(--emerald)' : 'var(--crimson)'
+  const sparkColor = view === 'wishlist'
+    ? 'var(--violet)'
+    : profit == null ? 'var(--sky)' : profit >= 0 ? 'var(--emerald)' : 'var(--crimson)'
   const locked = card.is_favorite || card.is_showcase
+
+  // Wishlist-specific
+  const wlDelta = view === 'wishlist' && card.market_price != null && card.market_at_buy != null
+    ? ((card.market_price - card.market_at_buy) / card.market_at_buy) * 100
+    : null
+  const atTarget = card.target_price != null && card.market_price != null
+    && card.market_price <= card.target_price
 
   const setRef = [
     card.set_number
@@ -81,7 +93,24 @@ export function CardDetailModal({ card, onClose, initialView = 'detail' }: CardD
   }
   function handleShowcase() { setShowcase(card!.id) }
   function handleToWatch() { updateCard(card!.id, { status: 'wishlist' }); onClose() }
+  function handleMoveToPortfolio() {
+    updateCard(card!.id, {
+      status: 'owned',
+      condition: 'NM',
+      price_paid: card!.target_price ?? card!.market_price,
+      market_at_buy: card!.market_price,
+    })
+    onClose()
+  }
   function handleRemove() { removeCard(card!.id); onClose() }
+  function startEditTarget() {
+    setEditTarget(card!.target_price != null ? String(card!.target_price) : '')
+    setEditingTarget(true)
+  }
+  function saveTarget() {
+    updateCard(card!.id, { target_price: editTarget ? parseFloat(editTarget) : undefined })
+    setEditingTarget(false)
+  }
   function startEdit() {
     setEditPaid(card!.price_paid != null ? String(card!.price_paid) : '')
     setEditFrom(card!.bought_from ?? '')
@@ -167,142 +196,271 @@ export function CardDetailModal({ card, onClose, initialView = 'detail' }: CardD
               </div>
             </div>
 
-            {/* RIGHT: market data + purchase + lore */}
+            {/* RIGHT: view-specific content */}
             <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 0 }}>
-
-              {/* Market value */}
-              <div>
-                <p style={{ margin: '0 0 4px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>
-                  Market Value
-                </p>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
-                  <span style={{ fontSize: 32, fontWeight: 900, color: 'var(--gold)', lineHeight: 1 }}>
-                    {card.market_price != null ? formatPrice(card.market_price) : '—'}
-                  </span>
-                  <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 500 }}>NM</span>
-                </div>
-
-                {(card.market_low != null || card.market_mid != null || card.market_high != null || card.market_direct_low != null) && (
-                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                    {([
-                      { label: 'Low',    val: card.market_low },
-                      { label: 'Mid',    val: card.market_mid },
-                      { label: 'High',   val: card.market_high },
-                      { label: 'Direct', val: card.market_direct_low },
-                    ] as { label: string; val: number | null | undefined }[]).filter(x => x.val != null).map(({ label, val }) => (
-                      <div key={label}>
-                        <p style={{ margin: 0, fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text3)' }}>{label}</p>
-                        <p style={{ margin: '1px 0 0', fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>{formatPrice(val!)}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Sparkline */}
-              {priceHistory.length > 1 && (
-                <div style={{ marginTop: 14 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                    <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>30-Day Price</span>
-                    <span style={{ fontSize: 9, color: 'var(--text3)' }}>
-                      {formatPrice(Math.min(...priceHistory))} – {formatPrice(Math.max(...priceHistory))}
-                    </span>
-                  </div>
-                  <Sparkline points={priceHistory} color={sparkColor} height={38} />
-                </div>
-              )}
-
-              {/* MY PURCHASE */}
-              {isEditing ? (
-                <div style={{ marginTop: 14, padding: '10px 12px', borderRadius: 8, background: 'var(--s2)', border: '1px solid rgba(93,169,255,0.25)' }}>
-                  <p style={{ margin: '0 0 8px', fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>
-                    Edit Purchase
-                  </p>
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                    <div style={{ flex: 1 }}>
-                      <label style={{ fontSize: 9, fontWeight: 700, color: 'var(--text3)', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 3 }}>Price Paid</label>
-                      <div style={{ position: 'relative' }}>
-                        <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: 'var(--text3)', fontWeight: 700 }}>$</span>
-                        <input type="number" min="0" step="0.01" value={editPaid} onChange={e => setEditPaid(e.target.value)}
-                          style={{ width: '100%', paddingLeft: 18, paddingRight: 8, paddingTop: 7, paddingBottom: 7, borderRadius: 7, fontSize: 12, background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', outline: 'none' }} />
-                      </div>
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <label style={{ fontSize: 9, fontWeight: 700, color: 'var(--text3)', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 3 }}>From</label>
-                      <input type="text" placeholder="eBay, local…" value={editFrom} onChange={e => setEditFrom(e.target.value)}
-                        style={{ width: '100%', padding: '7px 8px', borderRadius: 7, fontSize: 12, background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', outline: 'none' }} />
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button onClick={saveEdit} style={{ flex: 1, padding: '7px', borderRadius: 7, fontSize: 11, fontWeight: 700, background: 'var(--sky)', color: '#0D0F1A', border: 'none', cursor: 'pointer' }}>Save</button>
-                    <button onClick={() => setIsEditing(false)} style={{ padding: '7px 12px', borderRadius: 7, fontSize: 11, fontWeight: 600, background: 'transparent', color: 'var(--text3)', border: '1px solid var(--border)', cursor: 'pointer' }}>Cancel</button>
-                  </div>
-                </div>
-              ) : card.price_paid != null && (
-                <div style={{ marginTop: 14 }}>
-                  <p style={{ margin: '0 0 6px', fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>
-                    My Purchase
-                  </p>
-                  <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: profit != null ? 8 : 0 }}>
-                    <Stat label="Paid"        value={formatPrice(card.price_paid)} />
-                    {card.market_at_buy != null && <Stat label="Mkt at Buy" value={formatPrice(card.market_at_buy)} />}
-                    {card.bought_from   && <Stat label="From"       value={card.bought_from} />}
-                    {card.date_added    && <Stat label="Date"       value={formatDate(card.date_added)} />}
-                  </div>
-                  {profit != null && (
-                    <div style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 6,
-                      padding: '5px 10px', borderRadius: 7,
-                      background: profit >= 0 ? 'rgba(69,219,141,0.10)' : 'rgba(242,69,96,0.10)',
-                      border: `1px solid ${profit >= 0 ? 'rgba(69,219,141,0.22)' : 'rgba(242,69,96,0.22)'}`,
-                    }}>
-                      <span style={{ fontSize: 12, fontWeight: 800, color: profit >= 0 ? 'var(--emerald)' : 'var(--crimson)' }}>
-                        {profit >= 0 ? '▲' : '▼'} {formatPrice(Math.abs(profit))} unrealized
-                        {profitPct != null && (
-                          <span style={{ fontWeight: 600, opacity: 0.75, marginLeft: 4 }}>
-                            ({profitPct >= 0 ? '+' : ''}{profitPct.toFixed(1)}%)
-                          </span>
-                        )}
+              {view === 'wishlist' ? (
+                /* ── WISHLIST right panel ── */
+                <>
+                  {/* Market now */}
+                  <div>
+                    <p style={{ margin: '0 0 4px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>
+                      Market Now
+                    </p>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                      <span style={{ fontSize: 32, fontWeight: 900, color: atTarget ? 'var(--emerald)' : 'var(--gold)', lineHeight: 1 }}>
+                        {card.market_price != null ? formatPrice(card.market_price) : '—'}
                       </span>
+                      <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 500 }}>NM</span>
+                      {atTarget && (
+                        <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--emerald)', background: 'rgba(69,219,141,0.12)', border: '1px solid rgba(69,219,141,0.25)', padding: '2px 8px', borderRadius: 100 }}>
+                          AT TARGET!
+                        </span>
+                      )}
+                    </div>
+                    {(card.market_low != null || card.market_mid != null || card.market_high != null || card.market_direct_low != null) && (
+                      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 10 }}>
+                        {([
+                          { label: 'Low',    val: card.market_low },
+                          { label: 'Mid',    val: card.market_mid },
+                          { label: 'High',   val: card.market_high },
+                          { label: 'Direct', val: card.market_direct_low },
+                        ] as { label: string; val: number | null | undefined }[]).filter(x => x.val != null).map(({ label, val }) => (
+                          <div key={label}>
+                            <p style={{ margin: 0, fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text3)' }}>{label}</p>
+                            <p style={{ margin: '1px 0 0', fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>{formatPrice(val!)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Sparkline */}
+                  {priceHistory.length > 1 && (
+                    <div style={{ marginTop: 4, marginBottom: 14 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>Price Trend</span>
+                        <span style={{ fontSize: 9, color: 'var(--text3)' }}>
+                          {formatPrice(Math.min(...priceHistory))} – {formatPrice(Math.max(...priceHistory))}
+                        </span>
+                      </div>
+                      <Sparkline points={priceHistory} color={atTarget ? 'var(--emerald)' : 'var(--violet)'} height={38} />
                     </div>
                   )}
+
+                  {/* When added */}
+                  {(card.market_at_buy != null || card.date_added) && (
+                    <div style={{ marginTop: 4 }}>
+                      <p style={{ margin: '0 0 6px', fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>
+                        When Added
+                      </p>
+                      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: wlDelta != null ? 8 : 0 }}>
+                        {card.market_at_buy != null && <Stat label="Market at Add" value={formatPrice(card.market_at_buy)} />}
+                        {card.date_added && <Stat label="Date Added" value={formatDate(card.date_added)} />}
+                      </div>
+                      {wlDelta != null && (
+                        <div style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 6,
+                          padding: '5px 10px', borderRadius: 7,
+                          background: wlDelta <= 0 ? 'rgba(69,219,141,0.10)' : 'rgba(242,69,96,0.10)',
+                          border: `1px solid ${wlDelta <= 0 ? 'rgba(69,219,141,0.22)' : 'rgba(242,69,96,0.22)'}`,
+                        }}>
+                          <span style={{ fontSize: 12, fontWeight: 800, color: wlDelta <= 0 ? 'var(--emerald)' : 'var(--crimson)' }}>
+                            {wlDelta <= 0 ? '▼' : '▲'} {Math.abs(wlDelta).toFixed(1)}% since added
+                            {wlDelta <= 0
+                              ? <span style={{ fontWeight: 500, marginLeft: 4, opacity: 0.75 }}>(dropped — good!)</span>
+                              : <span style={{ fontWeight: 500, marginLeft: 4, opacity: 0.75 }}>(rose)</span>
+                            }
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* ── PORTFOLIO right panel ── */
+                <>
+                  {/* Market value */}
+                  <div>
+                    <p style={{ margin: '0 0 4px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>
+                      Market Value
+                    </p>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
+                      <span style={{ fontSize: 32, fontWeight: 900, color: 'var(--gold)', lineHeight: 1 }}>
+                        {card.market_price != null ? formatPrice(card.market_price) : '—'}
+                      </span>
+                      <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 500 }}>NM</span>
+                    </div>
+                    {(card.market_low != null || card.market_mid != null || card.market_high != null || card.market_direct_low != null) && (
+                      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                        {([
+                          { label: 'Low',    val: card.market_low },
+                          { label: 'Mid',    val: card.market_mid },
+                          { label: 'High',   val: card.market_high },
+                          { label: 'Direct', val: card.market_direct_low },
+                        ] as { label: string; val: number | null | undefined }[]).filter(x => x.val != null).map(({ label, val }) => (
+                          <div key={label}>
+                            <p style={{ margin: 0, fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text3)' }}>{label}</p>
+                            <p style={{ margin: '1px 0 0', fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>{formatPrice(val!)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Sparkline */}
+                  {priceHistory.length > 1 && (
+                    <div style={{ marginTop: 14 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>30-Day Price</span>
+                        <span style={{ fontSize: 9, color: 'var(--text3)' }}>
+                          {formatPrice(Math.min(...priceHistory))} – {formatPrice(Math.max(...priceHistory))}
+                        </span>
+                      </div>
+                      <Sparkline points={priceHistory} color={sparkColor} height={38} />
+                    </div>
+                  )}
+
+                  {/* MY PURCHASE */}
+                  {isEditing ? (
+                    <div style={{ marginTop: 14, padding: '10px 12px', borderRadius: 8, background: 'var(--s2)', border: '1px solid rgba(93,169,255,0.25)' }}>
+                      <p style={{ margin: '0 0 8px', fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>
+                        Edit Purchase
+                      </p>
+                      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: 9, fontWeight: 700, color: 'var(--text3)', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 3 }}>Price Paid</label>
+                          <div style={{ position: 'relative' }}>
+                            <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: 'var(--text3)', fontWeight: 700 }}>$</span>
+                            <input type="number" min="0" step="0.01" value={editPaid} onChange={e => setEditPaid(e.target.value)}
+                              style={{ width: '100%', paddingLeft: 18, paddingRight: 8, paddingTop: 7, paddingBottom: 7, borderRadius: 7, fontSize: 12, background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', outline: 'none' }} />
+                          </div>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: 9, fontWeight: 700, color: 'var(--text3)', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 3 }}>From</label>
+                          <input type="text" placeholder="eBay, local…" value={editFrom} onChange={e => setEditFrom(e.target.value)}
+                            style={{ width: '100%', padding: '7px 8px', borderRadius: 7, fontSize: 12, background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', outline: 'none' }} />
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button onClick={saveEdit} style={{ flex: 1, padding: '7px', borderRadius: 7, fontSize: 11, fontWeight: 700, background: 'var(--sky)', color: '#0D0F1A', border: 'none', cursor: 'pointer' }}>Save</button>
+                        <button onClick={() => setIsEditing(false)} style={{ padding: '7px 12px', borderRadius: 7, fontSize: 11, fontWeight: 600, background: 'transparent', color: 'var(--text3)', border: '1px solid var(--border)', cursor: 'pointer' }}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : card.price_paid != null && (
+                    <div style={{ marginTop: 14 }}>
+                      <p style={{ margin: '0 0 6px', fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>
+                        My Purchase
+                      </p>
+                      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: profit != null ? 8 : 0 }}>
+                        <Stat label="Paid"        value={formatPrice(card.price_paid)} />
+                        {card.market_at_buy != null && <Stat label="Mkt at Buy" value={formatPrice(card.market_at_buy)} />}
+                        {card.bought_from   && <Stat label="From"       value={card.bought_from} />}
+                        {card.date_added    && <Stat label="Date"       value={formatDate(card.date_added)} />}
+                      </div>
+                      {profit != null && (
+                        <div style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 6,
+                          padding: '5px 10px', borderRadius: 7,
+                          background: profit >= 0 ? 'rgba(69,219,141,0.10)' : 'rgba(242,69,96,0.10)',
+                          border: `1px solid ${profit >= 0 ? 'rgba(69,219,141,0.22)' : 'rgba(242,69,96,0.22)'}`,
+                        }}>
+                          <span style={{ fontSize: 12, fontWeight: 800, color: profit >= 0 ? 'var(--emerald)' : 'var(--crimson)' }}>
+                            {profit >= 0 ? '▲' : '▼'} {formatPrice(Math.abs(profit))} unrealized
+                            {profitPct != null && (
+                              <span style={{ fontWeight: 600, opacity: 0.75, marginLeft: 4 }}>
+                                ({profitPct >= 0 ? '+' : ''}{profitPct.toFixed(1)}%)
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Card lore */}
+                  {card.flavor_text && (
+                    <p style={{ margin: '14px 0 0', fontSize: 11.5, lineHeight: 1.65, color: 'var(--text3)', fontStyle: 'italic', borderLeft: '2px solid var(--border2)', paddingLeft: 10 }}>
+                      "{card.flavor_text}"
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* ── CONDITION (portfolio only) ── */}
+          {view === 'portfolio' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>Condition</span>
+                {card.market_price && (
+                  <span style={{ fontSize: 11, color: 'var(--text3)' }}>
+                    {CONDITION_LABELS[currentCondition]} · <span style={{ color: 'var(--gold)', fontWeight: 700 }}>{formatPrice(adjValue)}</span>
+                  </span>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 5 }}>
+                {CONDITION_ORDER.map((c, i) => (
+                  <button key={c} onClick={() => handleConditionChange(i)} style={{
+                    flex: 1, padding: '6px 0', borderRadius: 7,
+                    fontSize: 11, fontWeight: 700,
+                    border: `1px solid ${i === condition ? 'rgba(255,200,69,0.50)' : 'var(--border)'}`,
+                    background: i === condition ? 'rgba(255,200,69,0.12)' : 'transparent',
+                    color: i === condition ? 'var(--gold)' : 'var(--text3)',
+                    cursor: 'pointer', transition: 'all 0.12s ease',
+                  }}>
+                    {c}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── TARGET PRICE (wishlist only) ── */}
+          {view === 'wishlist' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>Target Price</span>
+                {!editingTarget && (
+                  <button onClick={startEditTarget} style={{ fontSize: 10, color: 'var(--text3)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+                    {card.target_price ? 'Edit' : 'Set target'}
+                  </button>
+                )}
+              </div>
+              {editingTarget ? (
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <div style={{ flex: 1, position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: 'var(--text3)', fontWeight: 700 }}>$</span>
+                    <input type="number" min="0" step="0.01" placeholder="0.00" value={editTarget}
+                      onChange={e => setEditTarget(e.target.value)} autoFocus
+                      style={{ width: '100%', paddingLeft: 20, paddingRight: 8, paddingTop: 7, paddingBottom: 7, borderRadius: 7, fontSize: 12, background: 'var(--bg)', border: '1px solid rgba(156,114,250,0.40)', color: 'var(--text)', outline: 'none' }} />
+                  </div>
+                  <button onClick={saveTarget} style={{ padding: '7px 12px', borderRadius: 7, fontSize: 11, fontWeight: 700, background: 'var(--violet)', color: '#fff', border: 'none', cursor: 'pointer' }}>Save</button>
+                  <button onClick={() => setEditingTarget(false)} style={{ padding: '7px 10px', borderRadius: 7, fontSize: 11, background: 'transparent', color: 'var(--text3)', border: '1px solid var(--border)', cursor: 'pointer' }}>×</button>
                 </div>
-              )}
-
-              {/* Card lore */}
-              {card.flavor_text && (
-                <p style={{ margin: '14px 0 0', fontSize: 11.5, lineHeight: 1.65, color: 'var(--text3)', fontStyle: 'italic', borderLeft: '2px solid var(--border2)', paddingLeft: 10 }}>
-                  "{card.flavor_text}"
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* ── CONDITION ── */}
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>Condition</span>
-              {card.market_price && (
-                <span style={{ fontSize: 11, color: 'var(--text3)' }}>
-                  {CONDITION_LABELS[currentCondition]} · <span style={{ color: 'var(--gold)', fontWeight: 700 }}>{formatPrice(adjValue)}</span>
-                </span>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: 5 }}>
-              {CONDITION_ORDER.map((c, i) => (
-                <button key={c} onClick={() => handleConditionChange(i)} style={{
-                  flex: 1, padding: '6px 0', borderRadius: 7,
-                  fontSize: 11, fontWeight: 700,
-                  border: `1px solid ${i === condition ? 'rgba(255,200,69,0.50)' : 'var(--border)'}`,
-                  background: i === condition ? 'rgba(255,200,69,0.12)' : 'transparent',
-                  color: i === condition ? 'var(--gold)' : 'var(--text3)',
-                  cursor: 'pointer', transition: 'all 0.12s ease',
+              ) : card.target_price ? (
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 8,
+                  padding: '7px 12px', borderRadius: 8,
+                  background: atTarget ? 'rgba(69,219,141,0.10)' : 'rgba(156,114,250,0.08)',
+                  border: `1px solid ${atTarget ? 'rgba(69,219,141,0.25)' : 'rgba(156,114,250,0.20)'}`,
                 }}>
-                  {c}
-                </button>
-              ))}
+                  <span style={{ fontSize: 14, fontWeight: 800, color: atTarget ? 'var(--emerald)' : 'var(--violet)' }}>
+                    {formatPrice(card.target_price)}
+                  </span>
+                  <span style={{ fontSize: 10, color: atTarget ? 'var(--emerald)' : 'var(--text3)', fontWeight: 600 }}>
+                    {atTarget
+                      ? '✓ AT TARGET!'
+                      : card.market_price
+                      ? `↓ ${formatPrice(card.market_price - card.target_price)} above target`
+                      : 'target'}
+                  </span>
+                </div>
+              ) : (
+                <p style={{ fontSize: 11, color: 'var(--text3)' }}>No target set — tap "Set target" to track when price drops.</p>
+              )}
             </div>
-          </div>
+          )}
 
           {/* ── ACTION BAR ── */}
           <div style={{
@@ -310,38 +468,50 @@ export function CardDetailModal({ card, onClose, initialView = 'detail' }: CardD
             borderTop: '1px solid var(--border)',
             display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap',
           }}>
-            {/* Utility */}
-            <Btn label="✎ Edit" onClick={startEdit} />
-            {card.tcgplayer_url && <Btn label="↗ TCG" href={card.tcgplayer_url} />}
-
-            <div style={{ flex: 1 }} />
-
-            {/* Primary — hidden when locked */}
-            {!locked && (
+            {view === 'wishlist' ? (
               <>
-                <Btn label="SELL" color="var(--crimson)" accentBg="rgba(242,69,96,0.12)" onClick={() => setShowSell(true)} wide />
-                <Btn label="GIFT" color="var(--violet)"  accentBg="rgba(156,114,250,0.12)" onClick={() => setShowGift(true)} wide />
+                {card.tcgplayer_url && <Btn label="↗ TCG" href={card.tcgplayer_url} />}
+                <Btn
+                  label={card.alerts_enabled ? '🔔 Alerts on' : '🔕 Alerts off'}
+                  onClick={() => updateCard(card.id, { alerts_enabled: !card.alerts_enabled })}
+                />
+                <div style={{ flex: 1 }} />
+                <Btn label="✓ Mark Owned" color="var(--emerald)" accentBg="rgba(69,219,141,0.12)" onClick={handleMoveToPortfolio} wide />
                 <Divider />
+                <Btn label="✕ Remove" color="var(--crimson)" onClick={handleRemove} />
+              </>
+            ) : (
+              <>
+                <Btn label="✎ Edit" onClick={startEdit} />
+                {card.tcgplayer_url && <Btn label="↗ TCG" href={card.tcgplayer_url} />}
+
+                <div style={{ flex: 1 }} />
+
+                {!locked && (
+                  <>
+                    <Btn label="SELL" color="var(--crimson)" accentBg="rgba(242,69,96,0.12)" onClick={() => setShowSell(true)} wide />
+                    <Btn label="GIFT" color="var(--violet)"  accentBg="rgba(156,114,250,0.12)" onClick={() => setShowGift(true)} wide />
+                    <Divider />
+                  </>
+                )}
+
+                <Btn
+                  label={card.is_favorite ? 'UNFAV ★' : '★ FAV'}
+                  color="var(--gold)" accentBg="rgba(255,200,69,0.10)"
+                  onClick={() => setFavorite(card.id)} active={card.is_favorite}
+                />
+                <Btn
+                  label={card.is_showcase ? 'UNSHOW' : '◈ SHOW'}
+                  color="var(--violet)" accentBg="rgba(156,114,250,0.10)"
+                  onClick={handleShowcase} active={card.is_showcase}
+                />
+
+                <Divider />
+
+                <Btn label="↩ Watch" onClick={handleToWatch} />
+                <Btn label="✕" color="var(--crimson)" onClick={handleRemove} />
               </>
             )}
-
-            {/* Toggles */}
-            <Btn
-              label={card.is_favorite ? 'UNFAV ★' : '★ FAV'}
-              color="var(--gold)" accentBg="rgba(255,200,69,0.10)"
-              onClick={() => setFavorite(card.id)} active={card.is_favorite}
-            />
-            <Btn
-              label={card.is_showcase ? 'UNSHOW' : '◈ SHOW'}
-              color="var(--violet)" accentBg="rgba(156,114,250,0.10)"
-              onClick={handleShowcase} active={card.is_showcase}
-            />
-
-            <Divider />
-
-            {/* Nav / danger */}
-            <Btn label="↩ Watch" onClick={handleToWatch} />
-            <Btn label="✕" color="var(--crimson)" onClick={handleRemove} />
           </div>
         </div>
       </Modal>

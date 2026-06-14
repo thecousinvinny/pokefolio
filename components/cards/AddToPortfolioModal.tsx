@@ -38,7 +38,7 @@ export function AddToPortfolioModal({ card, onClose, defaultStatus = 'owned' }: 
       status,
       condition: CONDITION_ORDER[condition],
       price_paid: status === 'owned' && pricePaid ? parseFloat(pricePaid) : undefined,
-      market_at_buy: status === 'owned' ? marketPrice : undefined,
+      market_at_buy: marketPrice,
       bought_from: status === 'owned' && boughtFrom.trim() ? boughtFrom.trim() : undefined,
       target_price: status === 'wishlist' && targetPrice ? parseFloat(targetPrice) : undefined,
       alerts_enabled: status === 'wishlist',
