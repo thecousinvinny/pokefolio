@@ -17,10 +17,13 @@ type RarityGroup = 'all' | 'fullart' | 'ultra' | 'holo' | 'common'
 const PAGE_SIZE = 50
 const CACHE_TTL_MS = 10 * 60 * 1000
 
-let _browseCache: { results: TCGCard[]; totalCount: number; hasMore: boolean; ts: number } | null = null
+type CacheEntry = { results: TCGCard[]; totalCount: number; hasMore: boolean; ts: number }
+const _browseCache = new Map<string, CacheEntry>()
 
-function cacheValid() {
-  return !!(_browseCache && Date.now() - _browseCache.ts < CACHE_TTL_MS)
+function cacheKey(q: string, set: string) { return `${q}|${set}` }
+function cacheValid(key: string) {
+  const e = _browseCache.get(key)
+  return !!(e && Date.now() - e.ts < CACHE_TTL_MS)
 }
 
 const SORT_OPTIONS: { key: SortMode; label: string }[] = [
@@ -59,12 +62,13 @@ export default function BrowsePage() {
   const [setFilter, setSetFilter] = useState('')
   const [priceMin, setPriceMin] = useState('')
   const [priceMax, setPriceMax] = useState('')
-  const [rawResults, setRawResults] = useState<TCGCard[]>(() => cacheValid() ? _browseCache!.results : [])
-  const [loading, setLoading] = useState(!cacheValid())
+  const defaultKey = cacheKey('', '')
+  const [rawResults, setRawResults] = useState<TCGCard[]>(() => cacheValid(defaultKey) ? _browseCache.get(defaultKey)!.results : [])
+  const [loading, setLoading] = useState(!cacheValid(defaultKey))
   const [page, setPage] = useState(1)
-  const [hasMore, setHasMore] = useState(() => cacheValid() ? _browseCache!.hasMore : false)
-  const [totalCount, setTotalCount] = useState(() => cacheValid() ? _browseCache!.totalCount : 0)
-  const skipInitialLoad = useRef(cacheValid())
+  const [hasMore, setHasMore] = useState(() => cacheValid(defaultKey) ? _browseCache.get(defaultKey)!.hasMore : false)
+  const [totalCount, setTotalCount] = useState(() => cacheValid(defaultKey) ? _browseCache.get(defaultKey)!.totalCount : 0)
+  const skipInitialLoad = useRef(cacheValid(defaultKey))
   const [addTarget, setAddTarget] = useState<TCGCard | null>(null)
   const [addDefaultStatus, setAddDefaultStatus] = useState<'owned' | 'wishlist'>('owned')
   const [detailCard, setDetailCard] = useState<TCGCard | null>(null)
@@ -84,6 +88,18 @@ export default function BrowsePage() {
 
   const search = useCallback(async (q: string, set: string, p: number, append: boolean) => {
     if (loadingRef.current && append) return
+    // Serve from cache on fresh load (page 1, not appending)
+    if (!append && p === 1) {
+      const key = cacheKey(q, set)
+      if (cacheValid(key)) {
+        const cached = _browseCache.get(key)!
+        setRawResults(cached.results)
+        setTotalCount(cached.totalCount)
+        setHasMore(cached.hasMore)
+        setLoading(false)
+        return
+      }
+    }
     loadingRef.current = true
     if (!append) setRawResults([])
     setLoading(true)
@@ -91,7 +107,6 @@ export default function BrowsePage() {
       const params = new URLSearchParams()
       if (q)   params.set('q', q)
       if (set) params.set('set', set)
-      // Default browse (no query): request full arts only from the API
       if (!q && !set) params.set('fullArtOnly', 'true')
       params.set('page', String(p))
       params.set('pageSize', String(PAGE_SIZE))
@@ -100,9 +115,10 @@ export default function BrowsePage() {
       const data = await res.json()
       const batch: TCGCard[] = data.data ?? []
       const nextHasMore = p * PAGE_SIZE < (data.totalCount ?? 0)
+      const key = cacheKey(q, set)
       setRawResults(prev => {
         const next = append ? [...prev, ...batch] : batch
-        _browseCache = { results: next, totalCount: data.totalCount ?? 0, hasMore: nextHasMore, ts: Date.now() }
+        _browseCache.set(key, { results: next, totalCount: data.totalCount ?? 0, hasMore: nextHasMore, ts: Date.now() })
         return next
       })
       setTotalCount(data.totalCount ?? 0)
@@ -153,14 +169,25 @@ export default function BrowsePage() {
       arr = arr.filter(c => { const p = getBestTCGPrice(c) ?? 0; return p >= pMin && p <= pMax })
     }
     switch (sort) {
-      case 'premium':
-        // Trust the API's set-date ordering; sort only by rarity within accumulated results
+      case 'premium': {
+        // SET (newest first, nulls → top) > FULL ART > POKEMON > TRAINER > price
+        const dateMs = (c: TCGCard) => {
+          if (!c.set.releaseDate) return Infinity
+          return new Date(c.set.releaseDate.replace(/\//g, '-')).getTime()
+        }
+        const supertypeRank = (s?: string) => s === 'Pokémon' ? 2 : s === 'Trainer' ? 1 : 0
         arr.sort((a, b) => {
-          const rw = rarityWeight(b.rarity) - rarityWeight(a.rarity)
-          if (rw !== 0) return rw
+          const dDiff = dateMs(b) - dateMs(a)
+          if (dDiff !== 0) return dDiff
+          const rwA = rarityWeight(a.rarity), rwB = rarityWeight(b.rarity)
+          const fullA = rwA >= 80 ? 1 : 0, fullB = rwB >= 80 ? 1 : 0
+          if (fullB !== fullA) return fullB - fullA
+          const stDiff = supertypeRank(b.supertype) - supertypeRank(a.supertype)
+          if (stDiff !== 0) return stDiff
           return (getBestTCGPrice(b) ?? 0) - (getBestTCGPrice(a) ?? 0)
         })
         break
+      }
       case 'newest':
         // Keep API's release-date ordering as-is (already sorted server-side)
         break

@@ -120,7 +120,9 @@ export async function searchCardsFlexible(params: {
   const q = parts.length > 0 ? parts.join(' ') : (fullArtOnly ? FULL_ART_FILTER : 'hp:[1 TO *]')
 
   const url = `${BASE}/cards?q=${encodeURIComponent(q)}&page=${page}&pageSize=${pageSize}&orderBy=-set.releaseDate`
-  const res = await fetch(url, { headers: headers(), next: { revalidate: 60 } })
+  // Default full-art browse is static data — cache for 1 hour. User searches cache for 5 min.
+  const revalidate = (!query && !set && !type && !rarity) ? 3600 : 300
+  const res = await fetch(url, { headers: headers(), next: { revalidate } })
   if (!res.ok) throw new Error(`TCG API ${res.status}`)
   const json: TCGSearchResponse = await res.json()
   const enriched = skipEnrich ? json.data : await Promise.all(json.data.map(enrichCardPrices))
