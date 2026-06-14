@@ -1,10 +1,45 @@
 import type { TCGCard, TCGSearchResponse } from '@/types'
+import { getBestTCGPrice } from '@/types'
+import { fetchFallbackPrices } from './tcgcsv'
 
 const BASE = 'https://api.pokemontcg.io/v2'
 
 function headers(): HeadersInit {
   const key = process.env.POKEMONTCG_API_KEY
   return key ? { 'X-Api-Key': key } : {}
+}
+
+// Silently fills in price data from TCGCSV when TCGPlayer prices are missing
+async function enrichCardPrices(card: TCGCard): Promise<TCGCard> {
+  if (getBestTCGPrice(card) != null) return card
+
+  try {
+    const prices = await fetchFallbackPrices(
+      card.set.name,
+      card.tcgplayer?.url,
+      card.number,
+    )
+    if (!prices?.market) return card
+
+    return {
+      ...card,
+      tcgplayer: {
+        url: card.tcgplayer?.url ?? '',
+        updatedAt: new Date().toISOString(),
+        prices: {
+          holofoil: {
+            low: prices.low ?? 0,
+            mid: prices.mid ?? 0,
+            high: prices.high ?? 0,
+            market: prices.market,
+            directLow: prices.directLow,
+          },
+        },
+      },
+    }
+  } catch {
+    return card
+  }
 }
 
 export async function searchCards(
@@ -16,7 +51,9 @@ export async function searchCards(
   const url = `${BASE}/cards?q=${encodeURIComponent(q)}&page=${page}&pageSize=${pageSize}&orderBy=-set.releaseDate`
   const res = await fetch(url, { headers: headers(), next: { revalidate: 300 } })
   if (!res.ok) throw new Error(`TCG API error: ${res.status}`)
-  return res.json()
+  const json: TCGSearchResponse = await res.json()
+  const enriched = await Promise.all(json.data.map(enrichCardPrices))
+  return { ...json, data: enriched }
 }
 
 export async function getCard(id: string): Promise<TCGCard> {
@@ -26,7 +63,7 @@ export async function getCard(id: string): Promise<TCGCard> {
   })
   if (!res.ok) throw new Error(`TCG API error: ${res.status}`)
   const data = await res.json()
-  return data.data
+  return enrichCardPrices(data.data)
 }
 
 function buildQuery(input: string): string {
@@ -76,5 +113,7 @@ export async function searchCardsFlexible(params: {
   const url = `${BASE}/cards?q=${encodeURIComponent(q)}&page=${page}&pageSize=${pageSize}&orderBy=-set.releaseDate`
   const res = await fetch(url, { headers: headers(), next: { revalidate: 60 } })
   if (!res.ok) throw new Error(`TCG API ${res.status}`)
-  return res.json()
+  const json: TCGSearchResponse = await res.json()
+  const enriched = await Promise.all(json.data.map(enrichCardPrices))
+  return { ...json, data: enriched }
 }
