@@ -355,10 +355,10 @@ function BrowseTileInner({ card, onClick, onAddToPortfolio, onAddToWishlist, inC
           </span>
       </div>
 
-      {/* Actions — heart | + CATCHM | ↗ all in one row */}
+      {/* Actions — heart | TCG | +CATCHM */}
       <div style={{ display: 'flex', gap: 5, padding: '8px 10px 10px', alignItems: 'center' }}>
 
-        {/* Wishlist heart icon */}
+        {/* Wishlist heart */}
         <button
           onClick={e => { e.stopPropagation(); onAddToWishlist?.(card) }}
           disabled={inWishlist}
@@ -378,6 +378,26 @@ function BrowseTileInner({ card, onClick, onAddToPortfolio, onAddToWishlist, inC
           </svg>
         </button>
 
+        {/* TCG external link */}
+        {card.tcgplayer?.url ? (
+          <TcgLink
+            url={card.tcgplayer.url}
+            style={{
+              width: 30, height: 30, borderRadius: 7, flexShrink: 0,
+              background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.10)',
+              color: 'var(--text3)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              textDecoration: 'none',
+            }}>
+            <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+            </svg>
+          </TcgLink>
+        ) : (
+          <div style={{ width: 30, height: 30, flexShrink: 0 }} />
+        )}
+
         {/* + CATCHM (fills remaining space) */}
         <button
           onClick={e => { e.stopPropagation(); onAddToPortfolio?.(card) }}
@@ -391,26 +411,6 @@ function BrowseTileInner({ card, onClick, onAddToPortfolio, onAddToWishlist, inC
           }}>
           {inCollection ? '✓ CATCHM' : '+ CATCHM'}
         </button>
-
-        {/* TCG link arrow icon */}
-        {card.tcgplayer?.url ? (
-          <TcgLink
-            url={card.tcgplayer.url}
-            style={{
-              width: 30, height: 30, borderRadius: 7, flexShrink: 0,
-              background: 'transparent',
-              border: '1px solid rgba(255,255,255,0.10)',
-              color: 'var(--text3)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              textDecoration: 'none',
-            }}>
-            <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5M13.5 6l7.5 0M13.5 6l0 7.5" />
-            </svg>
-          </TcgLink>
-        ) : (
-          <div style={{ width: 30, height: 30, flexShrink: 0 }} />
-        )}
       </div>
     </div>
   )

@@ -78,10 +78,15 @@ function FloatingTabBar() {
           top: pill.top,
           width: pill.w,
           height: pill.h,
-          borderRadius: 14,
-          background: 'linear-gradient(160deg, rgba(255,200,69,0.38), rgba(255,158,46,0.26))',
-          border: '1px solid rgba(255,200,69,0.50)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.30), 0 2px 14px rgba(255,200,69,0.30), 0 0 24px rgba(255,158,46,0.16)',
+          borderRadius: 999,
+          background: 'rgba(255, 255, 255, 0.13)',
+          backdropFilter: 'blur(24px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+          border: '1px solid rgba(255, 255, 255, 0.26)',
+          boxShadow: [
+            'inset 0 1.5px 0 rgba(255, 255, 255, 0.52)',
+            'inset 0 -1px 0 rgba(0, 0, 0, 0.10)',
+          ].join(', '),
           pointerEvents: 'none',
           zIndex: 0,
           transition: 'left 0.38s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.38s cubic-bezier(0.34, 1.56, 0.64, 1), width 0.38s cubic-bezier(0.34, 1.56, 0.64, 1), height 0.38s cubic-bezier(0.34, 1.56, 0.64, 1)',
@@ -103,7 +108,7 @@ function FloatingTabBar() {
               justifyContent: 'center',
               gap: 3,
               textDecoration: 'none',
-              color: active ? 'var(--gold)' : 'rgba(255, 255, 255, 0.40)',
+              color: active ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.40)',
               transition: 'color 0.20s ease',
               WebkitTapHighlightColor: 'transparent',
               position: 'relative',
@@ -112,7 +117,7 @@ function FloatingTabBar() {
             <div
               ref={el => { iconRefs.current[i] = el }}
               style={{
-                padding: '8px 12px',
+                padding: '7px 20px',
                 borderRadius: 14,
                 display: 'flex',
                 alignItems: 'center',
