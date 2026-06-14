@@ -6,7 +6,6 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'CATCHM — Pokémon TCG Portfolio Tracker',
   description: 'Track your Pokémon card collection, monitor prices, and manage your trades.',
-  manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
