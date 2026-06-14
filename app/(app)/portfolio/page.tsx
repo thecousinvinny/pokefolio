@@ -21,16 +21,22 @@ export default function PortfolioPage() {
   const { cards, loading } = useCollection()
   const [sort, setSort] = useState<SortKey>('value')
   const [groupBySet, setGroupBySet] = useState(false)
-  const [detailCard, setDetailCard] = useState<PokemonCard | null>(null)
+  const [detailCardId, setDetailCardId] = useState<string | null>(null)
   const [detailView, setDetailView] = useState<'detail' | 'sell' | 'gift'>('detail')
 
+  // Always pass the live card from context so FAV/SHOWCASE toggles reflect immediately
+  const detailCard = useMemo(
+    () => detailCardId ? (cards.find(c => c.id === detailCardId) ?? null) : null,
+    [cards, detailCardId]
+  )
+
   function openCard(card: PokemonCard, view: 'detail' | 'sell' | 'gift' = 'detail') {
-    setDetailCard(card)
+    setDetailCardId(card.id)
     setDetailView(view)
   }
 
   function closeModal() {
-    setDetailCard(null)
+    setDetailCardId(null)
     setDetailView('detail')
   }
 

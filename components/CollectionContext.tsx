@@ -24,6 +24,7 @@ interface CollectionContextType {
   sellCard: (card: PokemonCard, payload: SellPayload) => void
   giftCard: (card: PokemonCard) => void
   setFavorite: (id: string) => void
+  setShowcase: (id: string) => void
   toggleAlert: (id: string) => void
 }
 
@@ -149,6 +150,16 @@ export function CollectionProvider({ children }: { children: ReactNode }) {
     )
   }, [supabase])
 
+  const setShowcase = useCallback((id: string) => {
+    const prev = cardsRef.current
+    const isShow = !!prev.find(c => c.id === id)?.is_showcase
+    setCards(prev => prev.map(c => ({ ...c, is_showcase: c.id === id ? !isShow : false })))
+    supabase.from('pokemon_cards').update({ is_showcase: !isShow }).eq('id', id)
+    prev.filter(c => c.id !== id && c.is_showcase).forEach(c =>
+      supabase.from('pokemon_cards').update({ is_showcase: false }).eq('id', c.id)
+    )
+  }, [supabase])
+
   const toggleAlert = useCallback((id: string) => {
     const card = cardsRef.current.find(c => c.id === id)
     if (!card) return
@@ -162,7 +173,7 @@ export function CollectionProvider({ children }: { children: ReactNode }) {
   return (
     <CollectionContext.Provider value={{
       cards, sales, loading, refresh,
-      addCard, updateCard, removeCard, sellCard, giftCard, setFavorite, toggleAlert,
+      addCard, updateCard, removeCard, sellCard, giftCard, setFavorite, setShowcase, toggleAlert,
     }}>
       {children}
     </CollectionContext.Provider>

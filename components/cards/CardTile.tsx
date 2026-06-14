@@ -193,22 +193,24 @@ export function PortfolioTile({ card, onClick, onLongPress, onSell, onGift, sele
         )}
       </div>
 
-      {/* ── Rarity pill (below image) ── */}
-      {card.rarity && getRarityBadge(card.rarity) && (() => {
-        const rb = getRarityBadge(card.rarity)!
-        return (
-          <div style={{ padding: '7px 10px 0' }}>
+      {/* ── Rarity pill (below image) — always reserves height for uniform card size ── */}
+      <div style={{ padding: '7px 10px 0', minHeight: 22 }}>
+        {card.rarity && (() => {
+          const rb = getRarityBadge(card.rarity)
+          const color = rb?.color ?? 'rgba(255,255,255,0.38)'
+          return (
             <span style={{
               display: 'inline-block', fontSize: 8, fontWeight: 900,
-              letterSpacing: '0.07em', color: rb.color,
-              background: `${rb.color}18`, border: `1px solid ${rb.color}40`,
+              letterSpacing: '0.07em', color,
+              background: rb ? `${rb.color}18` : 'rgba(255,255,255,0.07)',
+              border: `1px solid ${rb ? `${rb.color}40` : 'rgba(255,255,255,0.10)'}`,
               borderRadius: 100, padding: '2px 7px', lineHeight: 1.4,
             }}>
               {card.rarity.toUpperCase()}
             </span>
-          </div>
-        )
-      })()}
+          )
+        })()}
+      </div>
 
       {/* ── Info ── */}
       <div style={{ padding: '6px 12px 8px' }}>

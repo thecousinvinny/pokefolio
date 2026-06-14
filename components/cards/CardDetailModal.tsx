@@ -29,7 +29,7 @@ interface CardDetailModalProps {
 }
 
 export function CardDetailModal({ card, onClose, initialView = 'detail' }: CardDetailModalProps) {
-  const { updateCard, setFavorite, removeCard, giftCard } = useCollection()
+  const { updateCard, setFavorite, setShowcase, removeCard, giftCard } = useCollection()
   const [condition, setCondition] = useState<number>(
     card ? CONDITION_ORDER.indexOf(card.condition) : 0
   )
@@ -63,7 +63,7 @@ export function CardDetailModal({ card, onClose, initialView = 'detail' }: CardD
   }
 
   function handleShowcase() {
-    updateCard(card!.id, { is_showcase: !card!.is_showcase })
+    setShowcase(card!.id)
   }
 
   function handleToWatch() {
