@@ -5,16 +5,17 @@ import { PortfolioTile } from '@/components/cards/CardTile'
 import { CardDetailModal } from '@/components/cards/CardDetailModal'
 import { useCollection } from '@/components/CollectionContext'
 import { conditionAdjustedValue } from '@/types'
-import { formatPrice } from '@/lib/utils'
+import { formatPrice, rarityWeight } from '@/lib/utils'
 import type { PokemonCard } from '@/types'
 
-type SortKey = 'value' | 'gain' | 'newest' | 'alpha'
+type SortKey = 'value' | 'gain' | 'rarity' | 'newest' | 'alpha'
 
 const SORT_LABELS: Record<SortKey, string> = {
-  value: 'By Value',
-  gain: 'By Gain',
-  newest: 'Newest',
-  alpha: 'A–Z',
+  value:  '💰 Value',
+  gain:   '📈 Gain',
+  rarity: '✨ Rarity',
+  newest: '🆕 Newest',
+  alpha:  '🔤 A–Z',
 }
 
 export default function PortfolioPage() {
@@ -56,6 +57,7 @@ export default function PortfolioPage() {
           return gb - ga
         })
       }
+      case 'rarity': return arr.sort((a, b) => rarityWeight(b.rarity) - rarityWeight(a.rarity))
       case 'newest': return arr.sort((a, b) => new Date(b.date_added).getTime() - new Date(a.date_added).getTime())
       case 'alpha': return arr.sort((a, b) => a.name.localeCompare(b.name))
     }
@@ -193,17 +195,18 @@ function CardGrid({ cards, onCardClick, onSell, onGift }: {
   onGift: (c: PokemonCard) => void
 }) {
   return (
-    <div className="grid gap-4"
-      style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
-      {cards.map(card => (
-        <PortfolioTile
-          key={card.id}
-          card={card}
-          onClick={() => onCardClick(card)}
-          onSell={e => { e.stopPropagation(); onSell(card) }}
-          onGift={e => { e.stopPropagation(); onGift(card) }}
-          onLongPress={() => {}}
-        />
+    <div className="grid gap-3"
+      style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
+      {cards.map((card, i) => (
+        <div key={card.id} className="card-enter" style={{ animationDelay: `${Math.min(i, 12) * 0.028}s` }}>
+          <PortfolioTile
+            card={card}
+            onClick={() => onCardClick(card)}
+            onSell={e => { e.stopPropagation(); onSell(card) }}
+            onGift={e => { e.stopPropagation(); onGift(card) }}
+            onLongPress={() => {}}
+          />
+        </div>
       ))}
     </div>
   )
@@ -213,9 +216,9 @@ function LoadingSkeleton() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="h-8 w-40 rounded-xl img-skeleton mb-6" />
-      <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}>
+      <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
         {[...Array(8)].map((_, i) => (
-          <div key={i} className="rounded-2xl img-skeleton" style={{ height: 240 }} />
+          <div key={i} className="rounded-xl img-skeleton" style={{ height: 128 }} />
         ))}
       </div>
     </div>

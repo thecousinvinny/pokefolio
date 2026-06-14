@@ -10,7 +10,8 @@ export async function GET(request: NextRequest) {
       type: searchParams.get('type') ?? undefined,
       rarity: searchParams.get('rarity') ?? undefined,
       page: Number(searchParams.get('page') ?? 1),
-      pageSize: Number(searchParams.get('pageSize') ?? 20),
+      pageSize: Number(searchParams.get('pageSize') ?? 24),
+      skipEnrich: true,
     })
     return NextResponse.json(data)
   } catch (err) {

@@ -6,16 +6,52 @@ import { PortfolioTile } from '@/components/cards/CardTile'
 import { CardDetailModal } from '@/components/cards/CardDetailModal'
 import { useCollection } from '@/components/CollectionContext'
 import { conditionAdjustedValue } from '@/types'
-import { formatPrice } from '@/lib/utils'
+import { formatPrice, rarityWeight } from '@/lib/utils'
 import type { PokemonCard } from '@/types'
 
+type WLSort = 'rarity' | 'price-desc' | 'price-asc' | 'target' | 'newest' | 'delta'
+
+const WL_SORT_LABELS: Record<WLSort, string> = {
+  rarity:     '✨ Rarity',
+  'price-desc': '💰 Price ↓',
+  'price-asc':  '💰 Price ↑',
+  target:     '🎯 Target',
+  newest:     '🆕 Newest',
+  delta:      '📉 Dropped',
+}
+
 export default function WishlistPage() {
-  const { cards, loading } = useCollection()
+  const { cards, loading, updateCard, removeCard } = useCollection()
   const [detailCardId, setDetailCardId] = useState<string | null>(null)
   const [showBudget, setShowBudget] = useState(false)
+  const [sort, setSort] = useState<WLSort>('rarity')
 
-  const wishlist = useMemo(() => cards.filter(c => c.status === 'wishlist'), [cards])
+  const wishlistRaw = useMemo(() => cards.filter(c => c.status === 'wishlist'), [cards])
   const owned    = useMemo(() => cards.filter(c => c.status === 'owned' || c.status === 'for_sale'), [cards])
+  const ownedTcgIds = useMemo(() => new Set(owned.map(c => c.tcg_id)), [owned])
+
+  const wishlist = useMemo(() => {
+    const arr = [...wishlistRaw]
+    switch (sort) {
+      case 'rarity':
+        return arr.sort((a, b) => rarityWeight(b.rarity) - rarityWeight(a.rarity))
+      case 'price-desc':
+        return arr.sort((a, b) => (b.market_price ?? 0) - (a.market_price ?? 0))
+      case 'price-asc':
+        return arr.sort((a, b) => (a.market_price ?? 0) - (b.market_price ?? 0))
+      case 'target':
+        return arr.sort((a, b) => (b.target_price ?? b.market_price ?? 0) - (a.target_price ?? a.market_price ?? 0))
+      case 'newest':
+        return arr.sort((a, b) => new Date(b.date_added ?? 0).getTime() - new Date(a.date_added ?? 0).getTime())
+      case 'delta': {
+        const pct = (c: PokemonCard) => c.market_price != null && c.market_at_buy
+          ? (c.market_price - c.market_at_buy) / c.market_at_buy
+          : 0
+        return arr.sort((a, b) => pct(a) - pct(b))  // most dropped first
+      }
+      default: return arr
+    }
+  }, [wishlistRaw, sort])
 
   const detailCard = useMemo(
     () => detailCardId ? (wishlist.find(c => c.id === detailCardId) ?? null) : null,
@@ -24,7 +60,7 @@ export default function WishlistPage() {
 
   if (loading) return <LoadingSkeleton />
 
-  if (wishlist.length === 0) {
+  if (wishlistRaw.length === 0) {
     return (
       <div className="max-w-lg mx-auto px-4 py-20 text-center animate-fade-in">
         <div className="text-6xl mb-5 opacity-30">♡</div>
@@ -41,16 +77,16 @@ export default function WishlistPage() {
     )
   }
 
-  const totalMarket = wishlist.reduce((s, c) => s + (c.market_price ?? 0), 0)
+  const totalMarket = wishlistRaw.reduce((s, c) => s + (c.market_price ?? 0), 0)
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight">Wishlist</h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text3)' }}>
-            {wishlist.length} cards · {formatPrice(totalMarket)} market value
+            {wishlistRaw.length} cards · {formatPrice(totalMarket)} market value
           </p>
         </div>
         <button
@@ -61,14 +97,30 @@ export default function WishlistPage() {
         </button>
       </div>
 
-      {/* Grid — same tile as portfolio */}
-      <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
-        {wishlist.map(card => (
-          <PortfolioTile
-            key={card.id}
-            card={card}
-            onClick={() => setDetailCardId(card.id)}
-          />
+      {/* Sort chips */}
+      <div className="scroll-x flex gap-2 mb-5 pb-1">
+        {(Object.keys(WL_SORT_LABELS) as WLSort[]).map(k => (
+          <button key={k} onClick={() => setSort(k)}
+            className={`chip ${sort === k ? 'chip-active' : 'chip-default'}`} style={{ fontSize: 12 }}>
+            {WL_SORT_LABELS[k]}
+          </button>
+        ))}
+      </div>
+
+      {/* Grid */}
+      <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
+        {wishlist.map((card, i) => (
+          <div key={card.id} className="card-enter" style={{ animationDelay: `${Math.min(i, 12) * 0.028}s` }}>
+            <PortfolioTile
+              card={card}
+              onClick={() => setDetailCardId(card.id)}
+              inCollection={ownedTcgIds.has(card.tcg_id)}
+              onAddToPortfolio={() => {
+                updateCard(card.id, { status: 'owned', condition: 'NM', market_at_buy: card.market_price })
+              }}
+              onRemove={() => removeCard(card.id)}
+            />
+          </div>
         ))}
       </div>
 
@@ -175,9 +227,9 @@ function LoadingSkeleton() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="h-8 w-32 rounded-xl img-skeleton mb-6" />
-      <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
+      <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
         {[...Array(6)].map((_, i) => (
-          <div key={i} className="rounded-2xl img-skeleton" style={{ height: 280 }} />
+          <div key={i} className="rounded-xl img-skeleton" style={{ height: 128 }} />
         ))}
       </div>
     </div>

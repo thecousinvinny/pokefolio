@@ -55,6 +55,22 @@ export function rarityGradient(rarity?: string): string {
   return 'from-surface to-elevated'
 }
 
+export function rarityWeight(rarity?: string | null): number {
+  if (!rarity) return 0
+  const r = rarity.toLowerCase()
+  if (r.includes('special illustration')) return 100
+  if (r.includes('hyper rare') || r.includes('rainbow')) return 90
+  if (r.includes('illustration rare')) return 80
+  if (r.includes('secret')) return 70
+  if (r.includes('vmax') || r.includes('vstar')) return 60
+  if (r.includes('ultra rare') || r.includes(' ex') || r.includes(' gx')) return 50
+  if (r.includes('amazing')) return 40
+  if (r.includes('holo')) return 30
+  if (r === 'rare') return 20
+  if (r === 'uncommon') return 10
+  return 0
+}
+
 // Type → accent color
 export function typeColor(types?: string[]): string {
   const t = types?.[0]?.toLowerCase()

@@ -1,59 +1,91 @@
 'use client'
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import Image from 'next/image'
 import { BrowseTile } from '@/components/cards/CardTile'
+import { CardArtwork } from '@/components/cards/CardArtwork'
 import { AddToPortfolioModal } from '@/components/cards/AddToPortfolioModal'
+import { Sparkline } from '@/components/ui/Sparkline'
+import { TcgLink } from '@/components/ui/TcgLink'
 import { Modal } from '@/components/ui/Modal'
 import { useCollection } from '@/components/CollectionContext'
-import { formatPrice } from '@/lib/utils'
-import { getBestTCGPrice } from '@/types'
+import { formatPrice, generatePriceHistory, rarityWeight } from '@/lib/utils'
+import { getBestTCGPrice, getBestTCGPriceTiers } from '@/types'
 import type { TCGCard } from '@/types'
 
-const TYPES = ['Fire', 'Water', 'Grass', 'Lightning', 'Psychic', 'Fighting', 'Darkness', 'Metal', 'Dragon', 'Colorless']
-const RARITIES = ['Common', 'Uncommon', 'Rare', 'Holo Rare', 'Ultra Rare', 'Special Art Rare', 'Secret Rare']
+type SortMode = 'premium' | 'newest' | 'price-desc' | 'price-asc' | 'alpha'
+type RarityGroup = 'all' | 'fullart' | 'ultra' | 'holo' | 'common'
+
+const SORT_OPTIONS: { key: SortMode; label: string }[] = [
+  { key: 'premium', label: '✨ Full Art First' },
+  { key: 'newest',  label: '🆕 Newest' },
+  { key: 'price-desc', label: '💰 Price ↓' },
+  { key: 'price-asc',  label: '💰 Price ↑' },
+  { key: 'alpha',      label: '🔤 A→Z' },
+]
+
+const RARITY_GROUPS: { key: RarityGroup; label: string }[] = [
+  { key: 'all',     label: 'All' },
+  { key: 'fullart', label: '✨ Full Art' },
+  { key: 'ultra',   label: '⭐ Ultra Rare' },
+  { key: 'holo',    label: '✦ Holo' },
+  { key: 'common',  label: '● Common' },
+]
+
+function rarityGroupMatch(rarity: string | undefined, group: RarityGroup): boolean {
+  const w = rarityWeight(rarity)
+  switch (group) {
+    case 'all':     return true
+    case 'fullart': return w >= 80
+    case 'ultra':   return w >= 50 && w < 80
+    case 'holo':    return w >= 30 && w < 50
+    case 'common':  return w < 30
+  }
+}
+
 
 export default function BrowsePage() {
   const { cards } = useCollection()
   const [query, setQuery] = useState('')
-  const [typeFilter, setTypeFilter] = useState('')
-  const [rarityFilter, setRarityFilter] = useState('')
-  const [results, setResults] = useState<TCGCard[]>([])
-  const [loading, setLoading] = useState(false)
+  const [sort, setSort] = useState<SortMode>('premium')
+  const [rarityGroup, setRarityGroup] = useState<RarityGroup>('all')
+  const [showFilters, setShowFilters] = useState(false)
+  const [setFilter, setSetFilter] = useState('')
+  const [priceMin, setPriceMin] = useState('')
+  const [priceMax, setPriceMax] = useState('')
+  const [rawResults, setRawResults] = useState<TCGCard[]>([])
+  const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
   const [totalCount, setTotalCount] = useState(0)
-  const [showFilters, setShowFilters] = useState(false)
   const [addTarget, setAddTarget] = useState<TCGCard | null>(null)
   const [addDefaultStatus, setAddDefaultStatus] = useState<'owned' | 'wishlist'>('owned')
   const [detailCard, setDetailCard] = useState<TCGCard | null>(null)
 
-  const ownedTcgIds = new Set(cards.filter(c => c.status === 'owned' || c.status === 'for_sale').map(c => c.tcg_id))
-  const wishlistTcgIds = new Set(cards.filter(c => c.status === 'wishlist').map(c => c.tcg_id))
+  const ownedTcgIds = useMemo(() =>
+    new Set(cards.filter(c => c.status === 'owned' || c.status === 'for_sale').map(c => c.tcg_id)),
+    [cards])
+  const wishlistTcgIds = useMemo(() =>
+    new Set(cards.filter(c => c.status === 'wishlist').map(c => c.tcg_id)),
+    [cards])
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const search = useCallback(async (q: string, type: string, rarity: string, p: number, append: boolean) => {
+  const search = useCallback(async (q: string, set: string, p: number, append: boolean) => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
-      if (q) params.set('q', q)
-      if (type) params.set('type', type)
-      if (rarity) params.set('rarity', rarity)
+      if (q)   params.set('q', q)
+      if (set) params.set('set', set)
       params.set('page', String(p))
-      params.set('pageSize', '20')
-
+      params.set('pageSize', '24')
       const res = await fetch(`/api/tcg/search?${params}`)
       const data = await res.json()
-
-      if (append) {
-        setResults(prev => [...prev, ...data.data])
-      } else {
-        setResults(data.data ?? [])
-      }
+      const batch: TCGCard[] = data.data ?? []
+      setRawResults(prev => append ? [...prev, ...batch] : batch)
       setTotalCount(data.totalCount ?? 0)
-      setHasMore(p * 20 < (data.totalCount ?? 0))
+      setHasMore(p * 24 < (data.totalCount ?? 0))
     } catch {
-      if (!append) setResults([])
+      if (!append) setRawResults([])
     } finally {
       setLoading(false)
     }
@@ -61,25 +93,56 @@ export default function BrowsePage() {
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
+    const delay = query || setFilter ? 350 : 0
     debounceRef.current = setTimeout(() => {
       setPage(1)
-      search(query, typeFilter, rarityFilter, 1, false)
-    }, 350)
+      search(query, setFilter, 1, false)
+    }, delay)
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
-  }, [query, typeFilter, rarityFilter, search])
+  }, [query, setFilter, search])
+
+  const displayResults = useMemo(() => {
+    let arr = [...rawResults]
+    // Rarity group filter
+    if (rarityGroup !== 'all') arr = arr.filter(c => rarityGroupMatch(c.rarity, rarityGroup))
+    // Price filter
+    if (priceMin || priceMax) {
+      const pMin = parseFloat(priceMin) || 0
+      const pMax = parseFloat(priceMax) || Infinity
+      arr = arr.filter(c => { const p = getBestTCGPrice(c) ?? 0; return p >= pMin && p <= pMax })
+    }
+    // Sort
+    switch (sort) {
+      case 'premium':
+        arr.sort((a, b) => rarityWeight(b.rarity) - rarityWeight(a.rarity))
+        break
+      case 'price-desc':
+        arr.sort((a, b) => (getBestTCGPrice(b) ?? 0) - (getBestTCGPrice(a) ?? 0))
+        break
+      case 'price-asc':
+        arr.sort((a, b) => (getBestTCGPrice(a) ?? 0) - (getBestTCGPrice(b) ?? 0))
+        break
+      case 'alpha':
+        arr.sort((a, b) => a.name.localeCompare(b.name))
+        break
+    }
+    return arr
+  }, [rawResults, rarityGroup, priceMin, priceMax, sort])
 
   function loadMore() {
     const next = page + 1
     setPage(next)
-    search(query, typeFilter, rarityFilter, next, true)
+    search(query, setFilter, next, true)
   }
+
+  const hasFilters = rarityGroup !== 'all' || !!priceMin || !!priceMax
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 animate-fade-in">
-      <h1 className="text-2xl font-extrabold tracking-tight mb-6">Browse</h1>
+      <h1 className="text-2xl font-extrabold tracking-tight mb-5">Browse</h1>
 
-      {/* Search bar */}
-      <div className="flex gap-2 mb-4">
+      {/* Search + filter button */}
+      <div className="flex gap-2 mb-3">
         <div className="flex-1 flex items-center gap-2 px-4 py-3 rounded-xl"
           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"
@@ -88,98 +151,135 @@ export default function BrowsePage() {
           </svg>
           <input
             type="text"
-            placeholder="Search by name, set, artist…"
+            placeholder="Pokémon name or set…"
             value={query}
             onChange={e => setQuery(e.target.value)}
             className="flex-1 bg-transparent outline-none text-sm"
             style={{ color: 'var(--text)' }}
           />
           {query && (
-            <button onClick={() => setQuery('')} style={{ color: 'var(--text3)' }}>✕</button>
+            <button onClick={() => setQuery('')} style={{ color: 'var(--text3)', fontSize: 14 }}>✕</button>
           )}
         </div>
         <button
           onClick={() => setShowFilters(f => !f)}
-          className="px-4 rounded-xl text-sm font-bold transition-all flex items-center gap-2"
+          className="px-4 rounded-xl text-sm font-bold flex items-center gap-1.5"
           style={{
-            background: showFilters ? 'var(--gold)' : 'var(--surface)',
-            color: showFilters ? '#0D0F1A' : 'var(--text2)',
-            border: '1px solid var(--border)',
+            background: hasFilters ? 'rgba(255,200,69,0.12)' : 'var(--surface)',
+            color: hasFilters ? 'var(--gold)' : 'var(--text2)',
+            border: `1px solid ${hasFilters ? 'rgba(255,200,69,0.30)' : 'var(--border)'}`,
+            whiteSpace: 'nowrap',
           }}>
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
-          </svg>
-          Filters
+          ⚙ {hasFilters ? 'Filtered' : 'Filter'}
         </button>
       </div>
 
-      {/* Type chips */}
+      {/* Sort chips */}
       <div className="scroll-x flex gap-2 mb-3 pb-1">
-        <button onClick={() => setTypeFilter('')}
-          className={`chip ${!typeFilter ? 'chip-active' : 'chip-default'}`}>
-          All
-        </button>
-        {TYPES.map(t => (
-          <button key={t} onClick={() => setTypeFilter(typeFilter === t ? '' : t)}
-            className={`chip ${typeFilter === t ? 'chip-active' : 'chip-default'}`}>
-            {t}
+        {SORT_OPTIONS.map(({ key, label }) => (
+          <button key={key} onClick={() => setSort(key)}
+            className={`chip ${sort === key ? 'chip-active' : 'chip-default'}`}
+            style={{ fontSize: 12 }}>
+            {label}
           </button>
         ))}
       </div>
 
-      {/* Advanced filters */}
+      {/* Rarity quick-filter chips */}
+      <div className="scroll-x flex gap-2 mb-4 pb-1">
+        {RARITY_GROUPS.map(({ key, label }) => (
+          <button key={key} onClick={() => setRarityGroup(key)}
+            className={`chip ${rarityGroup === key ? '' : 'chip-default'}`}
+            style={{
+              fontSize: 12,
+              background: rarityGroup === key
+                ? key === 'fullart' ? 'var(--gold)' : key === 'ultra' ? 'var(--amber)' : key === 'holo' ? 'var(--sky)' : key === 'common' ? 'var(--text2)' : 'var(--gold)'
+                : undefined,
+              color: rarityGroup === key ? '#0D0F1A' : undefined,
+              fontWeight: rarityGroup === key ? 700 : undefined,
+            }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Advanced filter panel */}
       {showFilters && (
-        <div className="mb-4 p-4 rounded-xl space-y-3 animate-fade-in"
+        <div className="mb-5 p-4 rounded-xl animate-fade-in"
           style={{ background: 'var(--elevated)', border: '1px solid var(--border)' }}>
-          <div>
-            <p className="section-label mb-2">RARITY</p>
-            <div className="flex flex-wrap gap-2">
-              <button onClick={() => setRarityFilter('')}
-                className={`chip ${!rarityFilter ? 'chip-active' : 'chip-default'}`} style={{ fontSize: 12 }}>
-                Any
-              </button>
-              {RARITIES.map(r => (
-                <button key={r} onClick={() => setRarityFilter(rarityFilter === r ? '' : r)}
-                  className={`chip ${rarityFilter === r ? 'chip-active' : 'chip-default'}`} style={{ fontSize: 12 }}>
-                  {r}
-                </button>
-              ))}
+          <p className="section-label mb-3">FILTERS</p>
+          <div className="flex gap-3 flex-wrap">
+            <div style={{ flex: '1 1 140px' }}>
+              <label className="section-label block mb-1.5">Set Name</label>
+              <input type="text" placeholder="Surging Sparks…" value={setFilter}
+                onChange={e => setSetFilter(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                style={{ background: 'var(--s2)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+            </div>
+            <div style={{ flex: '1 1 100px' }}>
+              <label className="section-label block mb-1.5">Min Price</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color: 'var(--text3)' }}>$</span>
+                <input type="number" min="0" step="0.01" placeholder="0" value={priceMin}
+                  onChange={e => setPriceMin(e.target.value)}
+                  className="w-full pl-6 pr-3 py-2 rounded-lg text-sm outline-none"
+                  style={{ background: 'var(--s2)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+              </div>
+            </div>
+            <div style={{ flex: '1 1 100px' }}>
+              <label className="section-label block mb-1.5">Max Price</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color: 'var(--text3)' }}>$</span>
+                <input type="number" min="0" step="0.01" placeholder="∞" value={priceMax}
+                  onChange={e => setPriceMax(e.target.value)}
+                  className="w-full pl-6 pr-3 py-2 rounded-lg text-sm outline-none"
+                  style={{ background: 'var(--s2)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+              </div>
             </div>
           </div>
+          {hasFilters && (
+            <button
+              onClick={() => { setRarityGroup('all'); setPriceMin(''); setPriceMax('') }}
+              className="mt-3 text-xs font-bold"
+              style={{ color: 'var(--crimson)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+              × Clear filters
+            </button>
+          )}
         </div>
       )}
 
       {/* Results count */}
-      <p className="text-sm mb-4" style={{ color: 'var(--text3)' }}>
-        {loading && results.length === 0
-          ? 'Searching…'
-          : totalCount > 0
-          ? `${totalCount.toLocaleString()} cards found`
-          : results.length > 0
-          ? `${results.length} results`
-          : ''}
-      </p>
+      {!loading || displayResults.length > 0 ? (
+        <p className="text-sm mb-4" style={{ color: 'var(--text3)' }}>
+          {displayResults.length > 0
+            ? `${displayResults.length}${totalCount > rawResults.length ? '+' : ''} cards`
+            : ''}
+        </p>
+      ) : null}
 
       {/* Grid */}
-      {results.length === 0 && !loading ? (
-        <EmptyBrowse hasQuery={!!query || !!typeFilter || !!rarityFilter} />
+      {displayResults.length === 0 && !loading ? (
+        <EmptyBrowse hasQuery={!!query || !!setFilter || hasFilters} />
       ) : (
         <>
-          <div className="grid gap-4"
-            style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
-            {results.map(card => (
-              <BrowseTile
-                key={card.id}
-                card={card}
-                onClick={() => setDetailCard(card)}
-                onAddToPortfolio={() => { setAddTarget(card); setAddDefaultStatus('owned') }}
-                onAddToWishlist={() => { setAddTarget(card); setAddDefaultStatus('wishlist') }}
-                inCollection={ownedTcgIds.has(card.id)}
-                inWishlist={wishlistTcgIds.has(card.id)}
-              />
+          <div className="grid gap-3"
+            style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
+            {displayResults.map((card, i) => (
+              <div key={card.id}
+                className="card-enter"
+                style={{ animationDelay: `${Math.min(i, 16) * 0.028}s` }}>
+                <BrowseTile
+                  card={card}
+                  onClick={() => setDetailCard(card)}
+                  onAddToPortfolio={() => { setAddTarget(card); setAddDefaultStatus('owned') }}
+                  onAddToWishlist={() => { setAddTarget(card); setAddDefaultStatus('wishlist') }}
+                  inCollection={ownedTcgIds.has(card.id)}
+                  inWishlist={wishlistTcgIds.has(card.id)}
+                />
+              </div>
             ))}
             {loading && [...Array(8)].map((_, i) => (
-              <div key={i} className="rounded-2xl img-skeleton" style={{ height: 280 }} />
+              <div key={`sk-${i}`} className="rounded-xl img-skeleton" style={{ height: 128 }} />
             ))}
           </div>
 
@@ -195,7 +295,7 @@ export default function BrowsePage() {
         </>
       )}
 
-      {/* Card detail modal */}
+      {/* Detail modal */}
       {detailCard && (
         <BrowseDetailModal
           card={detailCard}
@@ -207,7 +307,6 @@ export default function BrowsePage() {
         />
       )}
 
-      {/* Add modal */}
       <AddToPortfolioModal
         card={addTarget}
         onClose={() => setAddTarget(null)}
@@ -216,6 +315,8 @@ export default function BrowsePage() {
     </div>
   )
 }
+
+// ─── Browse Detail Modal ──────────────────────────────────────────────────────
 
 function BrowseDetailModal({ card, onClose, onAddToPortfolio, onAddToWishlist, inCollection, inWishlist }: {
   card: TCGCard
@@ -226,76 +327,168 @@ function BrowseDetailModal({ card, onClose, onAddToPortfolio, onAddToWishlist, i
   inWishlist: boolean
 }) {
   const price = getBestTCGPrice(card)
+  const tiers = getBestTCGPriceTiers(card)
+  const priceHistory = useMemo(
+    () => price != null ? generatePriceHistory(price) : [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [card.id]
+  )
+  const rcColor = rarityColorBrowse(card.rarity)
+  const isAccent = !rcColor.startsWith('rgba')
+
+  const setRef = [
+    card.number ? `#${card.number}${card.set.printedTotal ? `/${card.set.printedTotal}` : ''}` : null,
+    card.set.releaseDate ? new Date(card.set.releaseDate.replace(/\//g, '-')).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : null,
+  ].filter(Boolean).join(' · ')
 
   return (
-    <Modal open onClose={onClose} maxWidth={480}>
-      <div className="space-y-5">
-        {/* Big card image */}
-        <div className="flex justify-center">
-          <div className="relative rounded-2xl overflow-hidden shadow-2xl"
-            style={{ width: 200, height: 280, background: 'var(--bg)' }}>
-            <Image src={card.images.large || card.images.small} alt={card.name} fill className="object-cover" />
+    <Modal open onClose={onClose} maxWidth={520}>
+      <div style={{ position: 'relative' }}>
+
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          style={{
+            position: 'absolute', top: -4, right: -4,
+            width: 28, height: 28, borderRadius: 8,
+            background: 'rgba(255,255,255,0.07)', border: 'none',
+            color: 'var(--text3)', fontSize: 14, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 2,
+          }}>
+          ✕
+        </button>
+
+        {/* TOP: image + identity */}
+        <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', marginBottom: 16 }}>
+          <div style={{
+            width: 120, flexShrink: 0,
+            borderRadius: 10, overflow: 'hidden',
+            position: 'relative', paddingTop: `${Math.round(120 * 1.39)}px`,
+            boxShadow: '0 6px 24px rgba(0,0,0,0.50)',
+          }}>
+            <CardArtwork
+              types={card.types}
+              imageUrl={card.images.large || card.images.small}
+              imageAlt={card.name}
+              isHolo={rarityWeight(card.rarity) >= 30}
+            />
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0, paddingTop: 2 }}>
+            <h2 style={{ margin: '0 0 5px', fontSize: 16, fontWeight: 800, lineHeight: 1.2, paddingRight: 32 }}>
+              {card.name}
+            </h2>
+            {card.rarity && (
+              <span style={{
+                display: 'inline-block', marginBottom: 5,
+                fontSize: 9, fontWeight: 800, letterSpacing: '0.07em',
+                color: rcColor,
+                background: isAccent ? `${rcColor}16` : 'rgba(255,255,255,0.06)',
+                border: `1px solid ${isAccent ? `${rcColor}30` : 'rgba(255,255,255,0.10)'}`,
+                borderRadius: 100, padding: '2px 8px', lineHeight: 1.5,
+              }}>
+                {card.rarity}
+              </span>
+            )}
+            <p style={{ margin: '0 0 6px', fontSize: 11, color: 'var(--text3)' }}>
+              {card.set.name}{setRef ? ` · ${setRef}` : ''}
+            </p>
+            {card.artist && <p style={{ margin: '0 0 8px', fontSize: 10, color: 'var(--text3)' }}>Illus. {card.artist}</p>}
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              {card.hp && <MiniStat label="HP" value={card.hp} />}
+              {card.types && <MiniStat label="Type" value={card.types.join(' / ')} />}
+            </div>
           </div>
         </div>
 
-        {/* Info */}
-        <div className="text-center">
-          <h2 className="text-xl font-extrabold">{card.name}</h2>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--text3)' }}>
-            {card.set.name} · #{card.number}
+        {/* Divider */}
+        <div style={{ height: 1, background: 'var(--border)', marginBottom: 16 }} />
+
+        {/* MARKET VALUE */}
+        <div style={{ marginBottom: 14 }}>
+          <p style={{ margin: '0 0 4px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>
+            Market Value
           </p>
-          {card.rarity && (
-            <span className="inline-block mt-1.5 text-xs px-2 py-0.5 rounded-full font-semibold"
-              style={{ background: 'var(--s2)', color: 'var(--text2)' }}>
-              {card.rarity}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
+            <span style={{ fontSize: 34, fontWeight: 900, color: 'var(--gold)', lineHeight: 1 }}>
+              {price != null ? formatPrice(price) : '—'}
             </span>
-          )}
-          {price != null && (
-            <p className="mt-3 text-3xl font-extrabold" style={{ color: 'var(--gold)' }}>
-              {formatPrice(price)}
-              <span className="text-xs font-medium ml-1" style={{ color: 'var(--text3)' }}>TCGPlayer</span>
-            </p>
-          )}
-        </div>
-
-        {/* Metadata */}
-        <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
-          {[
-            ['Set', card.set.name],
-            ['Number', card.number],
-            ['Rarity', card.rarity],
-            ['Type', card.types?.join(', ')],
-            ['Artist', card.artist],
-          ].filter(([, v]) => v).map(([label, value]) => (
-            <div key={label} className="flex items-center justify-between px-4 py-3"
-              style={{ borderBottom: '1px solid var(--border)' }}>
-              <span className="text-sm" style={{ color: 'var(--text3)' }}>{label}</span>
-              <span className="text-sm font-semibold">{value}</span>
+            <span style={{ fontSize: 11, color: 'var(--text3)' }}>NM</span>
+          </div>
+          {tiers && (tiers.low != null || tiers.mid != null || tiers.high != null || tiers.directLow != null) && (
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+              {([
+                { label: 'NM Low', val: tiers.low },
+                { label: 'Mid',    val: tiers.mid },
+                { label: 'High',   val: tiers.high },
+                { label: 'Direct', val: tiers.directLow },
+              ] as { label: string; val: number | undefined }[]).filter(x => x.val != null).map(({ label, val }) => (
+                <div key={label}>
+                  <p style={{ margin: 0, fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text3)' }}>{label}</p>
+                  <p style={{ margin: '1px 0 0', fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>{formatPrice(val!)}</p>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
 
-        {/* Actions */}
-        <div className="flex gap-3">
-          <button
-            onClick={onAddToPortfolio}
-            disabled={inCollection}
-            className="flex-1 py-3.5 rounded-xl font-bold text-sm"
-            style={{
-              background: inCollection ? 'rgba(69,219,141,0.1)' : 'linear-gradient(135deg, var(--emerald), var(--sky))',
-              color: inCollection ? 'rgba(69,219,141,0.5)' : '#0D0F1A',
+        {/* 30-Day chart */}
+        {priceHistory.length > 1 && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+              <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>30-Day Price</span>
+              <span style={{ fontSize: 9, color: 'var(--text3)' }}>
+                {formatPrice(Math.min(...priceHistory))} – {formatPrice(Math.max(...priceHistory))}
+              </span>
+            </div>
+            <Sparkline points={priceHistory} color="var(--emerald)" height={38} />
+          </div>
+        )}
+
+        {/* Card lore */}
+        {card.flavorText && (
+          <p style={{ margin: '0 0 16px', fontSize: 11.5, lineHeight: 1.65, color: 'var(--text3)', fontStyle: 'italic', borderLeft: '2px solid var(--border2)', paddingLeft: 10 }}>
+            "{card.flavorText}"
+          </p>
+        )}
+
+        {/* Action bar */}
+        <div style={{ paddingTop: 14, borderTop: '1px solid var(--border)', display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+          {card.tcgplayer?.url && (
+            <TcgLink url={card.tcgplayer.url} style={{
+              padding: '7px 12px', borderRadius: 7, fontSize: 11, fontWeight: 800,
+              color: 'var(--text2)', background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.10)',
+              textDecoration: 'none', whiteSpace: 'nowrap',
             }}>
-            {inCollection ? '✓ In Portfolio' : '+ Add to Portfolio'}
-          </button>
+              ↗ TCGPlayer
+            </TcgLink>
+          )}
+          <div style={{ flex: 1 }} />
           <button
             onClick={onAddToWishlist}
             disabled={inWishlist}
-            className="px-4 py-3.5 rounded-xl font-bold text-sm"
             style={{
-              background: inWishlist ? 'rgba(156,114,250,0.1)' : 'rgba(156,114,250,0.2)',
-              color: inWishlist ? 'rgba(156,114,250,0.5)' : 'var(--violet)',
+              padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+              background: inWishlist ? 'rgba(156,114,250,0.06)' : 'rgba(156,114,250,0.14)',
+              color: inWishlist ? 'rgba(156,114,250,0.40)' : 'var(--violet)',
+              border: '1px solid rgba(156,114,250,0.22)', cursor: inWishlist ? 'default' : 'pointer',
+              transition: 'all 0.12s ease',
             }}>
-            {inWishlist ? '♥' : '♡'}
+            {inWishlist ? '♥ Watchlist' : '+ Watchlist'}
+          </button>
+          <button
+            onClick={onAddToPortfolio}
+            disabled={inCollection}
+            style={{
+              padding: '8px 20px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+              background: inCollection ? 'rgba(255,200,69,0.08)' : 'var(--gold)',
+              color: inCollection ? 'rgba(255,200,69,0.40)' : '#0D0F1A',
+              border: 'none', cursor: inCollection ? 'default' : 'pointer',
+              transition: 'all 0.12s ease',
+            }}>
+            {inCollection ? '✓ In CATCHM' : '+ Add to CATCHM'}
           </button>
         </div>
       </div>
@@ -303,17 +496,38 @@ function BrowseDetailModal({ card, onClose, onAddToPortfolio, onAddToWishlist, i
   )
 }
 
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p style={{ margin: 0, fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text3)' }}>{label}</p>
+      <p style={{ margin: '2px 0 0', fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>{value}</p>
+    </div>
+  )
+}
+
+function rarityColorBrowse(rarity?: string | null): string {
+  if (!rarity) return 'rgba(255,255,255,0.38)'
+  const r = rarity.toLowerCase()
+  if (r.includes('special illustration')) return '#FFC845'
+  if (r.includes('illustration rare'))    return '#D166F2'
+  if (r.includes('hyper rare') || r.includes('rainbow')) return '#73D9D9'
+  if (r.includes('secret'))     return '#5DA9FF'
+  if (r.includes('vmax') || r.includes('vstar')) return '#FF9E2E'
+  if (r.includes('amazing'))    return '#73D9D9'
+  if (r.includes('ultra rare') || r.includes(' ex') || r.includes(' gx')) return '#FF9E2E'
+  if (r.includes('holo'))       return 'rgba(200,210,255,0.75)'
+  return 'rgba(255,255,255,0.38)'
+}
+
 function EmptyBrowse({ hasQuery }: { hasQuery: boolean }) {
   return (
     <div className="text-center py-20">
       <div className="text-5xl mb-4 opacity-30">🔍</div>
       <p className="font-bold text-lg mb-2">
-        {hasQuery ? 'No cards found' : 'Search for any card'}
+        {hasQuery ? 'No cards found' : 'Loading cards…'}
       </p>
       <p className="text-sm" style={{ color: 'var(--text3)' }}>
-        {hasQuery
-          ? 'Try a different name, set, or remove filters.'
-          : 'Type a Pokémon name, set name, or artist to get started.'}
+        {hasQuery ? 'Try a different name, set, or remove filters.' : ''}
       </p>
     </div>
   )

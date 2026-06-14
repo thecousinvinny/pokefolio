@@ -1,6 +1,7 @@
 'use client'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
+import { useEffect, useRef, useState } from 'react'
 
 const NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: DashIcon },
@@ -23,9 +24,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
 function FloatingTabBar() {
   const pathname = usePathname()
+  const activeIdx = NAV.findIndex(n => pathname === n.href || pathname.startsWith(n.href + '/'))
+  const iconRefs = useRef<(HTMLDivElement | null)[]>([])
+  const navRef = useRef<HTMLElement>(null)
+  const [pill, setPill] = useState<{ left: number; top: number; w: number; h: number } | null>(null)
+  const isFirst = useRef(true)
+
+  useEffect(() => {
+    const icon = iconRefs.current[activeIdx]
+    const nav = navRef.current
+    if (!icon || !nav) return
+    const nr = nav.getBoundingClientRect()
+    const ir = icon.getBoundingClientRect()
+    setPill({ left: ir.left - nr.left, top: ir.top - nr.top, w: ir.width, h: ir.height })
+    isFirst.current = false
+  }, [activeIdx, pathname])
 
   return (
     <nav
+      ref={navRef}
       aria-label="Main navigation"
       style={{
         position: 'fixed',
@@ -37,7 +54,6 @@ function FloatingTabBar() {
         alignItems: 'center',
         height: 68,
         borderRadius: 34,
-        // True liquid glass — ultra-transparent, blur does the heavy lifting
         background: 'rgba(20, 22, 38, 0.28)',
         backdropFilter: 'blur(40px) saturate(200%) brightness(0.88)',
         WebkitBackdropFilter: 'blur(40px) saturate(200%) brightness(0.88)',
@@ -50,12 +66,32 @@ function FloatingTabBar() {
         ].join(', '),
         padding: '0 6px',
       }}>
-      {NAV.map(({ href, label, icon: Icon }) => {
+
+      {/* Sliding gold pill — moves between active tabs with spring bounce */}
+      {pill && (
+        <div style={{
+          position: 'absolute',
+          left: pill.left,
+          top: pill.top,
+          width: pill.w,
+          height: pill.h,
+          borderRadius: 14,
+          background: 'linear-gradient(160deg, rgba(255,200,69,0.38), rgba(255,158,46,0.26))',
+          border: '1px solid rgba(255,200,69,0.50)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.30), 0 2px 14px rgba(255,200,69,0.30), 0 0 24px rgba(255,158,46,0.16)',
+          pointerEvents: 'none',
+          zIndex: 0,
+          transition: 'left 0.38s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.38s cubic-bezier(0.34, 1.56, 0.64, 1), width 0.38s cubic-bezier(0.34, 1.56, 0.64, 1), height 0.38s cubic-bezier(0.34, 1.56, 0.64, 1)',
+        }} />
+      )}
+
+      {NAV.map(({ href, label, icon: Icon }, i) => {
         const active = pathname === href || pathname.startsWith(href + '/')
         return (
           <Link
             key={href}
             href={href}
+            prefetch
             style={{
               flex: 1,
               display: 'flex',
@@ -65,36 +101,29 @@ function FloatingTabBar() {
               gap: 3,
               textDecoration: 'none',
               color: active ? 'var(--gold)' : 'rgba(255, 255, 255, 0.40)',
-              transition: 'color 0.18s ease',
+              transition: 'color 0.20s ease',
               WebkitTapHighlightColor: 'transparent',
+              position: 'relative',
+              zIndex: 1,
             }}>
-            {/* Liquid glass bead — raised gold capsule for active tab */}
-            <div style={{
-              padding: '8px 12px',
-              borderRadius: 14,
-              background: active
-                ? 'linear-gradient(160deg, rgba(255,200,69,0.38), rgba(255,158,46,0.26))'
-                : 'transparent',
-              border: active
-                ? '1px solid rgba(255,200,69,0.48)'
-                : '1px solid transparent',
-              boxShadow: active
-                ? 'inset 0 1px 0 rgba(255,255,255,0.30), 0 2px 14px rgba(255,200,69,0.28), 0 0 22px rgba(255,158,46,0.14)'
-                : 'none',
-              transition: 'all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
+            <div
+              ref={el => { iconRefs.current[i] = el }}
+              style={{
+                padding: '8px 12px',
+                borderRadius: 14,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
               <Icon active={active} />
             </div>
-
             <span style={{
               fontSize: 10,
               fontWeight: active ? 700 : 500,
               letterSpacing: '0.01em',
               lineHeight: 1,
               marginTop: -1,
+              transition: 'font-weight 0.15s ease',
             }}>
               {label}
             </span>

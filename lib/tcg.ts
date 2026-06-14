@@ -89,8 +89,9 @@ export async function searchCardsFlexible(params: {
   maxPrice?: number
   page?: number
   pageSize?: number
+  skipEnrich?: boolean
 }): Promise<TCGSearchResponse> {
-  const { query, set, type, rarity, page = 1, pageSize = 20 } = params
+  const { query, set, type, rarity, page = 1, pageSize = 20, skipEnrich = false } = params
 
   const parts: string[] = []
 
@@ -114,6 +115,6 @@ export async function searchCardsFlexible(params: {
   const res = await fetch(url, { headers: headers(), next: { revalidate: 60 } })
   if (!res.ok) throw new Error(`TCG API ${res.status}`)
   const json: TCGSearchResponse = await res.json()
-  const enriched = await Promise.all(json.data.map(enrichCardPrices))
+  const enriched = skipEnrich ? json.data : await Promise.all(json.data.map(enrichCardPrices))
   return { ...json, data: enriched }
 }
