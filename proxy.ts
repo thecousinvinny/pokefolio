@@ -21,15 +21,16 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
   const { pathname, searchParams } = request.nextUrl
 
-  // Supabase sometimes sends the OAuth code to / instead of /auth/callback
+  // Supabase sends the OAuth code to / instead of /auth/callback — forward it
   if (pathname === '/' && searchParams.has('code')) {
     const url = request.nextUrl.clone()
     url.pathname = '/auth/callback'
     return NextResponse.redirect(url)
   }
+
+  const { data: { user } } = await supabase.auth.getUser()
 
   if (!user && !pathname.startsWith('/login')) {
     return NextResponse.redirect(new URL('/login', request.url))
