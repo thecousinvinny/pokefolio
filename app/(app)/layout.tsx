@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { CollectionProvider } from '@/components/CollectionContext'
 import { AppShell } from '@/components/layout/AppShell'
 
