@@ -81,7 +81,7 @@ export function Modal({ open, onClose, title, children, maxWidth = 480 }: ModalP
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 modal-backdrop"
+      className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4 modal-backdrop"
       style={{
         background: `rgba(0,0,0,${backdropAlpha})`,
         transition: isDragging ? 'none' : 'background 0.2s',

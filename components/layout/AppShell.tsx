@@ -14,7 +14,10 @@ const NAV = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--bg)' }}>
-      <main style={{ paddingBottom: 'calc(92px + env(safe-area-inset-bottom))' }}>
+      <main style={{
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingBottom: 'calc(80px + env(safe-area-inset-bottom))',
+      }}>
         {children}
       </main>
       <FloatingTabBar />
@@ -46,7 +49,7 @@ function FloatingTabBar() {
       aria-label="Main navigation"
       style={{
         position: 'fixed',
-        bottom: 'calc(14px + env(safe-area-inset-bottom))',
+        bottom: 'calc(4px + env(safe-area-inset-bottom))',
         left: 14,
         right: 14,
         zIndex: 100,

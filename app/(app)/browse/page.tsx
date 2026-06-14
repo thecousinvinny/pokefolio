@@ -15,6 +15,8 @@ import type { TCGCard } from '@/types'
 type SortMode = 'premium' | 'newest' | 'price-desc' | 'price-asc' | 'alpha'
 type RarityGroup = 'all' | 'fullart' | 'ultra' | 'holo' | 'common'
 
+const PAGE_SIZE = 50
+
 // Module-level cache — survives tab switches in the same session
 let _browseCache: { results: TCGCard[]; totalCount: number; hasMore: boolean } | null = null
 
@@ -45,6 +47,10 @@ function rarityGroupMatch(rarity: string | undefined, group: RarityGroup): boole
   }
 }
 
+function setReleaseMs(card: TCGCard): number {
+  if (!card.set?.releaseDate) return 0
+  return new Date(card.set.releaseDate.replace(/\//g, '-')).getTime()
+}
 
 export default function BrowsePage() {
   const { cards } = useCollection()
@@ -64,6 +70,9 @@ export default function BrowsePage() {
   const [addTarget, setAddTarget] = useState<TCGCard | null>(null)
   const [addDefaultStatus, setAddDefaultStatus] = useState<'owned' | 'wishlist'>('owned')
   const [detailCard, setDetailCard] = useState<TCGCard | null>(null)
+  const sentinelRef = useRef<HTMLDivElement>(null)
+  const pageRef = useRef(page)
+  useEffect(() => { pageRef.current = page }, [page])
 
   const ownedTcgIds = useMemo(() =>
     new Set(cards.filter(c => c.status === 'owned' || c.status === 'for_sale').map(c => c.tcg_id)),
@@ -75,17 +84,19 @@ export default function BrowsePage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const search = useCallback(async (q: string, set: string, p: number, append: boolean) => {
+    if (!append) setRawResults([])
     setLoading(true)
     try {
       const params = new URLSearchParams()
       if (q)   params.set('q', q)
       if (set) params.set('set', set)
       params.set('page', String(p))
-      params.set('pageSize', '24')
+      params.set('pageSize', String(PAGE_SIZE))
       const res = await fetch(`/api/tcg/search?${params}`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       const batch: TCGCard[] = data.data ?? []
-      const nextHasMore = p * 24 < (data.totalCount ?? 0)
+      const nextHasMore = p * PAGE_SIZE < (data.totalCount ?? 0)
       setRawResults(prev => {
         const next = append ? [...prev, ...batch] : batch
         _browseCache = { results: next, totalCount: data.totalCount ?? 0, hasMore: nextHasMore }
@@ -101,7 +112,6 @@ export default function BrowsePage() {
   }, [])
 
   useEffect(() => {
-    // Skip first render if we have cached results and no active query
     if (skipInitialLoad.current && !query && !setFilter) {
       skipInitialLoad.current = false
       return
@@ -129,7 +139,24 @@ export default function BrowsePage() {
     // Sort
     switch (sort) {
       case 'premium':
-        arr.sort((a, b) => rarityWeight(b.rarity) - rarityWeight(a.rarity))
+        if (query.trim()) {
+          // Search mode: full arts first, then by price within each rarity tier
+          arr.sort((a, b) => {
+            const rw = rarityWeight(b.rarity) - rarityWeight(a.rarity)
+            if (rw !== 0) return rw
+            return (getBestTCGPrice(b) ?? 0) - (getBestTCGPrice(a) ?? 0)
+          })
+        } else {
+          // Browse mode: newest set first, then full arts within each set
+          arr.sort((a, b) => {
+            const dateDiff = setReleaseMs(b) - setReleaseMs(a)
+            if (dateDiff !== 0) return dateDiff
+            return rarityWeight(b.rarity) - rarityWeight(a.rarity)
+          })
+        }
+        break
+      case 'newest':
+        arr.sort((a, b) => setReleaseMs(b) - setReleaseMs(a))
         break
       case 'price-desc':
         arr.sort((a, b) => (getBestTCGPrice(b) ?? 0) - (getBestTCGPrice(a) ?? 0))
@@ -142,13 +169,26 @@ export default function BrowsePage() {
         break
     }
     return arr
-  }, [rawResults, rarityGroup, priceMin, priceMax, sort])
+  }, [rawResults, rarityGroup, priceMin, priceMax, sort, query])
 
-  function loadMore() {
-    const next = page + 1
+  const loadMore = useCallback(() => {
+    if (loading || !hasMore) return
+    const next = pageRef.current + 1
     setPage(next)
     search(query, setFilter, next, true)
-  }
+  }, [loading, hasMore, search, query, setFilter])
+
+  // Infinite scroll
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) loadMore() },
+      { rootMargin: '400px' }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [loadMore])
 
   const activeFilterCount = [sort !== 'premium', rarityGroup !== 'all', !!priceMin, !!priceMax, !!setFilter].filter(Boolean).length
   const hasFilters = activeFilterCount > 0
@@ -241,8 +281,7 @@ export default function BrowsePage() {
           </div>
 
           {/* ADVANCED */}
-          <p className="section-label mb-2">ADVANCED</p>
-          <p className="section-label mb-3">FILTERS</p>
+          <p className="section-label mb-3">ADVANCED</p>
           <div className="flex gap-3 flex-wrap">
             <div style={{ flex: '1 1 140px' }}>
               <label className="section-label block mb-1.5">Set Name</label>
@@ -293,7 +332,13 @@ export default function BrowsePage() {
       ) : null}
 
       {/* Grid */}
-      {displayResults.length === 0 && !loading ? (
+      {loading && rawResults.length === 0 ? (
+        <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
+          {[...Array(12)].map((_, i) => (
+            <div key={`sk-${i}`} className="rounded-2xl img-skeleton" style={{ height: 280 }} />
+          ))}
+        </div>
+      ) : displayResults.length === 0 ? (
         <EmptyBrowse hasQuery={!!query || !!setFilter || hasFilters} />
       ) : (
         <>
@@ -313,20 +358,18 @@ export default function BrowsePage() {
                 />
               </div>
             ))}
-            {loading && [...Array(8)].map((_, i) => (
-              <div key={`sk-${i}`} className="rounded-2xl img-skeleton" style={{ height: 280 }} />
-            ))}
           </div>
 
-          {hasMore && !loading && (
-            <div className="flex justify-center mt-8">
-              <button onClick={loadMore}
-                className="px-8 py-3 rounded-full font-bold text-sm"
-                style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text2)' }}>
-                Load more
-              </button>
-            </div>
-          )}
+          {/* Infinite scroll sentinel */}
+          <div ref={sentinelRef} style={{ height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 8 }}>
+            {loading && (
+              <div className="animate-spin-gold" style={{
+                width: 28, height: 28, borderRadius: '50%',
+                border: '3px solid var(--border)',
+                borderTopColor: 'var(--gold)',
+              }} />
+            )}
+          </div>
         </>
       )}
 
