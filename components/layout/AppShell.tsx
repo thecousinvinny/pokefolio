@@ -6,8 +6,8 @@ import { useEffect, useRef, useState } from 'react'
 const NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: DashIcon },
   { href: '/browse',    label: 'Browse',    icon: BrowseIcon },
-  { href: '/portfolio', label: 'Portfolio', icon: PortfolioIcon },
   { href: '/wishlist',  label: 'Wishlist',  icon: WishlistIcon },
+  { href: '/portfolio', label: 'Portfolio', icon: PortfolioIcon },
   { href: '/sold',      label: 'Sold',      icon: SoldIcon },
 ]
 
