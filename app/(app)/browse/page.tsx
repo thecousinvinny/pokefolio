@@ -542,34 +542,37 @@ function BrowseDetailModal({ card, onClose, onAddToPortfolio, onAddToWishlist, i
           </p>
         )}
 
-        <div style={{ paddingTop: 14, borderTop: '1px solid var(--border)', display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ paddingTop: 14, borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {/* Primary: Watchlist + CATCHM side by side */}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={onAddToWishlist} disabled={inWishlist}
+              style={{
+                flex: 1, padding: '9px 0', borderRadius: 9, fontSize: 12, fontWeight: 700,
+                background: inWishlist ? 'rgba(156,114,250,0.06)' : 'rgba(156,114,250,0.14)',
+                color: inWishlist ? 'rgba(156,114,250,0.40)' : 'var(--violet)',
+                border: '1px solid rgba(156,114,250,0.22)', cursor: inWishlist ? 'default' : 'pointer',
+              }}>
+              {inWishlist ? '♥ In Watchlist' : '♥ Watchlist'}
+            </button>
+            <button onClick={onAddToPortfolio} disabled={inCollection}
+              style={{
+                flex: 1, padding: '9px 0', borderRadius: 9, fontSize: 12, fontWeight: 700,
+                background: inCollection ? 'rgba(255,200,69,0.08)' : 'var(--gold)',
+                color: inCollection ? 'rgba(255,200,69,0.40)' : '#0D0F1A',
+                border: 'none', cursor: inCollection ? 'default' : 'pointer',
+              }}>
+              {inCollection ? '✓ In CATCHM' : '+ Add to CATCHM'}
+            </button>
+          </div>
+          {/* Secondary: TCG link, full width, subdued */}
           {card.tcgplayer?.url && (
             <TcgLink url={card.tcgplayer.url} style={{
-              padding: '7px 12px', borderRadius: 7, fontSize: 11, fontWeight: 800,
-              color: 'var(--text2)', background: 'transparent',
-              border: '1px solid rgba(255,255,255,0.10)',
-              textDecoration: 'none', whiteSpace: 'nowrap',
-            }}>↗ TCGPlayer</TcgLink>
+              display: 'block', textAlign: 'center',
+              padding: '7px 0', borderRadius: 8, fontSize: 11, fontWeight: 700,
+              color: 'var(--text3)', background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.08)', textDecoration: 'none',
+            }}>↗ View on TCGPlayer</TcgLink>
           )}
-          <div style={{ flex: 1 }} />
-          <button onClick={onAddToWishlist} disabled={inWishlist}
-            style={{
-              padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700,
-              background: inWishlist ? 'rgba(156,114,250,0.06)' : 'rgba(156,114,250,0.14)',
-              color: inWishlist ? 'rgba(156,114,250,0.40)' : 'var(--violet)',
-              border: '1px solid rgba(156,114,250,0.22)', cursor: inWishlist ? 'default' : 'pointer',
-            }}>
-            {inWishlist ? '♥ Watchlist' : '+ Watchlist'}
-          </button>
-          <button onClick={onAddToPortfolio} disabled={inCollection}
-            style={{
-              padding: '8px 20px', borderRadius: 8, fontSize: 12, fontWeight: 700,
-              background: inCollection ? 'rgba(255,200,69,0.08)' : 'var(--gold)',
-              color: inCollection ? 'rgba(255,200,69,0.40)' : '#0D0F1A',
-              border: 'none', cursor: inCollection ? 'default' : 'pointer',
-            }}>
-            {inCollection ? '✓ In CATCHM' : '+ Add to CATCHM'}
-          </button>
         </div>
       </div>
     </Modal>

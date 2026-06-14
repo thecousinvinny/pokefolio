@@ -437,48 +437,84 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
           )}
 
           {/* ── ACTION BAR ── */}
-          <div style={{
-            paddingTop: 14, borderTop: '1px solid var(--border)',
-            display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap',
-          }}>
+          <div style={{ paddingTop: 14, borderTop: '1px solid var(--border)' }}>
             {view === 'wishlist' ? (
-              <>
-                {card.tcgplayer_url && <Btn label="↗ TCG" href={card.tcgplayer_url} />}
-                <Btn
-                  label={card.alerts_enabled ? '🔔 On' : '🔕 Off'}
-                  onClick={() => updateCard(card.id, { alerts_enabled: !card.alerts_enabled })}
-                />
-                <div style={{ flex: 1 }} />
-                <Btn label="✓ Mark Owned" color="var(--emerald)" accentBg="rgba(69,219,141,0.12)" onClick={handleMoveToPortfolio} wide />
-                <Divider />
-                <Btn label="✕ Remove" color="var(--crimson)" onClick={handleRemove} />
-              </>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {/* Primary: move to portfolio */}
+                <button onClick={handleMoveToPortfolio} style={{
+                  width: '100%', padding: '10px 0', borderRadius: 9, fontSize: 13, fontWeight: 700,
+                  background: 'rgba(69,219,141,0.14)', color: 'var(--emerald)',
+                  border: '1px solid rgba(69,219,141,0.25)', cursor: 'pointer',
+                }}>
+                  ✓ Mark as Owned
+                </button>
+                {/* Secondary: TCG + alerts + remove */}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {card.tcgplayer_url && (
+                    <TcgLink url={card.tcgplayer_url} style={{
+                      flex: 1, padding: '7px 0', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                      color: 'var(--text3)', background: 'transparent',
+                      border: '1px solid rgba(255,255,255,0.10)', textDecoration: 'none',
+                      textAlign: 'center', display: 'block',
+                    }}>↗ TCGPlayer</TcgLink>
+                  )}
+                  <button
+                    onClick={() => updateCard(card.id, { alerts_enabled: !card.alerts_enabled })}
+                    style={{
+                      flex: 1, padding: '7px 0', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                      background: card.alerts_enabled ? 'rgba(255,200,69,0.12)' : 'transparent',
+                      color: card.alerts_enabled ? 'var(--gold)' : 'var(--text3)',
+                      border: `1px solid ${card.alerts_enabled ? 'rgba(255,200,69,0.30)' : 'rgba(255,255,255,0.10)'}`,
+                      cursor: 'pointer',
+                    }}>
+                    {card.alerts_enabled ? '🔔 Alerts On' : '🔕 Alerts Off'}
+                  </button>
+                  <button onClick={handleRemove} style={{
+                    width: 36, borderRadius: 8, fontSize: 14, fontWeight: 700,
+                    background: 'rgba(242,69,96,0.10)', color: 'var(--crimson)',
+                    border: '1px solid rgba(242,69,96,0.20)', cursor: 'pointer',
+                  }}>✕</button>
+                </div>
+              </div>
             ) : (
-              <>
-                <Btn label="✎ Edit" onClick={startEdit} />
-                {card.tcgplayer_url && <Btn label="↗ TCG" href={card.tcgplayer_url} />}
-                <div style={{ flex: 1 }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {/* Row 1: Sell + Gift (locked cards skip this) */}
                 {!locked && (
-                  <>
-                    <Btn label="SELL" color="var(--crimson)" accentBg="rgba(242,69,96,0.12)" onClick={() => setShowSell(true)} wide />
-                    <Btn label="GIFT" color="var(--violet)"  accentBg="rgba(156,114,250,0.12)" onClick={() => setShowGift(true)} wide />
-                    <Divider />
-                  </>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => setShowSell(true)} style={{
+                      flex: 1, padding: '9px 0', borderRadius: 9, fontSize: 12, fontWeight: 700,
+                      background: 'rgba(242,69,96,0.12)', color: 'var(--crimson)',
+                      border: '1px solid rgba(242,69,96,0.22)', cursor: 'pointer',
+                    }}>SELL</button>
+                    <button onClick={() => setShowGift(true)} style={{
+                      flex: 1, padding: '9px 0', borderRadius: 9, fontSize: 12, fontWeight: 700,
+                      background: 'rgba(156,114,250,0.12)', color: 'var(--violet)',
+                      border: '1px solid rgba(156,114,250,0.22)', cursor: 'pointer',
+                    }}>GIFT</button>
+                  </div>
                 )}
-                <Btn
-                  label={card.is_favorite ? '★ FAV' : '☆ FAV'}
-                  color="var(--gold)" accentBg="rgba(255,200,69,0.10)"
-                  onClick={() => setFavorite(card.id)} active={card.is_favorite}
-                />
-                <Btn
-                  label={card.is_showcase ? '◈ SHOW' : '◈ SHOW'}
-                  color="var(--violet)" accentBg="rgba(156,114,250,0.10)"
-                  onClick={handleShowcase} active={card.is_showcase}
-                />
-                <Divider />
-                <Btn label="↩ Watch" onClick={handleToWatch} />
-                <Btn label="✕" color="var(--crimson)" onClick={handleRemove} />
-              </>
+                {/* Row 2: Toggles (left) + utilities/destructive (right) */}
+                <div style={{ display: 'flex', gap: 6, justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <Btn
+                      label={card.is_favorite ? '★ Fav' : '☆ Fav'}
+                      color="var(--gold)" accentBg="rgba(255,200,69,0.10)"
+                      onClick={() => setFavorite(card.id)} active={card.is_favorite}
+                    />
+                    <Btn
+                      label="◈ Show"
+                      color="var(--violet)" accentBg="rgba(156,114,250,0.10)"
+                      onClick={handleShowcase} active={card.is_showcase}
+                    />
+                    <Btn label="Edit" onClick={startEdit} />
+                    {card.tcgplayer_url && <Btn label="↗ TCG" href={card.tcgplayer_url} />}
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <Btn label="↩ Watch" onClick={handleToWatch} />
+                    <Btn label="✕" color="var(--crimson)" onClick={handleRemove} />
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         </div>
