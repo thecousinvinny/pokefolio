@@ -1,5 +1,4 @@
 'use client'
-import { useWebSheet } from './WebSheet'
 
 interface TcgLinkProps {
   url: string
@@ -8,13 +7,14 @@ interface TcgLinkProps {
   className?: string
 }
 
-// Opens TCGPlayer in an in-app sheet instead of navigating away (which destroys Browse state).
+// Opens the URL in a new window/tab without navigating the PWA away.
+// window.open(_blank) on iOS PWA launches Safari as an overlay while the
+// PWA continues running in the background — state is fully preserved.
 export function TcgLink({ url, children, style, className }: TcgLinkProps) {
-  const { open } = useWebSheet()
   return (
     <a
       href={url}
-      onClick={e => { e.preventDefault(); open(url) }}
+      onClick={e => { e.preventDefault(); window.open(url, '_blank', 'noopener,noreferrer') }}
       style={style}
       className={className}
     >
