@@ -1,6 +1,5 @@
 'use client'
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import Image from 'next/image'
 import { BrowseTile } from '@/components/cards/CardTile'
 import { CardArtwork } from '@/components/cards/CardArtwork'
 import { AddToPortfolioModal } from '@/components/cards/AddToPortfolioModal'
@@ -16,9 +15,8 @@ type SortMode = 'premium' | 'newest' | 'price-desc' | 'price-asc' | 'alpha'
 type RarityGroup = 'all' | 'fullart' | 'ultra' | 'holo' | 'common'
 
 const PAGE_SIZE = 50
-const CACHE_TTL_MS = 10 * 60 * 1000  // 10-minute cache — ensures new sets surface after a short wait
+const CACHE_TTL_MS = 10 * 60 * 1000
 
-// Module-level cache — survives tab switches in the same session
 let _browseCache: { results: TCGCard[]; totalCount: number; hasMore: boolean; ts: number } | null = null
 
 function cacheValid() {
@@ -50,11 +48,6 @@ function rarityGroupMatch(rarity: string | undefined, group: RarityGroup): boole
     case 'holo':    return w >= 30 && w < 50
     case 'common':  return w < 30
   }
-}
-
-function setReleaseMs(card: TCGCard): number {
-  if (!card.set?.releaseDate) return 0
-  return new Date(card.set.releaseDate.replace(/\//g, '-')).getTime()
 }
 
 export default function BrowsePage() {
@@ -90,7 +83,7 @@ export default function BrowsePage() {
   const loadingRef = useRef(false)
 
   const search = useCallback(async (q: string, set: string, p: number, append: boolean) => {
-    if (loadingRef.current && append) return  // prevent duplicate append loads
+    if (loadingRef.current && append) return
     loadingRef.current = true
     if (!append) setRawResults([])
     setLoading(true)
@@ -98,6 +91,8 @@ export default function BrowsePage() {
       const params = new URLSearchParams()
       if (q)   params.set('q', q)
       if (set) params.set('set', set)
+      // Default browse (no query): request full arts only from the API
+      if (!q && !set) params.set('fullArtOnly', 'true')
       params.set('page', String(p))
       params.set('pageSize', String(PAGE_SIZE))
       const res = await fetch(`/api/tcg/search?${params}`)
@@ -135,37 +130,39 @@ export default function BrowsePage() {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
   }, [query, setFilter, search])
 
+  // Auto-switch rarity: browsing = all (server already filters to full arts)
+  //                     searching = all (show everything matching the query)
+  const prevQueryRef = useRef('')
+  useEffect(() => {
+    const wasSearching = !!prevQueryRef.current.trim()
+    const isSearching = !!query.trim()
+    if (!wasSearching && isSearching) {
+      setRarityGroup('all')
+    } else if (wasSearching && !isSearching) {
+      setRarityGroup('all')
+    }
+    prevQueryRef.current = query
+  }, [query])
+
   const displayResults = useMemo(() => {
     let arr = [...rawResults]
-    // Rarity group filter
     if (rarityGroup !== 'all') arr = arr.filter(c => rarityGroupMatch(c.rarity, rarityGroup))
-    // Price filter
     if (priceMin || priceMax) {
       const pMin = parseFloat(priceMin) || 0
       const pMax = parseFloat(priceMax) || Infinity
       arr = arr.filter(c => { const p = getBestTCGPrice(c) ?? 0; return p >= pMin && p <= pMax })
     }
-    // Sort
     switch (sort) {
       case 'premium':
-        if (query.trim()) {
-          // Search mode: full arts first, then by price within each rarity tier
-          arr.sort((a, b) => {
-            const rw = rarityWeight(b.rarity) - rarityWeight(a.rarity)
-            if (rw !== 0) return rw
-            return (getBestTCGPrice(b) ?? 0) - (getBestTCGPrice(a) ?? 0)
-          })
-        } else {
-          // Browse mode: newest set first, then full arts within each set
-          arr.sort((a, b) => {
-            const dateDiff = setReleaseMs(b) - setReleaseMs(a)
-            if (dateDiff !== 0) return dateDiff
-            return rarityWeight(b.rarity) - rarityWeight(a.rarity)
-          })
-        }
+        // Trust the API's set-date ordering; sort only by rarity within accumulated results
+        arr.sort((a, b) => {
+          const rw = rarityWeight(b.rarity) - rarityWeight(a.rarity)
+          if (rw !== 0) return rw
+          return (getBestTCGPrice(b) ?? 0) - (getBestTCGPrice(a) ?? 0)
+        })
         break
       case 'newest':
-        arr.sort((a, b) => setReleaseMs(b) - setReleaseMs(a))
+        // Keep API's release-date ordering as-is (already sorted server-side)
         break
       case 'price-desc':
         arr.sort((a, b) => (getBestTCGPrice(b) ?? 0) - (getBestTCGPrice(a) ?? 0))
@@ -178,7 +175,7 @@ export default function BrowsePage() {
         break
     }
     return arr
-  }, [rawResults, rarityGroup, priceMin, priceMax, sort, query])
+  }, [rawResults, rarityGroup, priceMin, priceMax, sort])
 
   const loadMore = useCallback(() => {
     if (loadingRef.current || !hasMore) return
@@ -187,12 +184,10 @@ export default function BrowsePage() {
     search(query, setFilter, next, true)
   }, [hasMore, search, query, setFilter])
 
-  // Stable tile callbacks — never recreated, so BrowseTile memo stays effective
   const handleCardClick = useCallback((card: TCGCard) => setDetailCard(card), [])
   const handleAddToPortfolio = useCallback((card: TCGCard) => { setAddTarget(card); setAddDefaultStatus('owned') }, [])
   const handleAddToWishlist = useCallback((card: TCGCard) => { setAddTarget(card); setAddDefaultStatus('wishlist') }, [])
 
-  // Infinite scroll
   useEffect(() => {
     const el = sentinelRef.current
     if (!el) return
@@ -204,7 +199,13 @@ export default function BrowsePage() {
     return () => observer.disconnect()
   }, [loadMore])
 
-  const activeFilterCount = [sort !== 'premium', rarityGroup !== 'all', !!priceMin, !!priceMax, !!setFilter].filter(Boolean).length
+  const activeFilterCount = [
+    sort !== 'premium',
+    rarityGroup !== 'all',
+    !!priceMin,
+    !!priceMax,
+    !!setFilter,
+  ].filter(Boolean).length
   const hasFilters = activeFilterCount > 0
 
   function clearAllFilters() {
@@ -219,7 +220,7 @@ export default function BrowsePage() {
     <div className="max-w-5xl mx-auto px-4 py-8 animate-fade-in">
       <h1 className="text-2xl font-extrabold tracking-tight mb-5">Browse</h1>
 
-      {/* Search bar + unified Sort & Filter button */}
+      {/* Search bar + icon-only filter button */}
       <div className="flex gap-2 mb-4">
         <div className="flex-1 flex items-center gap-2 px-4 py-3 rounded-xl"
           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
@@ -229,36 +230,39 @@ export default function BrowsePage() {
           </svg>
           <input
             type="text"
-            placeholder="Pokémon name or set…"
+            placeholder="Search cards or sets…"
             value={query}
             onChange={e => setQuery(e.target.value)}
             className="flex-1 bg-transparent outline-none text-sm"
             style={{ color: 'var(--text)' }}
           />
           {query && (
-            <button onClick={() => setQuery('')} style={{ color: 'var(--text3)', fontSize: 14 }}>✕</button>
+            <button onClick={() => setQuery('')} style={{ color: 'var(--text3)', fontSize: 14, lineHeight: 1 }}>✕</button>
           )}
         </div>
+
+        {/* Icon-only filter button */}
         <button
           onClick={() => setShowFilters(f => !f)}
-          className="px-4 rounded-xl text-sm font-bold flex items-center gap-2"
           style={{
+            width: 46, height: 46, borderRadius: 12, flexShrink: 0,
             background: hasFilters ? 'rgba(255,200,69,0.12)' : 'var(--surface)',
             color: hasFilters ? 'var(--gold)' : 'var(--text2)',
             border: `1px solid ${hasFilters ? 'rgba(255,200,69,0.30)' : 'var(--border)'}`,
-            whiteSpace: 'nowrap', position: 'relative',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            position: 'relative', cursor: 'pointer',
           }}>
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+          <svg width={18} height={18} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
           </svg>
-          Sort & Filter
           {activeFilterCount > 0 && (
             <span style={{
-              minWidth: 18, height: 18, borderRadius: 9,
+              position: 'absolute', top: 6, right: 6,
+              minWidth: 14, height: 14, borderRadius: 7,
               background: 'var(--gold)', color: '#0D0F1A',
-              fontSize: 10, fontWeight: 900, lineHeight: '18px',
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              padding: '0 5px',
+              fontSize: 8, fontWeight: 900, lineHeight: '14px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: '0 3px',
             }}>
               {activeFilterCount}
             </span>
@@ -266,11 +270,10 @@ export default function BrowsePage() {
         </button>
       </div>
 
-      {/* Unified Sort & Filter panel */}
+      {/* Filter panel */}
       {showFilters && (
         <div className="mb-5 p-4 rounded-xl animate-fade-in"
           style={{ background: 'var(--elevated)', border: '1px solid var(--border)' }}>
-          {/* SORT */}
           <p className="section-label mb-2">SORT BY</p>
           <div className="flex flex-wrap gap-2 mb-4">
             {SORT_OPTIONS.map(({ key, label }) => (
@@ -282,7 +285,6 @@ export default function BrowsePage() {
             ))}
           </div>
 
-          {/* RARITY */}
           <p className="section-label mb-2">RARITY</p>
           <div className="flex flex-wrap gap-2 mb-4">
             {RARITY_GROUPS.map(({ key, label }) => (
@@ -294,7 +296,6 @@ export default function BrowsePage() {
             ))}
           </div>
 
-          {/* ADVANCED */}
           <p className="section-label mb-3">ADVANCED</p>
           <div className="flex gap-3 flex-wrap">
             <div style={{ flex: '1 1 140px' }}>
@@ -326,9 +327,7 @@ export default function BrowsePage() {
             </div>
           </div>
           {hasFilters && (
-            <button
-              onClick={clearAllFilters}
-              className="mt-3 text-xs font-bold"
+            <button onClick={clearAllFilters} className="mt-3 text-xs font-bold"
               style={{ color: 'var(--crimson)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
               × Clear all
             </button>
@@ -337,13 +336,12 @@ export default function BrowsePage() {
       )}
 
       {/* Results count */}
-      {!loading || displayResults.length > 0 ? (
+      {(!loading || displayResults.length > 0) && displayResults.length > 0 && (
         <p className="text-sm mb-4" style={{ color: 'var(--text3)' }}>
-          {displayResults.length > 0
-            ? `${displayResults.length}${totalCount > rawResults.length ? '+' : ''} cards`
-            : ''}
+          {displayResults.length}{totalCount > rawResults.length ? '+' : ''} cards
+          {!query && !setFilter && ' · Full Art'}
         </p>
-      ) : null}
+      )}
 
       {/* Grid */}
       {loading && rawResults.length === 0 ? (
@@ -359,8 +357,7 @@ export default function BrowsePage() {
           <div className="grid gap-4"
             style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
             {displayResults.map((card, i) => (
-              <div key={card.id}
-                className="card-enter"
+              <div key={card.id} className="card-enter"
                 style={{ animationDelay: `${Math.min(i, 16) * 0.028}s` }}>
                 <BrowseTile
                   card={card}
@@ -374,7 +371,6 @@ export default function BrowsePage() {
             ))}
           </div>
 
-          {/* Infinite scroll sentinel */}
           <div ref={sentinelRef} style={{ height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 8 }}>
             {loading && (
               <div className="animate-spin-gold" style={{
@@ -387,7 +383,6 @@ export default function BrowsePage() {
         </>
       )}
 
-      {/* Detail modal */}
       {detailCard && (
         <BrowseDetailModal
           card={detailCard}
@@ -436,37 +431,23 @@ function BrowseDetailModal({ card, onClose, onAddToPortfolio, onAddToWishlist, i
   return (
     <Modal open onClose={onClose} maxWidth={520}>
       <div style={{ position: 'relative' }}>
+        <button onClick={onClose} style={{
+          position: 'absolute', top: -4, right: -4,
+          width: 28, height: 28, borderRadius: 8,
+          background: 'rgba(255,255,255,0.07)', border: 'none',
+          color: 'var(--text3)', fontSize: 14, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2,
+        }}>✕</button>
 
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          style={{
-            position: 'absolute', top: -4, right: -4,
-            width: 28, height: 28, borderRadius: 8,
-            background: 'rgba(255,255,255,0.07)', border: 'none',
-            color: 'var(--text3)', fontSize: 14, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 2,
-          }}>
-          ✕
-        </button>
-
-        {/* TOP: image + identity */}
         <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', marginBottom: 16 }}>
           <div style={{
-            width: 120, flexShrink: 0,
-            borderRadius: 10, overflow: 'hidden',
+            width: 120, flexShrink: 0, borderRadius: 10, overflow: 'hidden',
             position: 'relative', paddingTop: `${Math.round(120 * 1.39)}px`,
             boxShadow: '0 6px 24px rgba(0,0,0,0.50)',
           }}>
-            <CardArtwork
-              types={card.types}
-              imageUrl={card.images.large || card.images.small}
-              imageAlt={card.name}
-              isHolo={rarityWeight(card.rarity) >= 30}
-            />
+            <CardArtwork types={card.types} imageUrl={card.images.large || card.images.small}
+              imageAlt={card.name} isHolo={rarityWeight(card.rarity) >= 30} />
           </div>
-
           <div style={{ flex: 1, minWidth: 0, paddingTop: 2 }}>
             <h2 style={{ margin: '0 0 5px', fontSize: 16, fontWeight: 800, lineHeight: 1.2, paddingRight: 32 }}>
               {card.name}
@@ -474,14 +455,11 @@ function BrowseDetailModal({ card, onClose, onAddToPortfolio, onAddToWishlist, i
             {card.rarity && (
               <span style={{
                 display: 'inline-block', marginBottom: 5,
-                fontSize: 9, fontWeight: 800, letterSpacing: '0.07em',
-                color: rcColor,
+                fontSize: 9, fontWeight: 800, letterSpacing: '0.07em', color: rcColor,
                 background: isAccent ? `${rcColor}16` : 'rgba(255,255,255,0.06)',
                 border: `1px solid ${isAccent ? `${rcColor}30` : 'rgba(255,255,255,0.10)'}`,
                 borderRadius: 100, padding: '2px 8px', lineHeight: 1.5,
-              }}>
-                {card.rarity}
-              </span>
+              }}>{card.rarity}</span>
             )}
             <p style={{ margin: '0 0 6px', fontSize: 11, color: 'var(--text3)' }}>
               {card.set.name}{setRef ? ` · ${setRef}` : ''}
@@ -494,14 +472,10 @@ function BrowseDetailModal({ card, onClose, onAddToPortfolio, onAddToWishlist, i
           </div>
         </div>
 
-        {/* Divider */}
         <div style={{ height: 1, background: 'var(--border)', marginBottom: 16 }} />
 
-        {/* MARKET VALUE */}
         <div style={{ marginBottom: 14 }}>
-          <p style={{ margin: '0 0 4px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>
-            Market Value
-          </p>
+          <p style={{ margin: '0 0 4px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>Market Value</p>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
             <span style={{ fontSize: 34, fontWeight: 900, color: 'var(--gold)', lineHeight: 1 }}>
               {price != null ? formatPrice(price) : '—'}
@@ -512,8 +486,8 @@ function BrowseDetailModal({ card, onClose, onAddToPortfolio, onAddToWishlist, i
             <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
               {([
                 { label: 'NM Low', val: tiers.low },
-                { label: 'Mid',    val: tiers.mid },
-                { label: 'High',   val: tiers.high },
+                { label: 'Mid', val: tiers.mid },
+                { label: 'High', val: tiers.high },
                 { label: 'Direct', val: tiers.directLow },
               ] as { label: string; val: number | undefined }[]).filter(x => x.val != null).map(({ label, val }) => (
                 <div key={label}>
@@ -525,27 +499,22 @@ function BrowseDetailModal({ card, onClose, onAddToPortfolio, onAddToWishlist, i
           )}
         </div>
 
-        {/* 30-Day chart */}
         {priceHistory.length > 1 && (
           <div style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
               <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>30-Day Price</span>
-              <span style={{ fontSize: 9, color: 'var(--text3)' }}>
-                {formatPrice(Math.min(...priceHistory))} – {formatPrice(Math.max(...priceHistory))}
-              </span>
+              <span style={{ fontSize: 9, color: 'var(--text3)' }}>{formatPrice(Math.min(...priceHistory))} – {formatPrice(Math.max(...priceHistory))}</span>
             </div>
             <Sparkline points={priceHistory} color="var(--emerald)" height={38} />
           </div>
         )}
 
-        {/* Card lore */}
         {card.flavorText && (
           <p style={{ margin: '0 0 16px', fontSize: 11.5, lineHeight: 1.65, color: 'var(--text3)', fontStyle: 'italic', borderLeft: '2px solid var(--border2)', paddingLeft: 10 }}>
             "{card.flavorText}"
           </p>
         )}
 
-        {/* Action bar */}
         <div style={{ paddingTop: 14, borderTop: '1px solid var(--border)', display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
           {card.tcgplayer?.url && (
             <TcgLink url={card.tcgplayer.url} style={{
@@ -553,32 +522,24 @@ function BrowseDetailModal({ card, onClose, onAddToPortfolio, onAddToWishlist, i
               color: 'var(--text2)', background: 'transparent',
               border: '1px solid rgba(255,255,255,0.10)',
               textDecoration: 'none', whiteSpace: 'nowrap',
-            }}>
-              ↗ TCGPlayer
-            </TcgLink>
+            }}>↗ TCGPlayer</TcgLink>
           )}
           <div style={{ flex: 1 }} />
-          <button
-            onClick={onAddToWishlist}
-            disabled={inWishlist}
+          <button onClick={onAddToWishlist} disabled={inWishlist}
             style={{
               padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700,
               background: inWishlist ? 'rgba(156,114,250,0.06)' : 'rgba(156,114,250,0.14)',
               color: inWishlist ? 'rgba(156,114,250,0.40)' : 'var(--violet)',
               border: '1px solid rgba(156,114,250,0.22)', cursor: inWishlist ? 'default' : 'pointer',
-              transition: 'all 0.12s ease',
             }}>
             {inWishlist ? '♥ Watchlist' : '+ Watchlist'}
           </button>
-          <button
-            onClick={onAddToPortfolio}
-            disabled={inCollection}
+          <button onClick={onAddToPortfolio} disabled={inCollection}
             style={{
               padding: '8px 20px', borderRadius: 8, fontSize: 12, fontWeight: 700,
               background: inCollection ? 'rgba(255,200,69,0.08)' : 'var(--gold)',
               color: inCollection ? 'rgba(255,200,69,0.40)' : '#0D0F1A',
               border: 'none', cursor: inCollection ? 'default' : 'pointer',
-              transition: 'all 0.12s ease',
             }}>
             {inCollection ? '✓ In CATCHM' : '+ Add to CATCHM'}
           </button>
@@ -615,9 +576,7 @@ function EmptyBrowse({ hasQuery }: { hasQuery: boolean }) {
   return (
     <div className="text-center py-20">
       <div className="text-5xl mb-4 opacity-30">🔍</div>
-      <p className="font-bold text-lg mb-2">
-        {hasQuery ? 'No cards found' : 'Loading cards…'}
-      </p>
+      <p className="font-bold text-lg mb-2">{hasQuery ? 'No cards found' : 'Loading cards…'}</p>
       <p className="text-sm" style={{ color: 'var(--text3)' }}>
         {hasQuery ? 'Try a different name, set, or remove filters.' : ''}
       </p>

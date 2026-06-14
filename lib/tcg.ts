@@ -70,14 +70,18 @@ function buildQuery(input: string): string {
   const q = input.trim()
   if (!q) return 'hp:[1 TO *]'
 
-  // Check if the input looks like a set code (e.g. "sv1", "swsh4")
   if (/^[a-z]{1,4}\d{1,3}$/i.test(q)) {
     return `set.id:${q}`
   }
 
-  // Default: search by name (partial match)
   return `name:"${q}*"`
 }
+
+// Full-art rarities for the default "no query" browse.
+// Covers SV era (SIR, IR, Hyper Rare) and SWSH era (Rare Rainbow / Rainbow Rare).
+// All of these have rarityWeight >= 80 in our system.
+const FULL_ART_FILTER =
+  '(rarity:"Special Illustration Rare" OR rarity:"Illustration Rare" OR rarity:"Hyper Rare" OR rarity:"Rare Rainbow" OR rarity:"Rainbow Rare")'
 
 // Called from the API route to handle flexible queries
 export async function searchCardsFlexible(params: {
@@ -90,14 +94,15 @@ export async function searchCardsFlexible(params: {
   page?: number
   pageSize?: number
   skipEnrich?: boolean
+  fullArtOnly?: boolean
 }): Promise<TCGSearchResponse> {
-  const { query, set, type, rarity, page = 1, pageSize = 20, skipEnrich = false } = params
+  const { query, set, type, rarity, page = 1, pageSize = 20, skipEnrich = false, fullArtOnly = false } = params
 
   const parts: string[] = []
 
   if (query && query.trim()) {
     const q = query.trim()
-    // Search by card name AND set name so "Pitch Black" or "Surging Sparks" finds the whole set
+    // Search by card name AND set name so "Perfect Order" or "Surging Sparks" finds the whole set
     parts.push(`(name:"${q}*" OR set.name:"${q}*")`)
   }
   if (set) {
@@ -110,8 +115,9 @@ export async function searchCardsFlexible(params: {
     parts.push(`rarity:"${rarity}"`)
   }
 
-  // Always exclude energy cards from main browse unless explicitly filtered
-  const q = parts.length > 0 ? parts.join(' ') : 'hp:[1 TO *]'
+  // Default browse (no query): show full arts only, newest set first.
+  // When a query is present, show all matching cards of any rarity.
+  const q = parts.length > 0 ? parts.join(' ') : (fullArtOnly ? FULL_ART_FILTER : 'hp:[1 TO *]')
 
   const url = `${BASE}/cards?q=${encodeURIComponent(q)}&page=${page}&pageSize=${pageSize}&orderBy=-set.releaseDate`
   const res = await fetch(url, { headers: headers(), next: { revalidate: 60 } })

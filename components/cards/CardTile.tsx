@@ -350,35 +350,67 @@ function BrowseTileInner({ card, onClick, onAddToPortfolio, onAddToWishlist, inC
             {card.set.name}{card.number ? ` · #${card.number}` : ''}
           </span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 17, fontWeight: 900, lineHeight: 1, color: price != null ? 'var(--gold)' : 'var(--text3)' }}>
+        <span style={{ fontSize: 17, fontWeight: 900, lineHeight: 1, color: price != null ? 'var(--gold)' : 'var(--text3)' }}>
             {price != null ? formatPrice(price, true) : '—'}
           </span>
-          {card.tcgplayer?.url && (
-            <TcgLink
-              url={card.tcgplayer.url}
-              style={{ fontSize: 9, fontWeight: 800, color: 'var(--text3)', textDecoration: 'none', padding: '2px 5px', borderRadius: 4, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', lineHeight: 1.4, whiteSpace: 'nowrap' }}>
-              ↗ TCG
-            </TcgLink>
-          )}
-        </div>
       </div>
 
-      {/* Actions */}
-      <div style={{ display: 'flex', gap: 5, padding: '8px 10px 10px' }}>
-        <TileBtn
-          label={inWishlist ? '♥ Watchlist' : '+ Watchlist'}
-          color="var(--violet)" bg="rgba(156,114,250,0.10)"
+      {/* Actions — heart | + CATCHM | ↗ all in one row */}
+      <div style={{ display: 'flex', gap: 5, padding: '8px 10px 10px', alignItems: 'center' }}>
+
+        {/* Wishlist heart icon */}
+        <button
           onClick={e => { e.stopPropagation(); onAddToWishlist?.(card) }}
           disabled={inWishlist}
-        />
-        <TileBtn
-          label={inCollection ? '✓ CATCHM' : '+ CATCHM'}
-          color={inCollection ? 'rgba(255,255,255,0.25)' : '#0D0F1A'}
-          bg={inCollection ? 'rgba(255,255,255,0.04)' : 'var(--gold)'}
+          style={{
+            width: 30, height: 30, borderRadius: 7, flexShrink: 0,
+            background: inWishlist ? 'rgba(156,114,250,0.14)' : 'transparent',
+            color: inWishlist ? 'var(--violet)' : 'var(--text3)',
+            border: `1px solid ${inWishlist ? 'rgba(156,114,250,0.30)' : 'rgba(255,255,255,0.10)'}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: inWishlist ? 'default' : 'pointer',
+          }}>
+          <svg width={13} height={13} viewBox="0 0 24 24"
+            fill={inWishlist ? 'currentColor' : 'none'}
+            stroke="currentColor" strokeWidth={2}
+            strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+          </svg>
+        </button>
+
+        {/* + CATCHM (fills remaining space) */}
+        <button
           onClick={e => { e.stopPropagation(); onAddToPortfolio?.(card) }}
           disabled={inCollection}
-        />
+          style={{
+            flex: 1, height: 30, borderRadius: 7,
+            fontSize: 10, fontWeight: 800, letterSpacing: '0.03em',
+            background: inCollection ? 'rgba(255,200,69,0.08)' : 'var(--gold)',
+            color: inCollection ? 'rgba(255,200,69,0.35)' : '#0D0F1A',
+            border: 'none', cursor: inCollection ? 'default' : 'pointer',
+          }}>
+          {inCollection ? '✓ CATCHM' : '+ CATCHM'}
+        </button>
+
+        {/* TCG link arrow icon */}
+        {card.tcgplayer?.url ? (
+          <TcgLink
+            url={card.tcgplayer.url}
+            style={{
+              width: 30, height: 30, borderRadius: 7, flexShrink: 0,
+              background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.10)',
+              color: 'var(--text3)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              textDecoration: 'none',
+            }}>
+            <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5M13.5 6l7.5 0M13.5 6l0 7.5" />
+            </svg>
+          </TcgLink>
+        ) : (
+          <div style={{ width: 30, height: 30, flexShrink: 0 }} />
+        )}
       </div>
     </div>
   )

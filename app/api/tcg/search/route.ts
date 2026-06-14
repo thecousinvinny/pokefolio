@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
       page: Number(searchParams.get('page') ?? 1),
       pageSize: Number(searchParams.get('pageSize') ?? 24),
       skipEnrich: true,
+      fullArtOnly: searchParams.get('fullArtOnly') === 'true',
     })
     return NextResponse.json(data)
   } catch (err) {
