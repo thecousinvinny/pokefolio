@@ -5,8 +5,21 @@ export const dynamic = 'force-dynamic'
 
 export default function ImportPage() {
   const [loading, setLoading] = useState(false)
+  const [clearing, setClearing] = useState(false)
   const [result, setResult] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  async function clearData() {
+    if (!confirm('Delete ALL your cards and sales from the database? This cannot be undone.')) return
+    setClearing(true)
+    setError(null)
+    setResult(null)
+    const res = await fetch('/api/import', { method: 'DELETE' })
+    const json = await res.json()
+    setClearing(false)
+    if (!res.ok) setError(json.error ?? 'Clear failed')
+    else setResult('All data cleared. Now upload your JSON to re-import.')
+  }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -33,7 +46,7 @@ export default function ImportPage() {
       } else {
         const { imported } = json
         setResult(
-          `Done! ${imported.portfolio ?? 0} portfolio cards · ${imported.wishlist ?? 0} wishlist cards · ${imported.sales ?? 0} sales`
+          `Done! ${imported.portfolio ?? 0} portfolio · ${imported.wishlist ?? 0} wishlist · ${imported.sales ?? 0} sales`
         )
       }
     } catch (err: unknown) {
@@ -48,9 +61,17 @@ export default function ImportPage() {
       <div className="bg-[var(--surface)] rounded-2xl p-8 max-w-md w-full flex flex-col gap-4">
         <h1 className="text-xl font-bold text-white">Import from FOLIO export</h1>
         <p className="text-sm text-white/60">
-          Select your <code className="text-[var(--gold)]">folio-*.json</code> export file.
+          Select your <code className="text-[var(--gold)]">folio-*.json</code> file.
           Portfolio, wishlist, and sales will all be imported.
         </p>
+
+        <button
+          onClick={clearData}
+          disabled={clearing || loading}
+          className="text-sm text-red-400 border border-red-400/30 hover:border-red-400 rounded-xl py-2 px-4 transition-colors disabled:opacity-40"
+        >
+          {clearing ? 'Clearing…' : '⚠ Clear all existing data first'}
+        </button>
 
         <label className={`
           flex items-center justify-center rounded-xl border-2 border-dashed
@@ -81,7 +102,7 @@ export default function ImportPage() {
           </p>
         )}
 
-        {result && (
+        {result && result.startsWith('Done') && (
           <a
             href="/portfolio"
             className="text-center text-sm font-semibold bg-[var(--gold)] text-[var(--bg)] rounded-xl py-3 hover:opacity-90 transition-opacity"

@@ -4,13 +4,30 @@ import { cookies } from 'next/headers'
 
 export const dynamic = 'force-dynamic'
 
+async function getSupabaseUser() {
+  const cookieStore = await cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() { return cookieStore.getAll() },
+        setAll() {},
+      },
+    }
+  )
+  const { data: { user } } = await supabase.auth.getUser()
+  return { supabase, user }
+}
+
 const toISO = (ms?: number | null) =>
   ms ? new Date(ms).toISOString() : new Date().toISOString()
 
-const num = (v: unknown) => (v != null && v !== '' ? Number(v) : null)
+const num = (v: unknown): number | null =>
+  v != null && v !== '' ? Number(v) : null
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapOwned(item: any, userId: string) {
+function mapToPortfolio(item: any, userId: string) {
   return {
     user_id: userId,
     tcg_id: item.id,
@@ -44,7 +61,7 @@ function mapOwned(item: any, userId: string) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapWishlist(item: any, userId: string) {
+function mapToWishlist(item: any, userId: string) {
   return {
     user_id: userId,
     tcg_id: item.id,
@@ -68,21 +85,25 @@ function mapWishlist(item: any, userId: string) {
   }
 }
 
+// DELETE — clear all user's imported data before re-importing
+export async function DELETE() {
+  const { supabase, user } = await getSupabaseUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const [cardsRes, salesRes] = await Promise.all([
+    supabase.from('pokemon_cards').delete().eq('user_id', user.id),
+    supabase.from('pokemon_sales').delete().eq('user_id', user.id),
+  ])
+
+  if (cardsRes.error) return NextResponse.json({ error: cardsRes.error.message }, { status: 500 })
+  if (salesRes.error) return NextResponse.json({ error: salesRes.error.message }, { status: 500 })
+
+  return NextResponse.json({ success: true })
+}
+
+// POST — import folio JSON
 export async function POST(request: NextRequest) {
-  const cookieStore = await cookies()
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return cookieStore.getAll() },
-        setAll() {},
-      },
-    }
-  )
-
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getSupabaseUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -93,58 +114,32 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const owned: unknown[] = data.owned ?? []
-  const watchlist: unknown[] = data.watchlist ?? []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const owned: any[] = data.owned ?? []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const watchlist: any[] = data.watchlist ?? []
   const ledger: Record<string, unknown> = data.ledger ?? {}
 
-  // Owned array → portfolio
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const portfolioRows: any[] = (owned as any[]).map(item => mapOwned(item, user.id))
+  // 1. owned[] → portfolio (each entry is a distinct physical copy)
+  const portfolioRows = owned.map(item => mapToPortfolio(item, user.id))
 
-  // Watchlist entries that were purchased (have copyId + boughtAt) → also portfolio
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const ownedTcgIds = new Set((owned as any[]).map(o => o.id))
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  for (const item of (watchlist as any[])) {
+  // 2. watchlist entries that were actually purchased (have copyId + boughtAt)
+  //    but don't already appear in owned[] by tcg_id
+  const ownedTcgIds = new Set(owned.map(o => o.id as string))
+  for (const item of watchlist) {
     if (item.copyId && item.boughtAt && !ownedTcgIds.has(item.id)) {
-      portfolioRows.push(mapOwned(item, user.id))
+      portfolioRows.push(mapToPortfolio(item, user.id))
     }
   }
 
-  // Ledger entries status=owned but not in owned array (caught-all orphans)
-  for (const [tcgId, entry] of Object.entries(ledger)) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const e = entry as any
-    if (e.status === 'owned' && !ownedTcgIds.has(tcgId)) {
-      portfolioRows.push({
-        user_id: user.id,
-        tcg_id: tcgId,
-        name: e.name,
-        set_name: e.set,
-        set_code: null,
-        set_number: e.number ?? null,
-        image_sm: e.img ?? null,
-        rarity: e.rarity ?? null,
-        set_printed_total: e.total ?? null,
-        market_price: num(e.currentMarket),
-        price_paid: num(e.purchasePrice),
-        market_at_buy: num(e.ownPrice),
-        status: 'owned',
-        condition: 'NM',
-        language: e.isJP ? 'JP' : 'EN',
-        date_added: toISO(e.ownAt),
-      })
-    }
-  }
-
-  // Watchlist (not purchased) → wishlist
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const wishlistRows = (watchlist as any[])
+  // 3. watchlist entries NOT purchased → wishlist
+  const wishlistRows = watchlist
     .filter(item => !(item.copyId && item.boughtAt))
-    .map(item => mapWishlist(item, user.id))
+    .map(item => mapToWishlist(item, user.id))
 
-  // Ledger sold entries → sales
-  const salesRows = []
+  // 4. Ledger sold entries → pokemon_sales
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const salesRows: any[] = []
   for (const [tcgId, entry] of Object.entries(ledger)) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const e = entry as any
@@ -165,7 +160,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const results: Record<string, number | string> = {}
+  const results: Record<string, number> = {}
 
   if (portfolioRows.length > 0) {
     const { error } = await supabase.from('pokemon_cards').insert(portfolioRows)

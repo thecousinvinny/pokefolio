@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { hostname: 'images.pokemontcg.io' },
       { hostname: 'ydbcfvernfothrukmyty.supabase.co' },
+      { hostname: 'images.scrydex.com' },
     ],
   },
 }
