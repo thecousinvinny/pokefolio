@@ -212,23 +212,17 @@ export function CollectionProvider({ children }: { children: ReactNode }) {
 
   const setFavorite = useCallback((id: string) => {
     const isFav = !!cardsRef.current.find(c => c.id === id)?.is_favorite
-    setCards(prev => prev.map(c => ({ ...c, is_favorite: c.id === id ? !isFav : false })))
+    setCards(prev => prev.map(c => c.id === id ? { ...c, is_favorite: !isFav } : c))
     if (!useLocalStorage && userId) {
       supabase.from('pokemon_cards').update({ is_favorite: !isFav }).eq('id', id)
-      cardsRef.current.filter(c => c.id !== id && c.is_favorite).forEach(c =>
-        supabase.from('pokemon_cards').update({ is_favorite: false }).eq('id', c.id)
-      )
     }
   }, [supabase, userId, useLocalStorage])
 
   const setShowcase = useCallback((id: string) => {
     const isShow = !!cardsRef.current.find(c => c.id === id)?.is_showcase
-    setCards(prev => prev.map(c => ({ ...c, is_showcase: c.id === id ? !isShow : false })))
+    setCards(prev => prev.map(c => c.id === id ? { ...c, is_showcase: !isShow } : c))
     if (!useLocalStorage && userId) {
       supabase.from('pokemon_cards').update({ is_showcase: !isShow }).eq('id', id)
-      cardsRef.current.filter(c => c.id !== id && c.is_showcase).forEach(c =>
-        supabase.from('pokemon_cards').update({ is_showcase: false }).eq('id', c.id)
-      )
     }
   }, [supabase, userId, useLocalStorage])
 

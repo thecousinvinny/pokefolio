@@ -28,8 +28,13 @@ function WebSheetOverlay({ url, onClose }: { url: string; onClose: () => void })
 
   // Lock body scroll while sheet is open
   useEffect(() => {
+    // Save scroll position before locking — overflow:hidden collapses the page to y=0
+    const savedY = window.scrollY
     document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = '' }
+    return () => {
+      document.body.style.overflow = ''
+      window.scrollTo(0, savedY)
+    }
   }, [])
 
   // Keyboard close
