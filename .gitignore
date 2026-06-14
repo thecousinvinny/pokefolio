@@ -9,4 +9,7 @@ build/
 Thumbs.db
 .claude/
 OLD/
+FOLIO/
+VAULT/
+MEDIA/
 tsconfig.tsbuildinfo
