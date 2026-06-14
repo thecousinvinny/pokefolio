@@ -195,8 +195,8 @@ function CardGrid({ cards, onCardClick, onSell, onGift }: {
   onGift: (c: PokemonCard) => void
 }) {
   return (
-    <div className="grid gap-3"
-      style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
+    <div className="grid gap-4"
+      style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
       {cards.map((card, i) => (
         <div key={card.id} className="card-enter" style={{ animationDelay: `${Math.min(i, 12) * 0.028}s` }}>
           <PortfolioTile
@@ -216,9 +216,9 @@ function LoadingSkeleton() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="h-8 w-40 rounded-xl img-skeleton mb-6" />
-      <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
+      <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}>
         {[...Array(8)].map((_, i) => (
-          <div key={i} className="rounded-xl img-skeleton" style={{ height: 128 }} />
+          <div key={i} className="rounded-2xl img-skeleton" style={{ height: 240 }} />
         ))}
       </div>
     </div>

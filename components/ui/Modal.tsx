@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 interface ModalProps {
@@ -10,9 +10,16 @@ interface ModalProps {
   maxWidth?: number
 }
 
+const CLOSE_THRESHOLD = 88
+
 export function Modal({ open, onClose, title, children, maxWidth = 480 }: ModalProps) {
   const ref = useRef<HTMLDivElement>(null)
+  const [dragY, setDragY] = useState(0)
+  const startYRef = useRef(0)
+  const dragYRef = useRef(0)
+  const draggingRef = useRef(false)
 
+  // Keyboard + body scroll lock
   useEffect(() => {
     if (!open) return
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -24,12 +31,61 @@ export function Modal({ open, onClose, title, children, maxWidth = 480 }: ModalP
     }
   }, [open, onClose])
 
+  // Non-passive touch listeners for swipe-to-close
+  useEffect(() => {
+    const el = ref.current
+    if (!el || !open) return
+
+    function onTouchStart(e: TouchEvent) {
+      startYRef.current = e.touches[0].clientY
+      draggingRef.current = false
+      dragYRef.current = 0
+    }
+
+    function onTouchMove(e: TouchEvent) {
+      const delta = e.touches[0].clientY - startYRef.current
+      // Only intercept downward swipe when content is at the top
+      if (delta > 0 && (el?.scrollTop ?? 0) <= 0) {
+        e.preventDefault()
+        draggingRef.current = true
+        dragYRef.current = delta
+        setDragY(delta)
+      }
+    }
+
+    function onTouchEnd() {
+      if (draggingRef.current && dragYRef.current > CLOSE_THRESHOLD) {
+        onClose()
+      }
+      draggingRef.current = false
+      dragYRef.current = 0
+      setDragY(0)
+    }
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    el.addEventListener('touchend', onTouchEnd, { passive: true })
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [open, onClose])
+
   if (!open) return null
+
+  const isDragging = dragY > 0
+  const backdropAlpha = isDragging
+    ? Math.max(0.15, 0.7 * (1 - dragY / 320)).toFixed(2)
+    : '0.70'
 
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 modal-backdrop"
-      style={{ background: 'rgba(0,0,0,0.7)' }}
+      style={{
+        background: `rgba(0,0,0,${backdropAlpha})`,
+        transition: isDragging ? 'none' : 'background 0.2s',
+      }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div
         ref={ref}
@@ -38,9 +94,27 @@ export function Modal({ open, onClose, title, children, maxWidth = 480 }: ModalP
           maxWidth,
           background: 'var(--elevated)',
           border: '1px solid var(--border2)',
-          maxHeight: 'calc(100vh - 2rem)',
+          maxHeight: 'calc(100dvh - 2rem)',
           overflowY: 'auto',
+          overscrollBehavior: 'contain',
+          transform: `translateY(${dragY}px)`,
+          transition: isDragging ? 'none' : 'transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1)',
+          willChange: 'transform',
         }}>
+
+        {/* Drag handle — visual indicator + touch target */}
+        <div style={{
+          display: 'flex', justifyContent: 'center',
+          padding: '10px 0 0',
+          userSelect: 'none',
+        }}>
+          <div style={{
+            width: 36, height: 4, borderRadius: 2,
+            background: `rgba(255,255,255,${isDragging ? 0.4 : 0.2})`,
+            transition: 'background 0.15s',
+          }} />
+        </div>
+
         {title && (
           <div className="flex items-center justify-between px-5 py-4"
             style={{ borderBottom: '1px solid var(--border)' }}>

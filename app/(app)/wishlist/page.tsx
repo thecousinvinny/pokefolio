@@ -108,7 +108,7 @@ export default function WishlistPage() {
       </div>
 
       {/* Grid */}
-      <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
+      <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
         {wishlist.map((card, i) => (
           <div key={card.id} className="card-enter" style={{ animationDelay: `${Math.min(i, 12) * 0.028}s` }}>
             <PortfolioTile
@@ -227,9 +227,9 @@ function LoadingSkeleton() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="h-8 w-32 rounded-xl img-skeleton mb-6" />
-      <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
+      <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
         {[...Array(6)].map((_, i) => (
-          <div key={i} className="rounded-xl img-skeleton" style={{ height: 128 }} />
+          <div key={i} className="rounded-2xl img-skeleton" style={{ height: 280 }} />
         ))}
       </div>
     </div>

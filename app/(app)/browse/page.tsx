@@ -15,6 +15,9 @@ import type { TCGCard } from '@/types'
 type SortMode = 'premium' | 'newest' | 'price-desc' | 'price-asc' | 'alpha'
 type RarityGroup = 'all' | 'fullart' | 'ultra' | 'holo' | 'common'
 
+// Module-level cache — survives tab switches in the same session
+let _browseCache: { results: TCGCard[]; totalCount: number; hasMore: boolean } | null = null
+
 const SORT_OPTIONS: { key: SortMode; label: string }[] = [
   { key: 'premium', label: '✨ Full Art First' },
   { key: 'newest',  label: '🆕 Newest' },
@@ -52,11 +55,12 @@ export default function BrowsePage() {
   const [setFilter, setSetFilter] = useState('')
   const [priceMin, setPriceMin] = useState('')
   const [priceMax, setPriceMax] = useState('')
-  const [rawResults, setRawResults] = useState<TCGCard[]>([])
-  const [loading, setLoading] = useState(true)
+  const [rawResults, setRawResults] = useState<TCGCard[]>(() => _browseCache?.results ?? [])
+  const [loading, setLoading] = useState(!_browseCache)
   const [page, setPage] = useState(1)
-  const [hasMore, setHasMore] = useState(false)
-  const [totalCount, setTotalCount] = useState(0)
+  const [hasMore, setHasMore] = useState(() => _browseCache?.hasMore ?? false)
+  const [totalCount, setTotalCount] = useState(() => _browseCache?.totalCount ?? 0)
+  const skipInitialLoad = useRef(!!_browseCache)
   const [addTarget, setAddTarget] = useState<TCGCard | null>(null)
   const [addDefaultStatus, setAddDefaultStatus] = useState<'owned' | 'wishlist'>('owned')
   const [detailCard, setDetailCard] = useState<TCGCard | null>(null)
@@ -81,9 +85,14 @@ export default function BrowsePage() {
       const res = await fetch(`/api/tcg/search?${params}`)
       const data = await res.json()
       const batch: TCGCard[] = data.data ?? []
-      setRawResults(prev => append ? [...prev, ...batch] : batch)
+      const nextHasMore = p * 24 < (data.totalCount ?? 0)
+      setRawResults(prev => {
+        const next = append ? [...prev, ...batch] : batch
+        _browseCache = { results: next, totalCount: data.totalCount ?? 0, hasMore: nextHasMore }
+        return next
+      })
       setTotalCount(data.totalCount ?? 0)
-      setHasMore(p * 24 < (data.totalCount ?? 0))
+      setHasMore(nextHasMore)
     } catch {
       if (!append) setRawResults([])
     } finally {
@@ -92,6 +101,12 @@ export default function BrowsePage() {
   }, [])
 
   useEffect(() => {
+    // Skip first render if we have cached results and no active query
+    if (skipInitialLoad.current && !query && !setFilter) {
+      skipInitialLoad.current = false
+      return
+    }
+    skipInitialLoad.current = false
     if (debounceRef.current) clearTimeout(debounceRef.current)
     const delay = query || setFilter ? 350 : 0
     debounceRef.current = setTimeout(() => {
@@ -135,14 +150,23 @@ export default function BrowsePage() {
     search(query, setFilter, next, true)
   }
 
-  const hasFilters = rarityGroup !== 'all' || !!priceMin || !!priceMax
+  const activeFilterCount = [sort !== 'premium', rarityGroup !== 'all', !!priceMin, !!priceMax, !!setFilter].filter(Boolean).length
+  const hasFilters = activeFilterCount > 0
+
+  function clearAllFilters() {
+    setSort('premium')
+    setRarityGroup('all')
+    setPriceMin('')
+    setPriceMax('')
+    setSetFilter('')
+  }
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 animate-fade-in">
       <h1 className="text-2xl font-extrabold tracking-tight mb-5">Browse</h1>
 
-      {/* Search + filter button */}
-      <div className="flex gap-2 mb-3">
+      {/* Search bar + unified Sort & Filter button */}
+      <div className="flex gap-2 mb-4">
         <div className="flex-1 flex items-center gap-2 px-4 py-3 rounded-xl"
           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"
@@ -163,50 +187,61 @@ export default function BrowsePage() {
         </div>
         <button
           onClick={() => setShowFilters(f => !f)}
-          className="px-4 rounded-xl text-sm font-bold flex items-center gap-1.5"
+          className="px-4 rounded-xl text-sm font-bold flex items-center gap-2"
           style={{
             background: hasFilters ? 'rgba(255,200,69,0.12)' : 'var(--surface)',
             color: hasFilters ? 'var(--gold)' : 'var(--text2)',
             border: `1px solid ${hasFilters ? 'rgba(255,200,69,0.30)' : 'var(--border)'}`,
-            whiteSpace: 'nowrap',
+            whiteSpace: 'nowrap', position: 'relative',
           }}>
-          ⚙ {hasFilters ? 'Filtered' : 'Filter'}
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
+          </svg>
+          Sort & Filter
+          {activeFilterCount > 0 && (
+            <span style={{
+              minWidth: 18, height: 18, borderRadius: 9,
+              background: 'var(--gold)', color: '#0D0F1A',
+              fontSize: 10, fontWeight: 900, lineHeight: '18px',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              padding: '0 5px',
+            }}>
+              {activeFilterCount}
+            </span>
+          )}
         </button>
       </div>
 
-      {/* Sort chips */}
-      <div className="scroll-x flex gap-2 mb-3 pb-1">
-        {SORT_OPTIONS.map(({ key, label }) => (
-          <button key={key} onClick={() => setSort(key)}
-            className={`chip ${sort === key ? 'chip-active' : 'chip-default'}`}
-            style={{ fontSize: 12 }}>
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* Rarity quick-filter chips */}
-      <div className="scroll-x flex gap-2 mb-4 pb-1">
-        {RARITY_GROUPS.map(({ key, label }) => (
-          <button key={key} onClick={() => setRarityGroup(key)}
-            className={`chip ${rarityGroup === key ? '' : 'chip-default'}`}
-            style={{
-              fontSize: 12,
-              background: rarityGroup === key
-                ? key === 'fullart' ? 'var(--gold)' : key === 'ultra' ? 'var(--amber)' : key === 'holo' ? 'var(--sky)' : key === 'common' ? 'var(--text2)' : 'var(--gold)'
-                : undefined,
-              color: rarityGroup === key ? '#0D0F1A' : undefined,
-              fontWeight: rarityGroup === key ? 700 : undefined,
-            }}>
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* Advanced filter panel */}
+      {/* Unified Sort & Filter panel */}
       {showFilters && (
         <div className="mb-5 p-4 rounded-xl animate-fade-in"
           style={{ background: 'var(--elevated)', border: '1px solid var(--border)' }}>
+          {/* SORT */}
+          <p className="section-label mb-2">SORT BY</p>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {SORT_OPTIONS.map(({ key, label }) => (
+              <button key={key} onClick={() => setSort(key)}
+                className={`chip ${sort === key ? 'chip-active' : 'chip-default'}`}
+                style={{ fontSize: 12 }}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* RARITY */}
+          <p className="section-label mb-2">RARITY</p>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {RARITY_GROUPS.map(({ key, label }) => (
+              <button key={key} onClick={() => setRarityGroup(key)}
+                className={`chip ${rarityGroup === key ? 'chip-active' : 'chip-default'}`}
+                style={{ fontSize: 12 }}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* ADVANCED */}
+          <p className="section-label mb-2">ADVANCED</p>
           <p className="section-label mb-3">FILTERS</p>
           <div className="flex gap-3 flex-wrap">
             <div style={{ flex: '1 1 140px' }}>
@@ -239,10 +274,10 @@ export default function BrowsePage() {
           </div>
           {hasFilters && (
             <button
-              onClick={() => { setRarityGroup('all'); setPriceMin(''); setPriceMax('') }}
+              onClick={clearAllFilters}
               className="mt-3 text-xs font-bold"
               style={{ color: 'var(--crimson)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-              × Clear filters
+              × Clear all
             </button>
           )}
         </div>
@@ -262,8 +297,8 @@ export default function BrowsePage() {
         <EmptyBrowse hasQuery={!!query || !!setFilter || hasFilters} />
       ) : (
         <>
-          <div className="grid gap-3"
-            style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
+          <div className="grid gap-4"
+            style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
             {displayResults.map((card, i) => (
               <div key={card.id}
                 className="card-enter"
@@ -279,7 +314,7 @@ export default function BrowsePage() {
               </div>
             ))}
             {loading && [...Array(8)].map((_, i) => (
-              <div key={`sk-${i}`} className="rounded-xl img-skeleton" style={{ height: 128 }} />
+              <div key={`sk-${i}`} className="rounded-2xl img-skeleton" style={{ height: 280 }} />
             ))}
           </div>
 
