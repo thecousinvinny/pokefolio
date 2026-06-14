@@ -16,9 +16,14 @@ type SortMode = 'premium' | 'newest' | 'price-desc' | 'price-asc' | 'alpha'
 type RarityGroup = 'all' | 'fullart' | 'ultra' | 'holo' | 'common'
 
 const PAGE_SIZE = 50
+const CACHE_TTL_MS = 10 * 60 * 1000  // 10-minute cache — ensures new sets surface after a short wait
 
 // Module-level cache — survives tab switches in the same session
-let _browseCache: { results: TCGCard[]; totalCount: number; hasMore: boolean } | null = null
+let _browseCache: { results: TCGCard[]; totalCount: number; hasMore: boolean; ts: number } | null = null
+
+function cacheValid() {
+  return !!(_browseCache && Date.now() - _browseCache.ts < CACHE_TTL_MS)
+}
 
 const SORT_OPTIONS: { key: SortMode; label: string }[] = [
   { key: 'premium', label: '✨ Full Art First' },
@@ -61,12 +66,12 @@ export default function BrowsePage() {
   const [setFilter, setSetFilter] = useState('')
   const [priceMin, setPriceMin] = useState('')
   const [priceMax, setPriceMax] = useState('')
-  const [rawResults, setRawResults] = useState<TCGCard[]>(() => _browseCache?.results ?? [])
-  const [loading, setLoading] = useState(!_browseCache)
+  const [rawResults, setRawResults] = useState<TCGCard[]>(() => cacheValid() ? _browseCache!.results : [])
+  const [loading, setLoading] = useState(!cacheValid())
   const [page, setPage] = useState(1)
-  const [hasMore, setHasMore] = useState(() => _browseCache?.hasMore ?? false)
-  const [totalCount, setTotalCount] = useState(() => _browseCache?.totalCount ?? 0)
-  const skipInitialLoad = useRef(!!_browseCache)
+  const [hasMore, setHasMore] = useState(() => cacheValid() ? _browseCache!.hasMore : false)
+  const [totalCount, setTotalCount] = useState(() => cacheValid() ? _browseCache!.totalCount : 0)
+  const skipInitialLoad = useRef(cacheValid())
   const [addTarget, setAddTarget] = useState<TCGCard | null>(null)
   const [addDefaultStatus, setAddDefaultStatus] = useState<'owned' | 'wishlist'>('owned')
   const [detailCard, setDetailCard] = useState<TCGCard | null>(null)
@@ -82,8 +87,11 @@ export default function BrowsePage() {
     [cards])
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const loadingRef = useRef(false)
 
   const search = useCallback(async (q: string, set: string, p: number, append: boolean) => {
+    if (loadingRef.current && append) return  // prevent duplicate append loads
+    loadingRef.current = true
     if (!append) setRawResults([])
     setLoading(true)
     try {
@@ -99,7 +107,7 @@ export default function BrowsePage() {
       const nextHasMore = p * PAGE_SIZE < (data.totalCount ?? 0)
       setRawResults(prev => {
         const next = append ? [...prev, ...batch] : batch
-        _browseCache = { results: next, totalCount: data.totalCount ?? 0, hasMore: nextHasMore }
+        _browseCache = { results: next, totalCount: data.totalCount ?? 0, hasMore: nextHasMore, ts: Date.now() }
         return next
       })
       setTotalCount(data.totalCount ?? 0)
@@ -108,6 +116,7 @@ export default function BrowsePage() {
       if (!append) setRawResults([])
     } finally {
       setLoading(false)
+      loadingRef.current = false
     }
   }, [])
 
@@ -172,11 +181,16 @@ export default function BrowsePage() {
   }, [rawResults, rarityGroup, priceMin, priceMax, sort, query])
 
   const loadMore = useCallback(() => {
-    if (loading || !hasMore) return
+    if (loadingRef.current || !hasMore) return
     const next = pageRef.current + 1
     setPage(next)
     search(query, setFilter, next, true)
-  }, [loading, hasMore, search, query, setFilter])
+  }, [hasMore, search, query, setFilter])
+
+  // Stable tile callbacks — never recreated, so BrowseTile memo stays effective
+  const handleCardClick = useCallback((card: TCGCard) => setDetailCard(card), [])
+  const handleAddToPortfolio = useCallback((card: TCGCard) => { setAddTarget(card); setAddDefaultStatus('owned') }, [])
+  const handleAddToWishlist = useCallback((card: TCGCard) => { setAddTarget(card); setAddDefaultStatus('wishlist') }, [])
 
   // Infinite scroll
   useEffect(() => {
@@ -350,9 +364,9 @@ export default function BrowsePage() {
                 style={{ animationDelay: `${Math.min(i, 16) * 0.028}s` }}>
                 <BrowseTile
                   card={card}
-                  onClick={() => setDetailCard(card)}
-                  onAddToPortfolio={() => { setAddTarget(card); setAddDefaultStatus('owned') }}
-                  onAddToWishlist={() => { setAddTarget(card); setAddDefaultStatus('wishlist') }}
+                  onClick={handleCardClick}
+                  onAddToPortfolio={handleAddToPortfolio}
+                  onAddToWishlist={handleAddToWishlist}
                   inCollection={ownedTcgIds.has(card.id)}
                   inWishlist={wishlistTcgIds.has(card.id)}
                 />

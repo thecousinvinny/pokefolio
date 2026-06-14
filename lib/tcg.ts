@@ -96,7 +96,9 @@ export async function searchCardsFlexible(params: {
   const parts: string[] = []
 
   if (query && query.trim()) {
-    parts.push(`name:"${query.trim()}*"`)
+    const q = query.trim()
+    // Search by card name AND set name so "Pitch Black" or "Surging Sparks" finds the whole set
+    parts.push(`(name:"${q}*" OR set.name:"${q}*")`)
   }
   if (set) {
     parts.push(`set.name:"${set}*"`)

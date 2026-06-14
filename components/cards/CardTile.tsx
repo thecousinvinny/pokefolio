@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef } from 'react'
+import { useState, useRef, memo } from 'react'
 import { formatPrice } from '@/lib/utils'
 import type { PokemonCard, TCGCard } from '@/types'
 import { CardArtwork, TypeBadge } from './CardArtwork'
@@ -285,14 +285,14 @@ export function PortfolioTile({ card, onClick, onLongPress, onSell, onGift, onAd
 
 interface BrowseTileProps {
   card: TCGCard
-  onClick?: () => void
-  onAddToPortfolio?: () => void
-  onAddToWishlist?: () => void
+  onClick?: (card: TCGCard) => void
+  onAddToPortfolio?: (card: TCGCard) => void
+  onAddToWishlist?: (card: TCGCard) => void
   inCollection?: boolean
   inWishlist?: boolean
 }
 
-export function BrowseTile({ card, onClick, onAddToPortfolio, onAddToWishlist, inCollection, inWishlist }: BrowseTileProps) {
+function BrowseTileInner({ card, onClick, onAddToPortfolio, onAddToWishlist, inCollection, inWishlist }: BrowseTileProps) {
   const [pressed, setPressed] = useState(false)
   const [hovered, setHovered] = useState(false)
   const price = getBrowsePrice(card)
@@ -319,7 +319,7 @@ export function BrowseTile({ card, onClick, onAddToPortfolio, onAddToWishlist, i
       {/* Artwork */}
       <div
         style={{ position: 'relative', width: '100%', paddingTop: '139%', cursor: 'pointer' }}
-        onClick={onClick}
+        onClick={() => onClick?.(card)}
         onPointerDown={() => setPressed(true)}
         onPointerUp={() => setPressed(false)}
         onPointerLeave={() => setPressed(false)}>
@@ -369,17 +369,25 @@ export function BrowseTile({ card, onClick, onAddToPortfolio, onAddToWishlist, i
         <TileBtn
           label={inWishlist ? '♥ Watchlist' : '+ Watchlist'}
           color="var(--violet)" bg="rgba(156,114,250,0.10)"
-          onClick={e => { e.stopPropagation(); onAddToWishlist?.() }}
+          onClick={e => { e.stopPropagation(); onAddToWishlist?.(card) }}
           disabled={inWishlist}
         />
         <TileBtn
           label={inCollection ? '✓ CATCHM' : '+ CATCHM'}
           color={inCollection ? 'rgba(255,255,255,0.25)' : '#0D0F1A'}
           bg={inCollection ? 'rgba(255,255,255,0.04)' : 'var(--gold)'}
-          onClick={e => { e.stopPropagation(); onAddToPortfolio?.() }}
+          onClick={e => { e.stopPropagation(); onAddToPortfolio?.(card) }}
           disabled={inCollection}
         />
       </div>
     </div>
   )
 }
+
+// Memoized: only re-renders when card id or collection status changes,
+// not when parent re-renders due to loading more pages.
+export const BrowseTile = memo(BrowseTileInner, (prev, next) =>
+  prev.card.id === next.card.id &&
+  prev.inCollection === next.inCollection &&
+  prev.inWishlist === next.inWishlist
+)
