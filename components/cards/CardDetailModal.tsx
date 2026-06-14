@@ -188,10 +188,14 @@ export function CardDetailModal({ card, onClose, initialView = 'detail' }: CardD
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                 <ActionBtn label="↗ TCG"    color="var(--text2)"   href={card.tcgplayer_url ?? undefined} />
                 <ActionBtn label="✎ EDIT"   color="var(--sky)"     onClick={startEdit} />
-                <ActionBtn label="SELL"     color="var(--crimson)" onClick={() => setShowSell(true)} />
-                <ActionBtn label="GIFT"     color="var(--sky)"     onClick={() => setShowGift(true)} />
-                <ActionBtn label="◈ SHOW"   color="var(--violet)"  onClick={handleShowcase} active={card.is_showcase} />
-                <ActionBtn label="★ FAV"    color="var(--gold)"    onClick={() => setFavorite(card.id)} active={card.is_favorite} />
+                {!card.is_favorite && !card.is_showcase && (
+                  <>
+                    <ActionBtn label="SELL"   color="var(--crimson)" onClick={() => setShowSell(true)} />
+                    <ActionBtn label="GIFT"   color="var(--violet)"  onClick={() => setShowGift(true)} />
+                  </>
+                )}
+                <ActionBtn label={card.is_showcase ? 'UNSHOW ◈' : '◈ SHOW'} color="var(--violet)" onClick={handleShowcase} active={card.is_showcase} />
+                <ActionBtn label={card.is_favorite ? 'UNFAV ★' : '★ FAV'}   color="var(--gold)"   onClick={() => setFavorite(card.id)} active={card.is_favorite} />
                 <ActionBtn label="↩ WATCH"  color="var(--text2)"   onClick={handleToWatch} />
                 <ActionBtn label="✕ REMOVE" color="var(--crimson)" onClick={handleRemove} />
               </div>
@@ -307,7 +311,7 @@ export function CardDetailModal({ card, onClose, initialView = 'detail' }: CardD
                     background: 'var(--s2)', border: '1px solid var(--border)',
                   }}>
                     <p className="section-label" style={{ marginBottom: 10 }}>MY PURCHASE</p>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 16px', marginBottom: 8 }}>
+                    <div style={{ display: 'flex', gap: 16, marginBottom: 8 }}>
                       {card.price_paid != null && <PurchaseStat label="Paid" value={formatPrice(card.price_paid)} />}
                       {card.market_at_buy != null && <PurchaseStat label="Mkt at Buy" value={formatPrice(card.market_at_buy)} />}
                       {card.bought_from && <PurchaseStat label="From" value={card.bought_from} />}
@@ -339,30 +343,29 @@ export function CardDetailModal({ card, onClose, initialView = 'detail' }: CardD
             marginTop: 18, padding: '12px 14px',
             borderRadius: 12, background: 'var(--s2)', border: '1px solid var(--border)',
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <span className="section-label">CONDITION</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--gold)' }}>
-                {currentCondition} · {CONDITION_LABELS[currentCondition]}
-                {card.market_price && (
-                  <span style={{ fontWeight: 500, color: 'var(--text3)', marginLeft: 6 }}>
-                    = {formatPrice(adjValue)}
-                  </span>
-                )}
-              </span>
-            </div>
-            <input
-              type="range" min={0} max={4} value={condition}
-              onChange={e => handleConditionChange(Number(e.target.value))}
-              className="w-full"
-            />
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5 }}>
-              {CONDITION_ORDER.map((c, i) => (
-                <span key={c} style={{
-                  fontSize: 10, fontWeight: i === condition ? 700 : 400,
-                  color: i === condition ? 'var(--gold)' : 'var(--text3)',
-                }}>
-                  {c}
+              {card.market_price && (
+                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text3)' }}>
+                  {currentCondition} · {CONDITION_LABELS[currentCondition]} = {formatPrice(adjValue)}
                 </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {CONDITION_ORDER.map((c, i) => (
+                <button
+                  key={c}
+                  onClick={() => handleConditionChange(i)}
+                  style={{
+                    flex: 1, padding: '6px 0', borderRadius: 8,
+                    fontSize: 10.5, fontWeight: 700, letterSpacing: '0.02em',
+                    border: `1px solid ${i === condition ? 'rgba(255,200,69,0.50)' : 'var(--border)'}`,
+                    background: i === condition ? 'rgba(255,200,69,0.12)' : 'transparent',
+                    color: i === condition ? 'var(--gold)' : 'var(--text3)',
+                    cursor: 'pointer', transition: 'all 0.12s ease',
+                  }}>
+                  {c}
+                </button>
               ))}
             </div>
           </div>
@@ -385,11 +388,11 @@ export function CardDetailModal({ card, onClose, initialView = 'detail' }: CardD
 
 function PurchaseStat({ label, value }: { label: string; value: string }) {
   return (
-    <div>
+    <div style={{ flex: '1 1 0', minWidth: 0 }}>
       <p style={{ margin: 0, fontSize: 9, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text3)' }}>
         {label}
       </p>
-      <p style={{ margin: '2px 0 0', fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{value}</p>
+      <p style={{ margin: '2px 0 0', fontSize: 12, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</p>
     </div>
   )
 }
