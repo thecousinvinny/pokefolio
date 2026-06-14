@@ -1,0 +1,17 @@
+//
+//  PokeVaultApp.swift
+//  PokeVault
+//
+//  Created by Rork on June 10, 2026.
+//
+
+import SwiftUI
+
+@main
+struct PokeVaultApp: App {
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+        }
+    }
+}

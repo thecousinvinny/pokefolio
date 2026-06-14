@@ -1,0 +1,24 @@
+//
+//  StatusTag.swift
+//  PokeVault
+//
+
+import SwiftUI
+
+/// Small colored pill indicating a card's collection status.
+struct StatusTag: View {
+    let status: CardStatus
+
+    var body: some View {
+        Text(status.label.uppercased())
+            .font(.system(size: 9, weight: .heavy, design: .rounded))
+            .tracking(0.5)
+            .foregroundStyle(.white)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(
+                Capsule().fill(status.tagColor)
+            )
+            .shadow(color: status.tagColor.opacity(0.5), radius: 4, y: 1)
+    }
+}

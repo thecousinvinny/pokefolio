@@ -1,0 +1,307 @@
+//
+//  BrowseView.swift
+//  PokeVault
+//
+//  Tab 2 — searchable encyclopedia with filters and quick add actions.
+//
+
+import SwiftUI
+
+struct BrowseView: View {
+    @Environment(CollectionStore.self) private var store
+
+    @State private var query: String = ""
+    @State private var typeFilter: CardType? = nil
+    @State private var holoFilter: HoloPattern? = nil
+    @State private var maxPrice: Double = 10000
+    @State private var showFilters = false
+    @State private var addTarget: Card?
+    @State private var detailCard: Card?
+
+    private let columns = [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)]
+
+    private var results: [Card] {
+        SampleData.catalog.filter { card in
+            let q = query.trimmingCharacters(in: .whitespaces).lowercased()
+            let matchesQuery = q.isEmpty
+                || card.name.lowercased().contains(q)
+                || card.setName.lowercased().contains(q)
+                || card.artist.lowercased().contains(q)
+                || card.rarity.rawValue.lowercased().contains(q)
+                || card.type.rawValue.lowercased().contains(q)
+            let matchesType = typeFilter == nil || card.type == typeFilter
+            let matchesHolo = holoFilter == nil || card.holo == holoFilter
+            let matchesPrice = card.marketPrice <= maxPrice
+            return matchesQuery && matchesType && matchesHolo && matchesPrice
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Theme.backgroundGradient.ignoresSafeArea()
+                ScrollView {
+                    VStack(spacing: 16) {
+                        searchBar
+                        typeChips
+                        if showFilters { advancedFilters }
+                        resultsGrid
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .padding(.bottom, 40)
+                }
+            }
+            .navigationTitle("Browse")
+            .toolbarBackground(Theme.bg, for: .navigationBar)
+            .sheet(item: $addTarget) { card in
+                AddToPortfolioSheet(template: card)
+            }
+            .navigationDestination(item: $detailCard) { card in
+                BrowseDetailView(card: card)
+            }
+        }
+    }
+
+    private var searchBar: some View {
+        HStack(spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass").foregroundStyle(Theme.textSecondary)
+                TextField("Name, set, type, rarity, artist", text: $query)
+                    .foregroundStyle(Theme.textPrimary)
+                    .autocorrectionDisabled()
+                if !query.isEmpty {
+                    Button { query = "" } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.textTertiary)
+                    }
+                }
+            }
+            .padding(12)
+            .background(Theme.surface)
+            .clipShape(.rect(cornerRadius: 14))
+
+            Button {
+                withAnimation(.spring(response: 0.3)) { showFilters.toggle() }
+            } label: {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(showFilters ? .black : Theme.textPrimary)
+                    .frame(width: 46, height: 46)
+                    .background(showFilters ? Theme.gold : Theme.surface)
+                    .clipShape(.rect(cornerRadius: 14))
+            }
+        }
+    }
+
+    private var typeChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                chip(title: "All", active: typeFilter == nil) { typeFilter = nil }
+                ForEach(CardType.allCases) { t in
+                    chip(title: t.rawValue, active: typeFilter == t, color: t.artColors.first) {
+                        typeFilter = typeFilter == t ? nil : t
+                    }
+                }
+            }
+        }
+        .contentMargins(.horizontal, 0)
+    }
+
+    private var advancedFilters: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("HOLO PATTERN")
+                .font(.system(size: 11, weight: .bold, design: .rounded)).tracking(1)
+                .foregroundStyle(Theme.textTertiary)
+            HStack(spacing: 8) {
+                chip(title: "Any", active: holoFilter == nil) { holoFilter = nil }
+                ForEach(HoloPattern.allCases) { h in
+                    chip(title: h.rawValue, active: holoFilter == h) {
+                        holoFilter = holoFilter == h ? nil : h
+                    }
+                }
+            }
+            Divider().overlay(Color.white.opacity(0.1))
+            HStack {
+                Text("MAX PRICE")
+                    .font(.system(size: 11, weight: .bold, design: .rounded)).tracking(1)
+                    .foregroundStyle(Theme.textTertiary)
+                Spacer()
+                Text(maxPrice >= 10000 ? "$10k+" : formatPrice(maxPrice, compact: true))
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundStyle(Theme.gold)
+            }
+            Slider(value: $maxPrice, in: 1...10000).tint(Theme.gold)
+        }
+        .padding(16)
+        .background(Theme.bgElevated)
+        .clipShape(.rect(cornerRadius: 16))
+    }
+
+    private var resultsGrid: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Text("\(results.count) cards")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.textSecondary)
+                Spacer()
+            }
+            LazyVGrid(columns: columns, spacing: 14) {
+                ForEach(results) { card in
+                    VStack(spacing: 8) {
+                        CardTile(card: card, onOpen: { detailCard = card }, showStatusTag: false)
+                        quickActions(card)
+                    }
+                }
+            }
+        }
+    }
+
+    private func quickActions(_ card: Card) -> some View {
+        HStack(spacing: 8) {
+            Button {
+                addTarget = card
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 14, weight: .bold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 9)
+                    .background(Theme.emerald.opacity(0.18))
+                    .foregroundStyle(Theme.emerald)
+                    .clipShape(.rect(cornerRadius: 10))
+            }
+            Button {
+                store.addToWishlist(card, target: (card.marketPrice * 0.85 * 100).rounded() / 100)
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+            } label: {
+                Image(systemName: "heart.fill")
+                    .font(.system(size: 13, weight: .bold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 9)
+                    .background(Theme.violet.opacity(0.18))
+                    .foregroundStyle(Theme.violet)
+                    .clipShape(.rect(cornerRadius: 10))
+            }
+        }
+    }
+
+    private func chip(title: String, active: Bool, color: Color? = nil, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(active ? .black : Theme.textPrimary)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(active ? (color ?? Theme.gold) : Theme.surface)
+                .clipShape(Capsule())
+        }
+    }
+}
+
+/// Read-only detail for a catalog card (not yet in the collection).
+struct BrowseDetailView: View {
+    @Environment(CollectionStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+    let card: Card
+    @State private var showAdd = false
+
+    var body: some View {
+        ZStack {
+            Theme.backgroundGradient.ignoresSafeArea()
+            ScrollView {
+                VStack(spacing: 24) {
+                    Color.black
+                        .aspectRatio(0.72, contentMode: .fit)
+                        .frame(maxWidth: 280)
+                        .overlay { CardArtwork(card: card).allowsHitTesting(false) }
+                        .clipShape(.rect(cornerRadius: 22))
+                        .shadow(color: card.type.artColors.first?.opacity(0.6) ?? .black, radius: 28, y: 14)
+                        .frame(maxWidth: .infinity)
+
+                    VStack(spacing: 6) {
+                        Text("TCGPLAYER MARKET")
+                            .font(.system(size: 11, weight: .bold, design: .rounded)).tracking(1)
+                            .foregroundStyle(Theme.textTertiary)
+                        Text(formatPrice(card.marketPrice))
+                            .font(.system(size: 44, weight: .heavy, design: .rounded))
+                            .foregroundStyle(Theme.gold)
+                        Text(formatPercent(card.monthlyChangePercent) + " · 30d")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Theme.profitColor(card.monthlyChangePercent))
+                    }
+
+                    Sparkline(points: card.priceHistory.map { $0.price },
+                              lineColor: Theme.profitColor(card.monthlyChangePercent))
+                        .frame(height: 100)
+                        .padding(16)
+                        .background(Theme.surface)
+                        .clipShape(.rect(cornerRadius: 16))
+
+                    infoGrid
+
+                    HStack(spacing: 12) {
+                        Button {
+                            showAdd = true
+                        } label: {
+                            Label("Add to Portfolio", systemImage: "plus")
+                                .font(.system(size: 15, weight: .bold, design: .rounded))
+                                .frame(maxWidth: .infinity).padding(.vertical, 15)
+                                .background(LinearGradient(colors: [Theme.emerald, Theme.sky], startPoint: .leading, endPoint: .trailing))
+                                .foregroundStyle(.white).clipShape(.rect(cornerRadius: 14))
+                        }
+                        Button {
+                            store.addToWishlist(card, target: (card.marketPrice * 0.85 * 100).rounded() / 100)
+                            UINotificationFeedbackGenerator().notificationOccurred(.success)
+                            dismiss()
+                        } label: {
+                            Image(systemName: "heart.fill")
+                                .font(.system(size: 16, weight: .bold))
+                                .frame(width: 54, height: 52)
+                                .background(Theme.violet.opacity(0.2))
+                                .foregroundStyle(Theme.violet).clipShape(.rect(cornerRadius: 14))
+                        }
+                    }
+                }
+                .padding(20)
+                .padding(.bottom, 30)
+            }
+        }
+        .navigationTitle(card.name)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Theme.bg, for: .navigationBar)
+        .sheet(isPresented: $showAdd) {
+            AddToPortfolioSheet(template: card)
+        }
+    }
+
+    private var infoGrid: some View {
+        VStack(spacing: 0) {
+            infoRow("Set", card.setName)
+            divider
+            infoRow("Number", card.setNumber)
+            divider
+            infoRow("Rarity", card.rarity.rawValue)
+            divider
+            infoRow("Type", card.type.rawValue)
+            divider
+            infoRow("Holo", card.holo.rawValue)
+            divider
+            infoRow("Artist", card.artist)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
+        .background(Theme.surface)
+        .clipShape(.rect(cornerRadius: 16))
+    }
+
+    private var divider: some View { Divider().overlay(Color.white.opacity(0.08)) }
+
+    private func infoRow(_ label: String, _ value: String) -> some View {
+        HStack {
+            Text(label).foregroundStyle(Theme.textSecondary)
+            Spacer()
+            Text(value).foregroundStyle(Theme.textPrimary).fontWeight(.semibold)
+        }
+        .font(.system(size: 14))
+        .padding(.vertical, 12)
+    }
+}

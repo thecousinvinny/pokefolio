@@ -1,0 +1,184 @@
+//
+//  WishlistView.swift
+//  PokeVault
+//
+//  Tab 4 — wanted cards with target prices, sparklines, alerts, and the
+//  Budget Mode assistant.
+//
+
+import SwiftUI
+
+struct WishlistView: View {
+    @Environment(CollectionStore.self) private var store
+    @Binding var selectedTab: Int
+
+    @State private var showBudget = false
+
+    private let columns = [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)]
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Theme.backgroundGradient.ignoresSafeArea()
+                if store.wishlistCards.isEmpty {
+                    emptyState
+                } else {
+                    ScrollView {
+                        VStack(spacing: 16) {
+                            bulkActions
+                            LazyVGrid(columns: columns, spacing: 14) {
+                                ForEach(store.wishlistCards) { card in
+                                    WishlistCardView(card: card)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                        .padding(.bottom, 40)
+                    }
+                    .navigationDestination(for: UUID.self) { id in
+                        CardDetailView(cardID: id)
+                    }
+                }
+            }
+            .navigationTitle("Wishlist")
+            .toolbarBackground(Theme.bg, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showBudget = true
+                    } label: {
+                        Image(systemName: "wallet.bifold.fill")
+                            .foregroundStyle(Theme.gold)
+                    }
+                }
+            }
+            .sheet(isPresented: $showBudget) {
+                BudgetModeView()
+            }
+        }
+    }
+
+    private var bulkActions: some View {
+        HStack(spacing: 10) {
+            Button {
+                store.moveAllWishlistToPortfolio()
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+            } label: {
+                Label("Add all to Portfolio", systemImage: "plus.square.on.square")
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .frame(maxWidth: .infinity).padding(.vertical, 11)
+                    .background(Theme.emerald.opacity(0.18)).foregroundStyle(Theme.emerald)
+                    .clipShape(.rect(cornerRadius: 12))
+            }
+            Button {
+                store.clearSpikedAlerts()
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            } label: {
+                Label("Clear spiked", systemImage: "bell.slash.fill")
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .frame(maxWidth: .infinity).padding(.vertical, 11)
+                    .background(Theme.surface).foregroundStyle(Theme.textPrimary)
+                    .clipShape(.rect(cornerRadius: 12))
+            }
+        }
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 20) {
+            ZStack {
+                Circle().fill(Theme.surface).frame(width: 120, height: 120)
+                Image(systemName: "heart.text.square.fill")
+                    .font(.system(size: 46))
+                    .foregroundStyle(Theme.violet)
+            }
+            Text("No cards on your wishlist")
+                .font(.system(size: 22, weight: .heavy, design: .rounded))
+                .foregroundStyle(Theme.textPrimary)
+            Text("Tap the heart on any card in Browse to track its price and set alerts.")
+                .font(.system(size: 14)).foregroundStyle(Theme.textSecondary)
+                .multilineTextAlignment(.center)
+            Button { selectedTab = 1 } label: {
+                Label("Go to Browse", systemImage: "arrow.right")
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .padding(.horizontal, 24).padding(.vertical, 14)
+                    .background(LinearGradient(colors: [Theme.violet, Theme.sky], startPoint: .leading, endPoint: .trailing))
+                    .foregroundStyle(.white).clipShape(Capsule())
+            }
+        }
+        .padding(40)
+    }
+}
+
+/// A wishlist card with target price, sparkline, and alert bell.
+struct WishlistCardView: View {
+    @Environment(CollectionStore.self) private var store
+    let card: Card
+
+    private var atTarget: Bool {
+        guard let target = card.targetPrice else { return false }
+        return card.marketPrice <= target
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            NavigationLink(value: card.id) {
+                Color.black
+                    .aspectRatio(0.72, contentMode: .fit)
+                    .overlay { CardArtwork(card: card).allowsHitTesting(false) }
+                    .overlay(alignment: .topTrailing) {
+                        if atTarget {
+                            Text("AT TARGET!")
+                                .font(.system(size: 8, weight: .heavy, design: .rounded))
+                                .foregroundStyle(.black)
+                                .padding(.horizontal, 6).padding(.vertical, 3)
+                                .background(Capsule().fill(Theme.emerald))
+                                .padding(8)
+                        }
+                    }
+                    .clipShape(.rect(topLeadingRadius: 18, topTrailingRadius: 18))
+            }
+            .buttonStyle(.plain)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text(card.name)
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundStyle(Theme.textPrimary).lineLimit(1)
+
+                HStack(alignment: .firstTextBaseline) {
+                    Text(formatPrice(card.marketPrice, compact: true))
+                        .font(.system(size: 19, weight: .heavy, design: .rounded))
+                        .foregroundStyle(atTarget ? Theme.emerald : Theme.textPrimary)
+                    Spacer()
+                    Button {
+                        var updated = card
+                        updated.alertsEnabled.toggle()
+                        store.update(updated)
+                        UISelectionFeedbackGenerator().selectionChanged()
+                    } label: {
+                        Image(systemName: card.alertsEnabled ? "bell.fill" : "bell.slash")
+                            .font(.system(size: 14))
+                            .foregroundStyle(card.alertsEnabled ? Theme.gold : Theme.textTertiary)
+                    }
+                }
+
+                if let target = card.targetPrice {
+                    Text("Buy if ≤ \(formatPrice(target))")
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Theme.violet)
+                }
+
+                Sparkline(points: card.priceHistory.map { $0.price },
+                          lineColor: Theme.profitColor(card.monthlyChangePercent), showFill: false)
+                    .frame(height: 26)
+            }
+            .padding(12)
+        }
+        .background(Theme.surface)
+        .clipShape(.rect(cornerRadius: 18))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(atTarget ? Theme.emerald.opacity(0.5) : Color.white.opacity(0.08), lineWidth: 1)
+        )
+    }
+}

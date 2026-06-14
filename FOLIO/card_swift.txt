@@ -1,0 +1,39 @@
+//
+//  Card.swift
+//  Folio
+//
+
+import Foundation
+
+/// A Pokémon card identity plus its latest pricing snapshot.
+/// Pricing fields mirror the tiers exposed by TCGPlayer aggregators.
+nonisolated struct Card: Codable, Identifiable, Hashable {
+    let id: String          // stable id from the TCG API
+    var name: String
+    var setName: String
+    var number: String      // e.g. "20/189"
+    var rarity: String?
+    var imageSmall: String?
+    var imageLarge: String?
+
+    // Pricing tiers (USD, Near Mint baseline)
+    var marketPrice: Double
+    var listedMedian: Double
+    var directLow: Double
+
+    /// Recent price history for sparklines (oldest → newest).
+    var priceHistory: [Double]
+
+    var imageURL: URL? { URL(string: imageLarge ?? imageSmall ?? "") }
+
+    /// Day-over-day change vs the previous history point.
+    var dailyChange: Double {
+        guard priceHistory.count >= 2 else { return 0 }
+        return marketPrice - priceHistory[priceHistory.count - 2]
+    }
+
+    var dailyChangePercent: Double {
+        guard priceHistory.count >= 2, priceHistory[priceHistory.count - 2] != 0 else { return 0 }
+        return dailyChange / priceHistory[priceHistory.count - 2] * 100
+    }
+}

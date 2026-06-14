@@ -1,0 +1,252 @@
+//
+//  PortfolioView.swift
+//  PokeVault
+//
+//  Tab 3 — owned cards with sorting, group-by-set, bulk edit, and CSV export.
+//
+
+import SwiftUI
+import UIKit
+
+enum PortfolioSort: String, CaseIterable, Identifiable {
+    case value = "Value"
+    case gain = "Recent Gain"
+    case recent = "Newest"
+    case alphabetical = "A–Z"
+    var id: String { rawValue }
+}
+
+struct PortfolioView: View {
+    @Environment(CollectionStore.self) private var store
+    @Binding var selectedTab: Int
+
+    @State private var sort: PortfolioSort = .value
+    @State private var groupBySet = false
+    @State private var selecting = false
+    @State private var selection: Set<UUID> = []
+    @State private var exportText: String?
+
+    private let columns = [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)]
+
+    private var sorted: [Card] {
+        let cards = store.ownedCards
+        switch sort {
+        case .value: return cards.sorted { $0.conditionAdjustedValue > $1.conditionAdjustedValue }
+        case .gain: return cards.sorted { $0.weeklyChangePercent > $1.weeklyChangePercent }
+        case .recent: return cards.sorted { $0.dateAdded > $1.dateAdded }
+        case .alphabetical: return cards.sorted { $0.name < $1.name }
+        }
+    }
+
+    private var groups: [(set: String, cards: [Card])] {
+        Dictionary(grouping: sorted, by: { $0.setName })
+            .map { (set: $0.key, cards: $0.value) }
+            .sorted { $0.set < $1.set }
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Theme.backgroundGradient.ignoresSafeArea()
+                if store.ownedCards.isEmpty {
+                    emptyState
+                } else {
+                    ScrollView {
+                        VStack(spacing: 16) {
+                            controls
+                            if groupBySet {
+                                ForEach(groups, id: \.set) { group in
+                                    setSection(group.set, cards: group.cards)
+                                }
+                            } else {
+                                grid(sorted)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                        .padding(.bottom, selecting ? 90 : 40)
+                    }
+                    .navigationDestination(for: UUID.self) { id in
+                        CardDetailView(cardID: id)
+                    }
+                }
+            }
+            .navigationTitle("Portfolio")
+            .toolbarBackground(Theme.bg, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    if !store.ownedCards.isEmpty {
+                        Button(selecting ? "Done" : "Select") {
+                            withAnimation { selecting.toggle(); selection.removeAll() }
+                        }
+                        .foregroundStyle(Theme.gold)
+                        .fontWeight(.semibold)
+                    }
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                if selecting { bulkBar }
+            }
+            .sheet(isPresented: Binding(get: { exportText != nil }, set: { if !$0 { exportText = nil } })) {
+                if let text = exportText {
+                    ShareSheet(items: [text])
+                }
+            }
+        }
+    }
+
+    private var controls: some View {
+        VStack(spacing: 12) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(PortfolioSort.allCases) { s in
+                        Button { withAnimation { sort = s } } label: {
+                            Text(s.rawValue)
+                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                .foregroundStyle(sort == s ? .black : Theme.textPrimary)
+                                .padding(.horizontal, 14).padding(.vertical, 8)
+                                .background(sort == s ? Theme.gold : Theme.surface)
+                                .clipShape(Capsule())
+                        }
+                    }
+                }
+            }
+            .contentMargins(.horizontal, 0)
+
+            HStack {
+                Toggle(isOn: $groupBySet.animation()) {
+                    Label("Group by set", systemImage: "square.stack.3d.up.fill")
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Theme.textPrimary)
+                }
+                .tint(Theme.gold)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 6)
+            .background(Theme.surface)
+            .clipShape(.rect(cornerRadius: 14))
+        }
+    }
+
+    private func setSection(_ set: String, cards: [Card]) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(set)
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundStyle(Theme.textPrimary)
+                Spacer()
+                Text(formatPrice(cards.reduce(0) { $0 + $1.conditionAdjustedValue }))
+                    .font(.system(size: 14, weight: .heavy, design: .rounded))
+                    .foregroundStyle(Theme.gold)
+            }
+            .padding(.horizontal, 4)
+            grid(cards)
+        }
+    }
+
+    private func grid(_ cards: [Card]) -> some View {
+        LazyVGrid(columns: columns, spacing: 14) {
+            ForEach(cards) { card in
+                cardCell(card)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func cardCell(_ card: Card) -> some View {
+        if selecting {
+            CardTile(card: card, isSelected: selection.contains(card.id))
+                .onTapGesture {
+                    if selection.contains(card.id) { selection.remove(card.id) }
+                    else { selection.insert(card.id) }
+                }
+        } else {
+            NavigationLink(value: card.id) {
+                CardTile(
+                    card: card,
+                    onLongPress: { store.setFavorite(card) }
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var bulkBar: some View {
+        HStack(spacing: 12) {
+            Text("\(selection.count) selected")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Theme.textSecondary)
+            Spacer()
+            Button {
+                store.markForSale(selection)
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            } label: {
+                Label("Mark for Sale", systemImage: "tag.fill")
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .padding(.horizontal, 14).padding(.vertical, 10)
+                    .background(Theme.amber).foregroundStyle(.black)
+                    .clipShape(Capsule())
+            }
+            Button {
+                exportText = makeCSV()
+            } label: {
+                Label("CSV", systemImage: "square.and.arrow.up")
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .padding(.horizontal, 14).padding(.vertical, 10)
+                    .background(Theme.surface).foregroundStyle(Theme.textPrimary)
+                    .clipShape(Capsule())
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 12)
+        .background(.ultraThinMaterial)
+        .disabled(selection.isEmpty)
+        .opacity(selection.isEmpty ? 0.5 : 1)
+    }
+
+    private func makeCSV() -> String {
+        var rows = ["Name,Set,Number,Condition,Paid,Market(NM),Value"]
+        for c in sorted where selection.contains(c.id) {
+            rows.append("\(c.name),\(c.setName),\(c.setNumber),\(c.condition.rawValue),\(c.pricePaid ?? 0),\(c.marketPrice),\(String(format: "%.2f", c.conditionAdjustedValue))")
+        }
+        return rows.joined(separator: "\n")
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 20) {
+            ZStack {
+                Circle().fill(Theme.surface).frame(width: 120, height: 120)
+                Image(systemName: "rectangle.stack.badge.plus")
+                    .font(.system(size: 48, weight: .medium))
+                    .foregroundStyle(Theme.gold)
+            }
+            VStack(spacing: 8) {
+                Text("Your vault is empty")
+                    .font(.system(size: 22, weight: .heavy, design: .rounded))
+                    .foregroundStyle(Theme.textPrimary)
+                Text("Start collecting — find cards in the Browse tab and add them here.")
+                    .font(.system(size: 14))
+                    .foregroundStyle(Theme.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+            Button {
+                selectedTab = 1
+            } label: {
+                Label("Go to Browse", systemImage: "arrow.right")
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .padding(.horizontal, 24).padding(.vertical, 14)
+                    .background(LinearGradient(colors: [Theme.gold, Theme.amber], startPoint: .leading, endPoint: .trailing))
+                    .foregroundStyle(.black)
+                    .clipShape(Capsule())
+            }
+        }
+        .padding(40)
+    }
+}
+
+/// UIKit share sheet wrapper for CSV export.
+struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}

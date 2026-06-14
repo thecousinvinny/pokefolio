@@ -1,0 +1,41 @@
+//
+//  SaleRecord.swift
+//  Folio
+//
+
+import Foundation
+
+/// A realized transaction — either a sale or a trade — recorded in the ledger.
+nonisolated struct SaleRecord: Codable, Identifiable, Hashable {
+    enum Kind: String, Codable { case sale, trade }
+
+    var id: UUID = UUID()
+    var kind: Kind
+    var card: Card           // the card sold or given away
+    var pricePaid: Double    // original cost basis
+    var date: Date
+
+    // Sale fields
+    var salePrice: Double
+    var fees: Double
+    var shipping: Double
+
+    // Trade fields
+    var receivedCardName: String?
+    var receivedValue: Double?
+
+    /// Net profit for a sale: sale - fees - shipping - cost.
+    var netProfit: Double {
+        switch kind {
+        case .sale:
+            return salePrice - fees - shipping - pricePaid
+        case .trade:
+            return (receivedValue ?? 0) - card.marketPrice
+        }
+    }
+
+    var roiPercent: Double {
+        guard pricePaid != 0 else { return 0 }
+        return netProfit / pricePaid * 100
+    }
+}

@@ -1,0 +1,40 @@
+//
+//  PnLBadge.swift
+//  Folio
+//
+
+import SwiftUI
+
+/// A pill showing a profit/loss value with an arrow and color coding.
+struct PnLBadge: View {
+    let amount: Double
+    var percent: Double?
+    var compact: Bool = false
+
+    private var isGain: Bool { amount >= 0 }
+    private var color: Color { isGain ? Theme.gain : Theme.loss }
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: isGain ? "arrow.up.right" : "arrow.down.right")
+                .font(.system(size: compact ? 9 : 11, weight: .bold))
+            if compact {
+                Text((percent ?? 0).asPercent)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+            } else {
+                Text(amount.asSignedCurrency)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                if let percent {
+                    Text("(\(percent.asPercent))")
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .opacity(0.85)
+                }
+            }
+        }
+        .foregroundStyle(color)
+        .padding(.horizontal, compact ? 7 : 9)
+        .padding(.vertical, compact ? 3 : 5)
+        .background(color.opacity(0.14))
+        .clipShape(Capsule())
+    }
+}

@@ -1,0 +1,130 @@
+//
+//  CardTile.swift
+//  PokeVault
+//
+//  The large, satisfying card used across Browse, Portfolio, and Wishlist.
+//  Tapping lifts and pulses the card for a tactile, "holding a real card" feel.
+//
+
+import SwiftUI
+
+struct CardTile: View {
+    let card: Card
+    /// Called on the second / confirming tap to open the full-screen detail.
+    var onOpen: () -> Void = {}
+    /// Long-press action (e.g. set favorite).
+    var onLongPress: (() -> Void)? = nil
+    /// Optional selection state for bulk-edit modes.
+    var isSelected: Bool = false
+    var showStatusTag: Bool = true
+
+    @State private var isPressed: Bool = false
+
+    private var changeColor: Color { Theme.profitColor(card.weeklyChangePercent) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            artwork
+            info
+        }
+        .background(Theme.surface)
+        .clipShape(.rect(cornerRadius: 18))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(isSelected ? Theme.gold : Color.white.opacity(0.08), lineWidth: isSelected ? 2 : 1)
+        )
+        .shadow(color: .black.opacity(isPressed ? 0.5 : 0.3), radius: isPressed ? 22 : 10, y: isPressed ? 14 : 6)
+        .scaleEffect(isPressed ? 1.04 : 1.0)
+        .animation(.spring(response: 0.32, dampingFraction: 0.55), value: isPressed)
+        .contentShape(.rect(cornerRadius: 18))
+        .onTapGesture {
+            triggerPulse()
+            onOpen()
+        }
+        .onLongPressGesture(minimumDuration: 0.4) {
+            if let onLongPress {
+                let gen = UIImpactFeedbackGenerator(style: .heavy)
+                gen.impactOccurred()
+                onLongPress()
+            }
+        }
+    }
+
+    private func triggerPulse() {
+        let gen = UIImpactFeedbackGenerator(style: .medium)
+        gen.impactOccurred()
+        isPressed = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+            isPressed = false
+        }
+    }
+
+    private var artwork: some View {
+        Color.black
+            .aspectRatio(0.72, contentMode: .fit)
+            .overlay {
+                CardArtwork(card: card)
+                    .allowsHitTesting(false)
+            }
+            .overlay(alignment: .topLeading) {
+                if card.holo != .none {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(Theme.gold)
+                        .padding(8)
+                }
+            }
+            .overlay(alignment: .topTrailing) {
+                if showStatusTag {
+                    StatusTag(status: card.status)
+                        .padding(8)
+                }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 24))
+                        .foregroundStyle(Theme.gold)
+                        .background(Circle().fill(.black))
+                        .padding(8)
+                }
+            }
+            .clipShape(.rect(topLeadingRadius: 18, topTrailingRadius: 18))
+    }
+
+    private var info: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(card.name)
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .foregroundStyle(Theme.textPrimary)
+                .lineLimit(1)
+
+            HStack(spacing: 4) {
+                Image(systemName: card.type.symbol)
+                    .font(.system(size: 9))
+                Text(card.setName)
+                    .lineLimit(1)
+            }
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(Theme.textSecondary)
+
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(formatPrice(card.marketPrice, compact: true))
+                    .font(.system(size: 21, weight: .heavy, design: .rounded))
+                    .foregroundStyle(Theme.textPrimary)
+
+                if abs(card.weeklyChangePercent) >= 0.1 {
+                    HStack(spacing: 1) {
+                        Image(systemName: card.weeklyChangePercent >= 0 ? "arrow.up.right" : "arrow.down.right")
+                            .font(.system(size: 9, weight: .bold))
+                        Text(String(format: "%.1f%%", abs(card.weeklyChangePercent)))
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                    }
+                    .foregroundStyle(changeColor)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+    }
+}

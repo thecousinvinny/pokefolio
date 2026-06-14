@@ -1,0 +1,113 @@
+//
+//  AddWishlistForm.swift
+//  Folio
+//
+
+import SwiftUI
+
+struct AddWishlistForm: View {
+    let card: Card
+    @Environment(PortfolioStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var targetPriceText = ""
+    @State private var priority: WishlistPriority = .medium
+
+    private var targetPrice: Double { Double(targetPriceText) ?? 0 }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Theme.background.ignoresSafeArea()
+                ScrollView {
+                    VStack(spacing: 18) {
+                        header
+                        alertSection
+                        prioritySection
+                    }
+                    .padding(16)
+                }
+            }
+            .navigationTitle("Add to Wishlist")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { dismiss() }.tint(Theme.textSecondary)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Save") {
+                        store.addToWishlist(card, targetPrice: targetPrice > 0 ? targetPrice : card.marketPrice, priority: priority)
+                        dismiss()
+                    }
+                    .fontWeight(.semibold)
+                    .tint(Theme.accent)
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    private var header: some View {
+        HStack(spacing: 14) {
+            CardThumbnail(card: card, width: 70)
+            VStack(alignment: .leading, spacing: 5) {
+                Text(card.name).font(.system(size: 18, weight: .bold)).foregroundStyle(Theme.textPrimary)
+                Text("\(card.setName) · \(card.number)").font(.system(size: 13)).foregroundStyle(Theme.textSecondary)
+                Text("Market \(card.marketPrice.asCurrency)").font(.system(size: 14, weight: .semibold, design: .rounded)).foregroundStyle(Theme.accent)
+            }
+            Spacer()
+        }
+        .padding(16)
+        .folioSurface()
+    }
+
+    private var alertSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("PRICE ALERT").font(.system(size: 11, weight: .bold)).tracking(0.8).foregroundStyle(Theme.textTertiary)
+            HStack {
+                Text("Notify me below").font(.system(size: 15)).foregroundStyle(Theme.textPrimary)
+                Spacer()
+                HStack(spacing: 2) {
+                    Text("$").foregroundStyle(Theme.textSecondary)
+                    TextField(String(format: "%.0f", card.marketPrice * 0.8), text: $targetPriceText)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Theme.accent)
+                        .frame(width: 90)
+                }
+            }
+            if targetPrice > 0 {
+                let diff = (card.marketPrice - targetPrice) / card.marketPrice * 100
+                Text(String(format: "Alerts when price drops %.0f%% from current market.", diff))
+                    .font(.system(size: 12)).foregroundStyle(Theme.textTertiary)
+            }
+        }
+        .padding(16)
+        .folioSurface()
+    }
+
+    private var prioritySection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("PRIORITY").font(.system(size: 11, weight: .bold)).tracking(0.8).foregroundStyle(Theme.textTertiary)
+            HStack(spacing: 8) {
+                ForEach(WishlistPriority.allCases) { p in
+                    Button {
+                        withAnimation(.snappy) { priority = p }
+                    } label: {
+                        Text(p.rawValue)
+                            .font(.system(size: 13, weight: .semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 11)
+                            .background(priority == p ? p.color : Theme.surfaceElevated)
+                            .foregroundStyle(priority == p ? Theme.background : Theme.textSecondary)
+                            .clipShape(.rect(cornerRadius: 11))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .padding(16)
+        .folioSurface()
+    }
+}

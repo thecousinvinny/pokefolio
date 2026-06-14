@@ -1,0 +1,146 @@
+//
+//  BudgetModeView.swift
+//  PokeVault
+//
+//  Budget Mode: tells the user which portfolio cards to sell to afford the
+//  top wishlist cards.
+//
+
+import SwiftUI
+
+struct BudgetModeView: View {
+    @Environment(CollectionStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+
+    /// Wishlist targets sorted by price descending (the most aspirational first).
+    private var topWishes: [Card] {
+        store.wishlistCards
+            .sorted { ($0.targetPrice ?? $0.marketPrice) > ($1.targetPrice ?? $1.marketPrice) }
+    }
+
+    /// Highest-value owned cards proposed for sale.
+    private var sellCandidates: [Card] {
+        store.ownedCards
+            .sorted { $0.conditionAdjustedValue > $1.conditionAdjustedValue }
+    }
+
+    /// Greedy plan: pick the most valuable owned cards until we can fund the
+    /// most expensive affordable subset of wishlist cards.
+    private var plan: (sell: [Card], buy: [Card], proceeds: Double, cost: Double) {
+        guard !topWishes.isEmpty, !sellCandidates.isEmpty else {
+            return ([], [], 0, 0)
+        }
+        // Try to buy as many top wishes as a sensible number of sales can fund.
+        var sell: [Card] = []
+        var proceeds: Double = 0
+        var buy: [Card] = []
+        var cost: Double = 0
+
+        for wish in topWishes {
+            let target = wish.targetPrice ?? wish.marketPrice
+            // Keep adding sales until proceeds cover the running cost.
+            while proceeds < cost + target, sell.count < sellCandidates.count {
+                let next = sellCandidates[sell.count]
+                sell.append(next)
+                // Net proceeds approximate fees + shipping (~12%).
+                proceeds += next.conditionAdjustedValue * 0.88
+            }
+            if proceeds >= cost + target {
+                buy.append(wish)
+                cost += target
+            } else {
+                break
+            }
+        }
+        return (sell, buy, proceeds, cost)
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Theme.backgroundGradient.ignoresSafeArea()
+                ScrollView {
+                    VStack(spacing: 22) {
+                        headline
+                        if plan.buy.isEmpty {
+                            Text("Add some owned cards and wishlist targets, and Budget Mode will craft a plan to fund your next pickups.")
+                                .font(.system(size: 14)).foregroundStyle(Theme.textSecondary)
+                                .multilineTextAlignment(.center)
+                                .padding(24)
+                        } else {
+                            section(title: "Sell these \(plan.sell.count)", subtitle: "Est. net \(formatPrice(plan.proceeds))", color: Theme.amber, cards: plan.sell)
+                            Image(systemName: "arrow.down")
+                                .font(.system(size: 22, weight: .bold))
+                                .foregroundStyle(Theme.textTertiary)
+                            section(title: "Afford these \(plan.buy.count)", subtitle: "Cost \(formatPrice(plan.cost))", color: Theme.emerald, cards: plan.buy)
+                        }
+                    }
+                    .padding(20)
+                    .padding(.bottom, 30)
+                }
+            }
+            .navigationTitle("Budget Mode")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }.foregroundStyle(Theme.gold).fontWeight(.semibold)
+                }
+            }
+            .toolbarBackground(Theme.bg, for: .navigationBar)
+        }
+    }
+
+    private var headline: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "wallet.bifold.fill")
+                .font(.system(size: 36))
+                .foregroundStyle(Theme.gold)
+            if plan.buy.isEmpty {
+                Text("Budget Assistant")
+                    .font(.system(size: 22, weight: .heavy, design: .rounded))
+                    .foregroundStyle(Theme.textPrimary)
+            } else {
+                Text("Sell \(plan.sell.count) to afford your top \(plan.buy.count)")
+                    .font(.system(size: 22, weight: .heavy, design: .rounded))
+                    .foregroundStyle(Theme.textPrimary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .padding(.top, 10)
+    }
+
+    private func section(title: String, subtitle: String, color: Color, cards: [Card]) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(title)
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .foregroundStyle(Theme.textPrimary)
+                Spacer()
+                Text(subtitle)
+                    .font(.system(size: 14, weight: .heavy, design: .rounded))
+                    .foregroundStyle(color)
+            }
+            ForEach(cards) { card in
+                HStack(spacing: 12) {
+                    Color.black
+                        .frame(width: 42, height: 58)
+                        .overlay { CardArtwork(card: card, showHoloSheen: false).allowsHitTesting(false) }
+                        .clipShape(.rect(cornerRadius: 6))
+                    Text(card.name)
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Theme.textPrimary)
+                    Spacer()
+                    Text(formatPrice(card.targetPrice ?? card.conditionAdjustedValue))
+                        .font(.system(size: 15, weight: .heavy, design: .rounded))
+                        .foregroundStyle(color)
+                }
+                .padding(10)
+                .background(Theme.bgElevated)
+                .clipShape(.rect(cornerRadius: 12))
+            }
+        }
+        .padding(16)
+        .background(Theme.surface)
+        .clipShape(.rect(cornerRadius: 18))
+    }
+}

@@ -1,0 +1,189 @@
+//
+//  SoldView.swift
+//  Folio
+//
+
+import SwiftUI
+import Charts
+
+struct SoldView: View {
+    @Environment(PortfolioStore.self) private var store
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Theme.background.ignoresSafeArea()
+                if store.ledger.isEmpty {
+                    emptyState
+                } else {
+                    content
+                }
+            }
+            .navigationTitle("Ledger")
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    private var content: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                summary
+                cumulativeChart
+                volumeChart
+                LazyVStack(spacing: 10) {
+                    ForEach(store.ledger) { record in
+                        LedgerRow(record: record)
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 4)
+            .padding(.bottom, 32)
+        }
+    }
+
+    // MARK: - Summary
+
+    private var summary: some View {
+        HStack(spacing: 12) {
+            summaryTile("Cumulative Profit", store.realizedProfit.asSignedCurrency, store.realizedProfit >= 0 ? Theme.gain : Theme.loss)
+            summaryTile("Transactions", "\(store.ledger.count)", Theme.violet)
+        }
+    }
+
+    private func summaryTile(_ title: String, _ value: String, _ tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).font(.system(size: 12)).foregroundStyle(Theme.textSecondary)
+            Text(value)
+                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .foregroundStyle(tint)
+                .lineLimit(1).minimumScaleFactor(0.6)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .folioSurface(Theme.cornerMedium)
+    }
+
+    // MARK: - Charts
+
+    private var cumulativeChart: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Cumulative Profit").font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.textPrimary)
+            Chart(cumulativePoints) { point in
+                AreaMark(x: .value("Date", point.date), y: .value("Profit", point.value))
+                    .foregroundStyle(LinearGradient(colors: [Theme.accent.opacity(0.4), Theme.accent.opacity(0.02)], startPoint: .top, endPoint: .bottom))
+                    .interpolationMethod(.monotone)
+                LineMark(x: .value("Date", point.date), y: .value("Profit", point.value))
+                    .foregroundStyle(Theme.accent)
+                    .interpolationMethod(.monotone)
+            }
+            .chartYAxis { AxisMarks { _ in AxisGridLine().foregroundStyle(Theme.stroke); AxisValueLabel().foregroundStyle(Theme.textTertiary) } }
+            .chartXAxis { AxisMarks { _ in AxisValueLabel(format: .dateTime.month(.abbreviated)).foregroundStyle(Theme.textTertiary) } }
+            .frame(height: 150)
+        }
+        .padding(16)
+        .folioSurface()
+    }
+
+    private var volumeChart: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Monthly Sales Volume").font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.textPrimary)
+            Chart(monthlyVolume, id: \.label) { item in
+                BarMark(x: .value("Month", item.label), y: .value("Volume", item.value))
+                    .foregroundStyle(Theme.violet.gradient)
+                    .cornerRadius(6)
+            }
+            .chartYAxis { AxisMarks { _ in AxisGridLine().foregroundStyle(Theme.stroke); AxisValueLabel().foregroundStyle(Theme.textTertiary) } }
+            .chartXAxis { AxisMarks { _ in AxisValueLabel().foregroundStyle(Theme.textTertiary) } }
+            .frame(height: 150)
+        }
+        .padding(16)
+        .folioSurface()
+    }
+
+    // MARK: - Derived chart data
+
+    private struct ProfitPoint: Identifiable { let id = UUID(); let date: Date; let value: Double }
+
+    private var cumulativePoints: [ProfitPoint] {
+        let sorted = store.ledger.sorted { $0.date < $1.date }
+        var running = 0.0
+        var points: [ProfitPoint] = []
+        if let first = sorted.first {
+            points.append(ProfitPoint(date: first.date.addingTimeInterval(-86400), value: 0))
+        }
+        for record in sorted {
+            running += record.netProfit
+            points.append(ProfitPoint(date: record.date, value: running))
+        }
+        return points
+    }
+
+    private struct VolumePoint { let label: String; let value: Double }
+
+    private var monthlyVolume: [VolumePoint] {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM"
+        var buckets: [String: Double] = [:]
+        var order: [String] = []
+        for record in store.ledger.sorted(by: { $0.date < $1.date }) {
+            let key = formatter.string(from: record.date)
+            if buckets[key] == nil { order.append(key) }
+            buckets[key, default: 0] += record.kind == .sale ? record.salePrice : (record.receivedValue ?? 0)
+        }
+        return order.map { VolumePoint(label: $0, value: buckets[$0] ?? 0) }
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "list.bullet.rectangle.portrait")
+                .font(.system(size: 48, weight: .light))
+                .foregroundStyle(Theme.textTertiary)
+            Text("No transactions yet")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(Theme.textPrimary)
+            Text("Sell or trade a card from your binder\nto build your profit history.")
+                .multilineTextAlignment(.center)
+                .font(.system(size: 14))
+                .foregroundStyle(Theme.textSecondary)
+        }
+        .padding(40)
+    }
+}
+
+private struct LedgerRow: View {
+    let record: SaleRecord
+
+    var body: some View {
+        HStack(spacing: 12) {
+            CardThumbnail(card: record.card, width: 46)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Image(systemName: record.kind == .sale ? "dollarsign.circle.fill" : "arrow.left.arrow.right.circle.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(record.kind == .sale ? Theme.accent : Theme.violet)
+                    Text(record.card.name)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                        .lineLimit(1)
+                }
+                if record.kind == .trade, let received = record.receivedCardName {
+                    Text("→ \(received)").font(.system(size: 12)).foregroundStyle(Theme.textSecondary).lineLimit(1)
+                } else {
+                    Text(record.date.formatted(date: .abbreviated, time: .omitted))
+                        .font(.system(size: 12)).foregroundStyle(Theme.textTertiary)
+                }
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 3) {
+                Text(record.netProfit.asSignedCurrency)
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundStyle(record.netProfit >= 0 ? Theme.gain : Theme.loss)
+                Text(record.kind == .sale ? "Net profit" : "Value diff")
+                    .font(.system(size: 10)).foregroundStyle(Theme.textTertiary)
+            }
+        }
+        .padding(12)
+        .folioSurface(Theme.cornerMedium)
+    }
+}

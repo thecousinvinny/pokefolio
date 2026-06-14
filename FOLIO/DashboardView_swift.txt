@@ -1,0 +1,211 @@
+//
+//  DashboardView.swift
+//  Folio
+//
+
+import SwiftUI
+
+struct DashboardView: View {
+    @Environment(PortfolioStore.self) private var store
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Theme.background.ignoresSafeArea()
+                ScrollView {
+                    VStack(spacing: 18) {
+                        portfolioHero
+                        if !store.triggeredAlerts.isEmpty { alertsBanner }
+                        statsGrid
+                        spotlightRow
+                        if store.realizedProfit != 0 { realizedCard }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 4)
+                    .padding(.bottom, 32)
+                }
+                .refreshable { await store.refreshPrices() }
+            }
+            .navigationTitle("Folio")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        Task { await store.refreshPrices() }
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                            .rotationEffect(.degrees(store.isRefreshing ? 360 : 0))
+                            .animation(store.isRefreshing ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: store.isRefreshing)
+                    }
+                    .tint(Theme.accent)
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    // MARK: - Hero
+
+    private var portfolioHero: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Total Portfolio Value")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Theme.textSecondary)
+                Spacer()
+                if let last = store.lastRefresh {
+                    Text("Updated \(last.formatted(.relative(presentation: .named)))")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.textTertiary)
+                }
+            }
+            Text(store.totalValue.asCurrency)
+                .font(.system(size: 44, weight: .bold, design: .rounded))
+                .foregroundStyle(Theme.textPrimary)
+                .contentTransition(.numericText())
+            PnLBadge(amount: store.unrealizedPnL, percent: store.unrealizedPercent)
+            Sparkline(values: aggregatedHistory, color: store.unrealizedPnL >= 0 ? Theme.gain : Theme.loss)
+                .frame(height: 56)
+                .padding(.top, 4)
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            LinearGradient(
+                colors: [Theme.surfaceElevated, Theme.surface],
+                startPoint: .topLeading, endPoint: .bottomTrailing
+            )
+        )
+        .clipShape(.rect(cornerRadius: Theme.cornerLarge))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.cornerLarge)
+                .strokeBorder(Theme.accent.opacity(0.18), lineWidth: 1)
+        )
+    }
+
+    /// Sums each card's history index to approximate the portfolio curve.
+    private var aggregatedHistory: [Double] {
+        let items = store.portfolio
+        guard !items.isEmpty else { return [0, 0] }
+        let length = items.map { $0.card.priceHistory.count }.min() ?? 0
+        guard length > 1 else { return [store.totalValue, store.totalValue] }
+        return (0..<length).map { i in
+            items.reduce(0.0) { sum, item in
+                let hist = item.card.priceHistory
+                let value = hist[hist.count - length + i]
+                return sum + value * item.condition.priceMultiplier * Double(item.quantity)
+            }
+        }
+    }
+
+    // MARK: - Alerts
+
+    private var alertsBanner: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "bell.badge.fill")
+                .font(.system(size: 16))
+                .foregroundStyle(Theme.gold)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(store.triggeredAlerts.count) price alert\(store.triggeredAlerts.count > 1 ? "s" : "") hit")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Theme.textPrimary)
+                Text(store.triggeredAlerts.map { $0.card.name }.joined(separator: ", "))
+                    .font(.system(size: 12))
+                    .foregroundStyle(Theme.textSecondary)
+                    .lineLimit(1)
+            }
+            Spacer()
+        }
+        .padding(14)
+        .background(Theme.gold.opacity(0.12))
+        .clipShape(.rect(cornerRadius: Theme.cornerMedium))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.cornerMedium)
+                .strokeBorder(Theme.gold.opacity(0.3), lineWidth: 1)
+        )
+    }
+
+    // MARK: - Stats grid
+
+    private var statsGrid: some View {
+        LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+            StatCard(title: "Total Invested", value: store.totalInvested.asCurrency, subtitle: "Cost basis", icon: "creditcard.fill", tint: Theme.violet)
+            StatCard(title: "Unrealized P&L", value: store.unrealizedPnL.asSignedCurrency, subtitle: store.unrealizedPercent.asPercent, icon: "chart.line.uptrend.xyaxis", tint: store.unrealizedPnL >= 0 ? Theme.gain : Theme.loss)
+            StatCard(title: "Cards Owned", value: "\(store.portfolio.reduce(0) { $0 + $1.quantity })", subtitle: "\(store.portfolio.count) unique", icon: "square.stack.3d.up.fill", tint: Theme.accent)
+            StatCard(title: "Realized Profit", value: store.realizedProfit.asSignedCurrency, subtitle: "\(store.ledger.count) sales", icon: "dollarsign.circle.fill", tint: store.realizedProfit >= 0 ? Theme.gain : Theme.loss)
+        }
+    }
+
+    // MARK: - Spotlight (most valuable + favorite)
+
+    private var spotlightRow: some View {
+        HStack(spacing: 12) {
+            if let top = store.mostValuable {
+                spotlightCard(item: top, label: "Most Valuable", icon: "crown.fill", tint: Theme.gold)
+            }
+            if let fav = store.favoriteItem {
+                spotlightCard(item: fav, label: "Favorite", icon: "heart.fill", tint: Theme.violet)
+            } else {
+                pinPrompt
+            }
+        }
+    }
+
+    private func spotlightCard(item: PortfolioItem, label: String, icon: String, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 5) {
+                Image(systemName: icon).font(.system(size: 11, weight: .bold))
+                Text(label).font(.system(size: 11, weight: .bold)).tracking(0.5)
+            }
+            .foregroundStyle(tint)
+            HStack(alignment: .top, spacing: 10) {
+                CardThumbnail(card: item.card, width: 52)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(item.card.name)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                        .lineLimit(2)
+                    Text(item.currentValue.asCurrency)
+                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                        .foregroundStyle(tint)
+                }
+                Spacer(minLength: 0)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: 130)
+        .folioSurface(Theme.cornerMedium)
+    }
+
+    private var pinPrompt: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "heart").font(.system(size: 20)).foregroundStyle(Theme.textTertiary)
+            Text("Pin a favorite\nfrom your binder")
+                .font(.system(size: 12))
+                .multilineTextAlignment(.center)
+                .foregroundStyle(Theme.textSecondary)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 130)
+        .folioSurface(Theme.cornerMedium)
+    }
+
+    private var realizedCard: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Lifetime Realized Profit")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Theme.textSecondary)
+                Text(store.realizedProfit.asSignedCurrency)
+                    .font(.system(size: 26, weight: .bold, design: .rounded))
+                    .foregroundStyle(store.realizedProfit >= 0 ? Theme.gain : Theme.loss)
+            }
+            Spacer()
+            Image(systemName: "chart.bar.fill")
+                .font(.system(size: 30))
+                .foregroundStyle(Theme.accent.opacity(0.6))
+        }
+        .padding(18)
+        .folioSurface()
+    }
+}

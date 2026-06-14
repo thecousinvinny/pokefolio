@@ -1,0 +1,80 @@
+//
+//  Theme.swift
+//  Folio
+//
+
+import SwiftUI
+
+/// Centralized design tokens for Folio's dark, premium "collector's portfolio" aesthetic.
+enum Theme {
+    // Backgrounds
+    static let background = Color(hex: 0x0A0C10)
+    static let surface = Color(hex: 0x14181F)
+    static let surfaceElevated = Color(hex: 0x1C212B)
+    static let stroke = Color.white.opacity(0.07)
+
+    // Brand
+    static let accent = Color(hex: 0x3DDC97)        // emerald — money / gains
+    static let accentSoft = Color(hex: 0x3DDC97).opacity(0.16)
+    static let gold = Color(hex: 0xF5C451)          // most-valuable highlight
+    static let violet = Color(hex: 0x9B8CFF)        // favorite / accent secondary
+
+    // Semantic P&L
+    static let gain = Color(hex: 0x3DDC97)
+    static let loss = Color(hex: 0xFF6B6B)
+
+    // Text
+    static let textPrimary = Color.white
+    static let textSecondary = Color.white.opacity(0.6)
+    static let textTertiary = Color.white.opacity(0.38)
+
+    static let cornerLarge: CGFloat = 22
+    static let cornerMedium: CGFloat = 16
+}
+
+extension Color {
+    init(hex: UInt, alpha: Double = 1) {
+        self.init(
+            .sRGB,
+            red: Double((hex >> 16) & 0xFF) / 255,
+            green: Double((hex >> 8) & 0xFF) / 255,
+            blue: Double(hex & 0xFF) / 255,
+            opacity: alpha
+        )
+    }
+}
+
+extension View {
+    /// Card-style surface used throughout the app.
+    func folioSurface(_ corner: CGFloat = Theme.cornerLarge, elevated: Bool = false) -> some View {
+        self
+            .background(elevated ? Theme.surfaceElevated : Theme.surface)
+            .clipShape(.rect(cornerRadius: corner))
+            .overlay(
+                RoundedRectangle(cornerRadius: corner)
+                    .strokeBorder(Theme.stroke, lineWidth: 1)
+            )
+    }
+}
+
+extension Double {
+    /// Formats a value as USD currency, e.g. $1,200.00.
+    var asCurrency: String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = "USD"
+        formatter.maximumFractionDigits = self >= 1000 ? 0 : 2
+        return formatter.string(from: NSNumber(value: self)) ?? "$\(self)"
+    }
+
+    /// Signed currency string, e.g. +$450.20 / -$30.00.
+    var asSignedCurrency: String {
+        let sign = self >= 0 ? "+" : "-"
+        return sign + abs(self).asCurrency
+    }
+
+    /// Percent with one decimal, e.g. 12.5%.
+    var asPercent: String {
+        String(format: "%.1f%%", self)
+    }
+}

@@ -1,0 +1,32 @@
+//
+//  PortfolioItem.swift
+//  Folio
+//
+
+import Foundation
+
+/// An owned card in the user's binder.
+nonisolated struct PortfolioItem: Codable, Identifiable, Hashable {
+    var id: UUID = UUID()
+    var card: Card
+    var condition: CardCondition
+    var pricePaid: Double
+    var quantity: Int
+    var purchaseDate: Date
+    var dateAdded: Date
+
+    /// Current value of this holding, adjusted for condition and quantity.
+    var currentValue: Double {
+        card.marketPrice * condition.priceMultiplier * Double(quantity)
+    }
+
+    /// Total cost basis.
+    var invested: Double { pricePaid * Double(quantity) }
+
+    var unrealizedPnL: Double { currentValue - invested }
+
+    var pnlPercent: Double {
+        guard invested != 0 else { return 0 }
+        return unrealizedPnL / invested * 100
+    }
+}

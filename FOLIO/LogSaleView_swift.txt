@@ -1,0 +1,167 @@
+//
+//  LogSaleView.swift
+//  Folio
+//
+
+import SwiftUI
+
+struct LogSaleView: View {
+    let item: PortfolioItem
+    @Environment(PortfolioStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var mode: SaleRecord.Kind = .sale
+    @State private var salePriceText = ""
+    @State private var feesText = ""
+    @State private var shippingText = ""
+    @State private var receivedName = ""
+    @State private var receivedValueText = ""
+
+    private var salePrice: Double { Double(salePriceText) ?? 0 }
+    private var fees: Double { Double(feesText) ?? 0 }
+    private var shipping: Double { Double(shippingText) ?? 0 }
+    private var receivedValue: Double { Double(receivedValueText) ?? 0 }
+
+    private var netProfit: Double {
+        mode == .sale ? salePrice - fees - shipping - item.invested
+                      : receivedValue - item.currentValue
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Theme.background.ignoresSafeArea()
+                ScrollView {
+                    VStack(spacing: 18) {
+                        header
+                        modePicker
+                        if mode == .sale { saleFields } else { tradeFields }
+                        profitPreview
+                    }
+                    .padding(16)
+                }
+            }
+            .navigationTitle("Log Transaction")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { dismiss() }.tint(Theme.textSecondary)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Save") { save() }
+                        .fontWeight(.semibold)
+                        .tint(Theme.accent)
+                        .disabled(mode == .sale ? salePrice <= 0 : receivedName.isEmpty)
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    private var header: some View {
+        HStack(spacing: 14) {
+            CardThumbnail(card: item.card, width: 60)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.card.name).font(.system(size: 16, weight: .bold)).foregroundStyle(Theme.textPrimary)
+                Text("Paid \(item.invested.asCurrency)").font(.system(size: 13)).foregroundStyle(Theme.textSecondary)
+                Text("Now \(item.currentValue.asCurrency)").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.accent)
+            }
+            Spacer()
+        }
+        .padding(16)
+        .folioSurface()
+    }
+
+    private var modePicker: some View {
+        Picker("Type", selection: $mode) {
+            Text("Sale").tag(SaleRecord.Kind.sale)
+            Text("Trade").tag(SaleRecord.Kind.trade)
+        }
+        .pickerStyle(.segmented)
+    }
+
+    private var saleFields: some View {
+        VStack(spacing: 16) {
+            currencyField("Sold price", text: $salePriceText, tint: Theme.accent)
+            divider
+            currencyField("Fees (eBay/TCGplayer)", text: $feesText, tint: Theme.loss)
+            divider
+            currencyField("Shipping cost", text: $shippingText, tint: Theme.loss)
+        }
+        .padding(16)
+        .folioSurface()
+    }
+
+    private var tradeFields: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Text("Card received").font(.system(size: 15)).foregroundStyle(Theme.textPrimary)
+                Spacer()
+                TextField("Name", text: $receivedName)
+                    .multilineTextAlignment(.trailing)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Theme.textPrimary)
+                    .frame(width: 150)
+            }
+            divider
+            currencyField("Received value", text: $receivedValueText, tint: Theme.accent)
+        }
+        .padding(16)
+        .folioSurface()
+    }
+
+    private var profitPreview: some View {
+        VStack(spacing: 8) {
+            Text(mode == .sale ? "Net Profit" : "Value Difference")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Theme.textSecondary)
+            Text(netProfit.asSignedCurrency)
+                .font(.system(size: 34, weight: .bold, design: .rounded))
+                .foregroundStyle(netProfit >= 0 ? Theme.gain : Theme.loss)
+            if mode == .sale {
+                Text("\(salePrice.asCurrency) − \(fees.asCurrency) fees − \(shipping.asCurrency) ship − \(item.invested.asCurrency) cost")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.textTertiary)
+                    .multilineTextAlignment(.center)
+            } else if netProfit != 0 {
+                Text(netProfit >= 0 ? "You received more value than you gave" : "You gave more value than you received")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Theme.textTertiary)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(20)
+        .folioSurface()
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.cornerLarge)
+                .strokeBorder((netProfit >= 0 ? Theme.gain : Theme.loss).opacity(0.35), lineWidth: 1)
+        )
+    }
+
+    private func currencyField(_ label: String, text: Binding<String>, tint: Color) -> some View {
+        HStack {
+            Text(label).font(.system(size: 15)).foregroundStyle(Theme.textPrimary)
+            Spacer()
+            HStack(spacing: 2) {
+                Text("$").foregroundStyle(Theme.textSecondary)
+                TextField("0.00", text: text)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .foregroundStyle(tint)
+                    .frame(width: 90)
+            }
+        }
+    }
+
+    private func save() {
+        if mode == .sale {
+            store.logSale(item, salePrice: salePrice, fees: fees, shipping: shipping)
+        } else {
+            store.logTrade(item, receivedName: receivedName, receivedValue: receivedValue)
+        }
+        dismiss()
+    }
+
+    private var divider: some View { Divider().overlay(Theme.stroke) }
+}
