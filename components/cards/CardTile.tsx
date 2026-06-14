@@ -4,38 +4,34 @@ import { formatPrice } from '@/lib/utils'
 import type { PokemonCard, TCGCard } from '@/types'
 import { CardArtwork, TypeBadge } from './CardArtwork'
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Rarity color map ─────────────────────────────────────────────────────────
+
+function rarityColor(rarity?: string | null): string {
+  if (!rarity) return 'rgba(255,255,255,0.25)'
+  const r = rarity.toLowerCase()
+  if (r.includes('special illustration')) return '#FFC845'
+  if (r.includes('illustration rare'))    return '#D166F2'
+  if (r.includes('hyper rare') || r.includes('rainbow')) return '#73D9D9'
+  if (r.includes('secret'))     return '#5DA9FF'
+  if (r.includes('vmax'))       return '#FF9E2E'
+  if (r.includes('vstar'))      return '#FF9E2E'
+  if (r.includes('amazing'))    return '#73D9D9'
+  if (r.includes('ultra rare')) return '#FF9E2E'
+  if (r.includes(' ex') && !r.includes('vmax')) return '#FF9E2E'
+  if (r.includes(' gx'))        return '#FF9E2E'
+  if (r.includes('holo v') && !r.includes('vmax') && !r.includes('vstar')) return '#FF9E2E'
+  if (r.includes('holo'))       return 'rgba(200,210,255,0.75)'
+  if (r === 'rare')             return 'rgba(255,255,255,0.55)'
+  if (r === 'uncommon')         return 'rgba(255,255,255,0.35)'
+  return 'rgba(255,255,255,0.22)'   // common / unknown
+}
 
 function isHoloRarity(rarity?: string | null): boolean {
   if (!rarity) return false
   const r = rarity.toLowerCase()
-  return (
-    r.includes('holo') || r.includes('ultra') || r.includes('secret') ||
+  return r.includes('holo') || r.includes('ultra') || r.includes('secret') ||
     r.includes('special') || r.includes('vmax') || r.includes('vstar') ||
     r.includes(' ex') || r.includes(' gx')
-  )
-}
-
-function getRarityBadge(rarity?: string | null): { label: string; color: string } | null {
-  if (!rarity) return null
-  const r = rarity.toLowerCase()
-  if (r.includes('special illustration')) return { label: 'SIR',    color: '#FFC845' }
-  if (r.includes('illustration rare'))    return { label: 'IR',     color: '#D166F2' }
-  if (r.includes('hyper rare') || r.includes('rainbow')) return { label: 'Hyper', color: '#73D9D9' }
-  if (r.includes('secret'))  return { label: 'Secret', color: '#5DA9FF' }
-  if (r.includes('vmax'))    return { label: 'VMAX',   color: '#FF9E2E' }
-  if (r.includes('vstar'))   return { label: 'VSTAR',  color: '#FF9E2E' }
-  if (r.includes('amazing')) return { label: 'Amazing',color: '#73D9D9' }
-  if (r.includes('holo ex') || (r.includes(' ex') && !r.includes('vmax')))
-    return { label: 'ex', color: '#FF9E2E' }
-  if (r.includes('holo gx') || r.includes(' gx'))
-    return { label: 'GX', color: '#FF9E2E' }
-  if (r.includes('ultra rare')) return { label: 'Ultra', color: '#FF9E2E' }
-  if (r.includes('holo v') && !r.includes('vmax') && !r.includes('vstar'))
-    return { label: 'V', color: '#FF9E2E' }
-  if (r.includes('holo'))  return { label: 'Holo', color: 'rgba(200,210,255,0.80)' }
-  if (r === 'rare')        return { label: 'Rare', color: 'rgba(255,255,255,0.50)' }
-  return null
 }
 
 function getBrowsePrice(card: TCGCard): number | undefined {
@@ -44,7 +40,7 @@ function getBrowsePrice(card: TCGCard): number | undefined {
   return p.holofoil?.market ?? p.normal?.market ?? p.reverseHolofoil?.market ?? p['1stEditionHolofoil']?.market
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// ─── Shared sub-components ────────────────────────────────────────────────────
 
 function StatusPill({ status }: { status: string }) {
   const MAP: Record<string, { label: string; color: string }> = {
@@ -52,36 +48,56 @@ function StatusPill({ status }: { status: string }) {
     wishlist: { label: 'WISH',     color: '#9C72FA' },
     for_sale: { label: 'FOR SALE', color: '#FF9E2E' },
   }
-  const cfg = MAP[status] ?? MAP.owned
+  const { label, color } = MAP[status] ?? MAP.owned
   return (
     <span style={{
-      fontSize: 9, fontWeight: 900, letterSpacing: '0.05em',
-      color: '#fff', padding: '3px 7px', borderRadius: 100,
-      background: cfg.color, boxShadow: `0 2px 8px ${cfg.color}99`,
-      lineHeight: 1, whiteSpace: 'nowrap',
+      fontSize: 8, fontWeight: 900, letterSpacing: '0.05em',
+      color: '#000', background: color,
+      padding: '2px 6px', borderRadius: 100, lineHeight: 1.4, whiteSpace: 'nowrap',
     }}>
-      {cfg.label}
+      {label}
     </span>
   )
 }
 
-function RarityBadge({ rarity }: { rarity?: string | null }) {
-  const badge = getRarityBadge(rarity)
-  if (!badge) return null
+function RarityPill({ rarity }: { rarity?: string | null }) {
+  const color = rarityColor(rarity)
+  const isAccent = !color.startsWith('rgba')
   return (
     <span style={{
-      fontSize: 8, fontWeight: 900, letterSpacing: '0.08em',
-      color: badge.color, background: `${badge.color}18`,
-      border: `1px solid ${badge.color}50`, borderRadius: 5,
-      padding: '2px 5px', backdropFilter: 'blur(4px)',
-      WebkitBackdropFilter: 'blur(4px)', lineHeight: 1.4,
+      display: 'inline-block',
+      fontSize: 7.5, fontWeight: 900, letterSpacing: '0.08em',
+      color,
+      background: isAccent ? `${color}16` : 'rgba(255,255,255,0.05)',
+      border: `1px solid ${isAccent ? `${color}35` : 'rgba(255,255,255,0.10)'}`,
+      borderRadius: 100, padding: '2px 7px', lineHeight: 1.5,
+      maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
     }}>
-      {badge.label}
+      {(rarity ?? 'COMMON').toUpperCase()}
     </span>
   )
 }
 
-// Spring press — matches VAULT scaleEffect(isPressed ? 1.04 : 1.0)
+function TileBtn({ label, color, bg, onClick, disabled }: {
+  label: string; color: string; bg: string
+  onClick?: (e: React.MouseEvent) => void; disabled?: boolean
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        flex: 1, padding: '5px 0', borderRadius: 7,
+        fontSize: 10, fontWeight: 800, letterSpacing: '0.04em',
+        background: disabled ? 'rgba(255,255,255,0.04)' : bg,
+        color: disabled ? 'rgba(255,255,255,0.18)' : color,
+        border: 'none', cursor: disabled ? 'default' : 'pointer',
+      }}>
+      {label}
+    </button>
+  )
+}
+
 const SPRING = 'transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.22s ease'
 
 // ─── Portfolio tile ───────────────────────────────────────────────────────────
@@ -99,7 +115,6 @@ export function PortfolioTile({ card, onClick, onLongPress, onSell, onGift, sele
   const [pressed, setPressed] = useState(false)
   const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const nmMarket = card.market_price
   const isHolo = isHoloRarity(card.rarity)
   const isJP = card.language === 'JP'
   const delta = card.price_yesterday && card.market_price
@@ -116,18 +131,17 @@ export function PortfolioTile({ card, onClick, onLongPress, onSell, onGift, sele
     if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null }
   }
 
-  // Border & shadow logic
-  const containerBorder = selected
-    ? 'rgba(255,200,69,0.60)'
+  const borderColor = selected
+    ? 'rgba(255,200,69,0.65)'
     : card.is_favorite
-    ? 'rgba(255,200,69,0.30)'
-    : 'rgba(255,255,255,0.08)'
+    ? 'rgba(255,200,69,0.35)'
+    : 'rgba(255,255,255,0.07)'
 
-  const baseShadow = pressed
-    ? '0 22px 48px rgba(0,0,0,0.55)'
+  const shadow = pressed
+    ? '0 20px 48px rgba(0,0,0,0.60)'
     : card.is_favorite
-    ? '0 0 24px rgba(255,200,69,0.14), 0 8px 24px rgba(0,0,0,0.35)'
-    : '0 6px 20px rgba(0,0,0,0.30)'
+    ? '0 0 0 1.5px rgba(255,200,69,0.40), 0 8px 28px rgba(0,0,0,0.35)'
+    : '0 4px 16px rgba(0,0,0,0.25)'
 
   return (
     <div
@@ -137,54 +151,39 @@ export function PortfolioTile({ card, onClick, onLongPress, onSell, onGift, sele
       onPointerLeave={up}
       className={card.is_showcase ? 'showcase-border' : ''}
       style={{
-        background: 'var(--surface)',
-        border: `1px solid ${containerBorder}`,
-        borderRadius: 18,
-        overflow: 'hidden',
-        cursor: 'pointer',
-        userSelect: 'none',
+        background: 'var(--surface)', border: `1px solid ${borderColor}`,
+        borderRadius: 16, overflow: 'hidden', cursor: 'pointer', userSelect: 'none',
         transform: pressed ? 'scale(1.04)' : 'scale(1.0)',
-        transition: SPRING,
-        boxShadow: baseShadow,
+        transition: SPRING, boxShadow: shadow,
       }}>
 
-      {/* ── Artwork ── */}
+      {/* Artwork */}
       <div style={{ position: 'relative', width: '100%', paddingTop: '139%' }}>
         <CardArtwork types={card.types} imageUrl={card.image_sm ?? undefined} imageAlt={card.name} isHolo={isHolo} />
 
-        {/* TL: JP badge (or selection ✓) */}
+        {/* TL: JP / selection */}
         {(selected || isJP) && (
-          <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 2 }}>
-            {selected ? (
-              <div style={{
-                width: 24, height: 24, borderRadius: '50%',
-                background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 13, color: '#0D0F1A', fontWeight: 900,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
-              }}>✓</div>
-            ) : (
-              <span style={{
-                fontSize: 8, fontWeight: 900, letterSpacing: '0.04em',
-                color: '#fff', background: '#E53E3E',
-                padding: '2px 5px', borderRadius: 4, lineHeight: 1.4,
-              }}>JP</span>
-            )}
+          <div style={{ position: 'absolute', top: 7, left: 7, zIndex: 2 }}>
+            {selected
+              ? <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#0D0F1A', fontWeight: 900 }}>✓</div>
+              : <span style={{ fontSize: 7.5, fontWeight: 900, color: '#fff', background: '#E53E3E', padding: '2px 5px', borderRadius: 4, lineHeight: 1.4 }}>JP</span>
+            }
           </div>
         )}
 
-        {/* TR: status pill */}
-        <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}>
+        {/* TR: status */}
+        <div style={{ position: 'absolute', top: 7, right: 7, zIndex: 2 }}>
           <StatusPill status={card.status} />
         </div>
 
-        {/* BR: price delta overlay */}
+        {/* BR: delta */}
         {delta != null && (
-          <div style={{ position: 'absolute', bottom: 8, right: 8, zIndex: 2 }}>
+          <div style={{ position: 'absolute', bottom: 7, right: 7, zIndex: 2 }}>
             <span style={{
-              fontSize: 9, fontWeight: 700,
-              color: delta >= 0 ? 'var(--emerald)' : 'var(--crimson)',
-              background: delta >= 0 ? 'rgba(69,219,141,0.18)' : 'rgba(242,69,96,0.18)',
-              padding: '2px 6px', borderRadius: 4, lineHeight: 1.4,
+              fontSize: 8, fontWeight: 800,
+              color: delta >= 0 ? '#45DB8D' : '#F24560',
+              background: delta >= 0 ? 'rgba(69,219,141,0.22)' : 'rgba(242,69,96,0.22)',
+              padding: '2px 5px', borderRadius: 4, lineHeight: 1.4,
               backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)',
             }}>
               {delta >= 0 ? '▲' : '▼'}{Math.abs(delta).toFixed(1)}%
@@ -193,77 +192,33 @@ export function PortfolioTile({ card, onClick, onLongPress, onSell, onGift, sele
         )}
       </div>
 
-      {/* ── Rarity pill (below image) — always reserves height for uniform card size ── */}
-      <div style={{ padding: '7px 10px 0', minHeight: 22 }}>
-        {card.rarity && (() => {
-          const rb = getRarityBadge(card.rarity)
-          const color = rb?.color ?? 'rgba(255,255,255,0.38)'
-          return (
-            <span style={{
-              display: 'inline-block', fontSize: 8, fontWeight: 900,
-              letterSpacing: '0.07em', color,
-              background: rb ? `${rb.color}18` : 'rgba(255,255,255,0.07)',
-              border: `1px solid ${rb ? `${rb.color}40` : 'rgba(255,255,255,0.10)'}`,
-              borderRadius: 100, padding: '2px 7px', lineHeight: 1.4,
-            }}>
-              {card.rarity.toUpperCase()}
-            </span>
-          )
-        })()}
-      </div>
-
-      {/* ── Info ── */}
-      <div style={{ padding: '6px 12px 8px' }}>
-        <p style={{
-          margin: '0 0 3px', fontSize: 14, fontWeight: 700, lineHeight: 1.25,
-          color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
+      {/* Info */}
+      <div style={{ padding: '8px 10px 0' }}>
+        <div style={{ minHeight: 19, marginBottom: 5 }}>
+          <RarityPill rarity={card.rarity} />
+        </div>
+        <p style={{ margin: '0 0 2px', fontSize: 13, fontWeight: 700, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {card.name}
         </p>
-
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 4, marginBottom: 6,
-          fontSize: 11, color: 'var(--text3)', overflow: 'hidden',
-        }}>
-          <TypeBadge type={card.types?.[0]} size={7} />
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 6, overflow: 'hidden' }}>
+          <TypeBadge type={card.types?.[0]} size={6} />
+          <span style={{ fontSize: 10, color: 'var(--text3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {card.set_name}{card.set_number ? ` · #${card.set_number}` : ''}
           </span>
         </div>
-
-        <span style={{ fontSize: 19, fontWeight: 900, lineHeight: 1, color: 'var(--gold)' }}>
-          {nmMarket != null ? formatPrice(nmMarket, true) : '—'}
+        <span style={{ fontSize: 17, fontWeight: 900, lineHeight: 1, color: 'var(--gold)' }}>
+          {card.market_price != null ? formatPrice(card.market_price, true) : '—'}
         </span>
       </div>
 
-      {/* ── Quick actions (hidden if fav or showcase) ── */}
-      {showActions && (
-        <div style={{
-          display: 'flex', gap: 4,
-          padding: '6px 10px 10px',
-          borderTop: '1px solid rgba(255,255,255,0.05)',
-        }}>
-          <button
-            onClick={e => { e.stopPropagation(); onSell?.(e) }}
-            style={{
-              flex: 1, padding: '5px 0', borderRadius: 7,
-              fontSize: 10, fontWeight: 800, letterSpacing: '0.04em',
-              background: 'rgba(242,69,96,0.10)', color: 'var(--crimson)',
-              border: 'none', cursor: 'pointer',
-            }}>
-            SELL
-          </button>
-          <button
-            onClick={e => { e.stopPropagation(); onGift?.(e) }}
-            style={{
-              flex: 1, padding: '5px 0', borderRadius: 7,
-              fontSize: 10, fontWeight: 800, letterSpacing: '0.04em',
-              background: 'rgba(93,169,255,0.10)', color: 'var(--sky)',
-              border: 'none', cursor: 'pointer',
-            }}>
-            GIFT
-          </button>
+      {/* Actions */}
+      {showActions ? (
+        <div style={{ display: 'flex', gap: 5, padding: '8px 10px 10px' }}>
+          <TileBtn label="SELL" color="var(--crimson)" bg="rgba(242,69,96,0.10)" onClick={e => { e.stopPropagation(); onSell?.(e) }} />
+          <TileBtn label="GIFT" color="var(--violet)" bg="rgba(156,114,250,0.10)" onClick={e => { e.stopPropagation(); onGift?.(e) }} />
         </div>
+      ) : (
+        <div style={{ height: 10 }} />
       )}
     </div>
   )
@@ -287,12 +242,11 @@ export function BrowseTile({ card, onClick, onAddToPortfolio, onAddToWishlist, i
 
   return (
     <div style={{
-      background: 'var(--surface)',
-      border: '1px solid rgba(255,255,255,0.08)',
-      borderRadius: 18, overflow: 'hidden', userSelect: 'none',
+      background: 'var(--surface)', border: '1px solid rgba(255,255,255,0.07)',
+      borderRadius: 16, overflow: 'hidden', userSelect: 'none',
       transform: pressed ? 'scale(1.04)' : 'scale(1.0)',
       transition: SPRING,
-      boxShadow: pressed ? '0 22px 48px rgba(0,0,0,0.55)' : '0 6px 20px rgba(0,0,0,0.28)',
+      boxShadow: pressed ? '0 20px 48px rgba(0,0,0,0.60)' : '0 4px 16px rgba(0,0,0,0.25)',
     }}>
 
       {/* Artwork */}
@@ -303,69 +257,46 @@ export function BrowseTile({ card, onClick, onAddToPortfolio, onAddToWishlist, i
         onPointerUp={() => setPressed(false)}
         onPointerLeave={() => setPressed(false)}>
         <CardArtwork types={card.types} imageUrl={card.images.small} imageAlt={card.name} isHolo={isHolo} />
-        {isHolo && (
-          <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 2 }}>
-            <span style={{ fontSize: 13, filter: 'drop-shadow(0 1px 4px rgba(0,0,0,0.6))' }}>✨</span>
-          </div>
-        )}
         {inCollection && (
-          <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}>
+          <div style={{ position: 'absolute', top: 7, right: 7, zIndex: 2 }}>
             <StatusPill status="owned" />
           </div>
         )}
-        <div style={{ position: 'absolute', bottom: 8, left: 8, zIndex: 2 }}>
-          <RarityBadge rarity={card.rarity} />
-        </div>
       </div>
 
       {/* Info */}
-      <div style={{ padding: '10px 12px 8px' }}>
-        <p style={{
-          margin: '0 0 3px', fontSize: 14, fontWeight: 700, lineHeight: 1.25,
-          color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
+      <div style={{ padding: '8px 10px 0' }}>
+        <div style={{ minHeight: 19, marginBottom: 5 }}>
+          <RarityPill rarity={card.rarity} />
+        </div>
+        <p style={{ margin: '0 0 2px', fontSize: 13, fontWeight: 700, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {card.name}
         </p>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 4, marginBottom: price != null ? 7 : 0,
-          fontSize: 11, color: 'var(--text3)', overflow: 'hidden',
-        }}>
-          <TypeBadge type={card.types?.[0]} size={7} />
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 6, overflow: 'hidden' }}>
+          <TypeBadge type={card.types?.[0]} size={6} />
+          <span style={{ fontSize: 10, color: 'var(--text3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {card.set.name}{card.number ? ` · #${card.number}` : ''}
           </span>
         </div>
-        {price != null && (
-          <span style={{ fontSize: 19, fontWeight: 900, lineHeight: 1, color: 'var(--text)', display: 'block' }}>
-            {formatPrice(price, true)}
-          </span>
-        )}
+        <span style={{ fontSize: 17, fontWeight: 900, lineHeight: 1, color: price != null ? 'var(--gold)' : 'var(--text3)' }}>
+          {price != null ? formatPrice(price, true) : '—'}
+        </span>
       </div>
 
-      {/* Quick actions */}
-      <div style={{ display: 'flex', gap: 8, padding: '6px 10px 10px' }}>
-        <button
+      {/* Actions */}
+      <div style={{ display: 'flex', gap: 5, padding: '8px 10px 10px' }}>
+        <TileBtn
+          label={inCollection ? '✓ Owned' : '+ Portfolio'}
+          color="var(--emerald)" bg="rgba(69,219,141,0.10)"
           onClick={e => { e.stopPropagation(); onAddToPortfolio?.() }}
           disabled={inCollection}
-          style={{
-            flex: 1, padding: '7px 0', borderRadius: 10, fontSize: 11, fontWeight: 700,
-            background: inCollection ? 'rgba(69,219,141,0.07)' : 'rgba(69,219,141,0.13)',
-            color: inCollection ? 'rgba(69,219,141,0.45)' : 'var(--emerald)',
-            border: 'none', cursor: inCollection ? 'default' : 'pointer',
-          }}>
-          {inCollection ? '✓ Owned' : '+ Portfolio'}
-        </button>
-        <button
+        />
+        <TileBtn
+          label={inWishlist ? '♥ Saved' : '♡ Wish'}
+          color="var(--violet)" bg="rgba(156,114,250,0.10)"
           onClick={e => { e.stopPropagation(); onAddToWishlist?.() }}
           disabled={inWishlist}
-          style={{
-            padding: '7px 14px', borderRadius: 10, fontSize: 13, fontWeight: 700,
-            background: inWishlist ? 'rgba(156,114,250,0.07)' : 'rgba(156,114,250,0.13)',
-            color: inWishlist ? 'rgba(156,114,250,0.45)' : 'var(--violet)',
-            border: 'none', cursor: inWishlist ? 'default' : 'pointer',
-          }}>
-          {inWishlist ? '♥' : '♡'}
-        </button>
+        />
       </div>
     </div>
   )
