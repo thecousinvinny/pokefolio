@@ -1,9 +1,9 @@
 'use client'
-import { useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-export default function RootPage() {
+function RootRedirect() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -20,4 +20,12 @@ export default function RootPage() {
   }, [])
 
   return null
+}
+
+export default function RootPage() {
+  return (
+    <Suspense>
+      <RootRedirect />
+    </Suspense>
+  )
 }
