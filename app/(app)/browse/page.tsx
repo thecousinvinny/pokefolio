@@ -16,6 +16,7 @@ type RarityGroup = 'all' | 'fullart' | 'ultra' | 'holo' | 'common'
 
 const PAGE_SIZE = 50
 const CACHE_TTL_MS = 10 * 60 * 1000
+let _browseScrollY = 0   // persists across tab switches; restored on remount
 
 type CacheEntry = { results: TCGCard[]; totalCount: number; hasMore: boolean; ts: number }
 const _browseCache = new Map<string, CacheEntry>()
@@ -75,6 +76,15 @@ export default function BrowsePage() {
   const sentinelRef = useRef<HTMLDivElement>(null)
   const pageRef = useRef(page)
   useEffect(() => { pageRef.current = page }, [page])
+
+  // Save scroll on unmount, restore on mount when cache is warm
+  useEffect(() => {
+    if (cacheValid(cacheKey('', '')) && _browseScrollY > 0) {
+      const y = _browseScrollY
+      requestAnimationFrame(() => window.scrollTo(0, y))
+    }
+    return () => { _browseScrollY = window.scrollY }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const ownedTcgIds = useMemo(() =>
     new Set(cards.filter(c => c.status === 'owned' || c.status === 'for_sale').map(c => c.tcg_id)),

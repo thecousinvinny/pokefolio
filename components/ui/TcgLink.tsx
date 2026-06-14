@@ -1,13 +1,5 @@
 'use client'
-import { useCallback } from 'react'
-
-function isStandalonePWA(): boolean {
-  if (typeof window === 'undefined') return false
-  return (
-    ('standalone' in window.navigator && (window.navigator as { standalone?: boolean }).standalone === true) ||
-    window.matchMedia('(display-mode: standalone)').matches
-  )
-}
+import { useWebSheet } from './WebSheet'
 
 interface TcgLinkProps {
   url: string
@@ -16,22 +8,13 @@ interface TcgLinkProps {
   className?: string
 }
 
-// On iOS PWA, target="_blank" breaks out of the app and opens Safari.
-// This component keeps navigation in-app when running as a home-screen PWA.
+// Opens TCGPlayer in an in-app sheet instead of navigating away (which destroys Browse state).
 export function TcgLink({ url, children, style, className }: TcgLinkProps) {
-  const handleClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>) => {
-    if (isStandalonePWA()) {
-      e.preventDefault()
-      window.location.href = url
-    }
-  }, [url])
-
+  const { open } = useWebSheet()
   return (
     <a
       href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={handleClick}
+      onClick={e => { e.preventDefault(); open(url) }}
       style={style}
       className={className}
     >
