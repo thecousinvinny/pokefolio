@@ -542,7 +542,7 @@ function BrowseDetailModal({ card, onClose, onAddToPortfolio, onAddToWishlist, i
               <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>30-Day Price</span>
               <span style={{ fontSize: 9, color: 'var(--text3)' }}>{formatPrice(Math.min(...priceHistory))} – {formatPrice(Math.max(...priceHistory))}</span>
             </div>
-            <Sparkline points={priceHistory} color="var(--emerald)" height={38} />
+            <Sparkline points={priceHistory} color="var(--emerald)" height={80} />
           </div>
         )}
 

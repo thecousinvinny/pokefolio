@@ -1,6 +1,7 @@
 'use client'
 import { useState, useRef, memo } from 'react'
 import { formatPrice, tcgSearchUrl } from '@/lib/utils'
+import { CONDITION_MULTIPLIERS } from '@/types'
 import type { PokemonCard, TCGCard } from '@/types'
 
 function LangBadge({ lang }: { lang: 'JP' | 'CN' }) {
@@ -203,6 +204,12 @@ export function PortfolioTile({ card, onClick, onLongPress, onSell, onGift, onAd
 
   const isWishlist = card.status === 'wishlist'
   const isHolo = isHoloRarity(card.rarity)
+  const adjPrice = card.market_price != null
+    ? card.market_price * (CONDITION_MULTIPLIERS[card.condition] ?? 1)
+    : null
+  const profitPct = adjPrice != null && card.price_paid != null && card.price_paid > 0
+    ? ((adjPrice - card.price_paid) / card.price_paid) * 100
+    : null
   const delta = card.price_yesterday && card.market_price
     ? ((card.market_price - card.price_yesterday) / card.price_yesterday) * 100
     : null
@@ -307,16 +314,24 @@ export function PortfolioTile({ card, onClick, onLongPress, onSell, onGift, onAd
             {card.set_name}{card.set_number ? ` · #${card.set_number}` : ''}
           </span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 4 }}>
           <span style={{ fontSize: 17, fontWeight: 900, lineHeight: 1, color: 'var(--gold)' }}>
             {card.market_price != null ? formatPrice(card.market_price, true) : '—'}
           </span>
-          {card.tcgplayer_url && (
-            <TcgLink
-              url={card.tcgplayer_url}
-              style={{ fontSize: 9, fontWeight: 800, color: 'var(--text3)', textDecoration: 'none', padding: '2px 5px', borderRadius: 4, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', lineHeight: 1.4, whiteSpace: 'nowrap' }}>
-              ↗ TCG
-            </TcgLink>
+          {!isWishlist && card.price_paid != null && card.market_price != null && (
+            <div style={{ textAlign: 'right', lineHeight: 1.25, flexShrink: 0 }}>
+              <span style={{ fontSize: 8, color: 'var(--text3)', display: 'block' }}>
+                pd {formatPrice(card.price_paid, true)}
+              </span>
+              {profitPct != null && (
+                <span style={{
+                  fontSize: 9, fontWeight: 800,
+                  color: profitPct >= 0 ? 'var(--emerald)' : 'var(--crimson)',
+                }}>
+                  {profitPct >= 0 ? '+' : ''}{profitPct.toFixed(0)}%
+                </span>
+              )}
+            </div>
           )}
         </div>
       </div>

@@ -9,13 +9,17 @@ import { formatPrice, formatDate, generatePriceHistory, tcgSearchUrl } from '@/l
 import { conditionAdjustedValue, CONDITION_ORDER, CONDITION_LABELS, CONDITION_MULTIPLIERS } from '@/types'
 import { rarityColor, shortRarity } from '@/components/cards/CardTile'
 import { MoveToPortfolioModal } from '@/components/cards/MoveToPortfolioModal'
+import { EditCardModal } from '@/components/cards/EditCardModal'
 import type { PokemonCard } from '@/types'
 
 function isHoloRarity(rarity?: string | null): boolean {
   if (!rarity) return false
   const r = rarity.toLowerCase()
   return r.includes('holo') || r.includes('ultra') || r.includes('secret') ||
-    r.includes('special') || r.includes('vmax') || r.includes('vstar')
+    r.includes('special') || r.includes('vmax') || r.includes('vstar') ||
+    r.includes('double rare') || r.includes('rare ultra') ||
+    r.includes('shiny') || r.includes('ace spec') ||
+    r.includes('illustration') || r.includes('hyper') || r.includes('rainbow')
 }
 
 function formatSetDate(raw?: string | null): string {
@@ -40,10 +44,8 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
   const [showSell, setShowSell] = useState(initialView === 'sell')
   const [showGift, setShowGift] = useState(initialView === 'gift')
   const [showMove, setShowMove] = useState(false)
-  const [isEditing, setIsEditing] = useState(false)
-  const [editPaid, setEditPaid] = useState('')
-  const [editFrom, setEditFrom] = useState('')
-  const [editLanguage, setEditLanguage] = useState<'EN' | 'JP' | 'CN'>(card?.language ?? 'EN')
+  const [showEdit, setShowEdit] = useState(false)
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
   const [editingTarget, setEditingTarget] = useState(false)
   const [editTarget, setEditTarget] = useState('')
 
@@ -87,10 +89,6 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
   }
   function handleShowcase() { setShowcase(card!.id) }
   function handleToWatch() { updateCard(card!.id, { status: 'wishlist' }); onClose() }
-  function handleMoveToPortfolio() {
-    updateCard(card!.id, { status: 'owned', condition: 'NM', price_paid: card!.target_price ?? card!.market_price, market_at_buy: card!.market_price })
-    onClose()
-  }
   function handleRemove() { removeCard(card!.id); onClose() }
   function startEditTarget() {
     setEditTarget(card!.target_price != null ? String(card!.target_price) : '')
@@ -100,24 +98,10 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
     updateCard(card!.id, { target_price: editTarget ? parseFloat(editTarget) : undefined })
     setEditingTarget(false)
   }
-  function startEdit() {
-    setEditPaid(card!.price_paid != null ? String(card!.price_paid) : '')
-    setEditFrom(card!.bought_from ?? '')
-    setEditLanguage(card!.language ?? 'EN')
-    setIsEditing(true)
-  }
-  function saveEdit() {
-    updateCard(card!.id, {
-      price_paid: editPaid ? parseFloat(editPaid) : undefined,
-      bought_from: editFrom.trim() || undefined,
-      language: editLanguage,
-    })
-    setIsEditing(false)
-  }
 
   return (
     <>
-      <Modal open={!!card && !showSell && !showGift && !showMove} onClose={onClose} maxWidth={520}>
+      <Modal open={!!card && !showSell && !showGift && !showMove && !showEdit} onClose={onClose} maxWidth={520}>
         <div style={{ position: 'relative' }}>
 
           {/* Close button */}
@@ -289,7 +273,7 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                   {formatPrice(Math.min(...priceHistory))} – {formatPrice(Math.max(...priceHistory))}
                 </span>
               </div>
-              <Sparkline points={priceHistory} color={sparkColor} height={38} />
+              <Sparkline points={priceHistory} color={sparkColor} height={80} />
             </div>
           )}
 
@@ -306,81 +290,35 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
           )}
 
           {/* ── MY PURCHASE (portfolio) ── */}
-          {view === 'portfolio' && (
-            isEditing ? (
-              <div style={{ marginBottom: 16, padding: '10px 12px', borderRadius: 8, background: 'var(--s2)', border: '1px solid rgba(93,169,255,0.25)' }}>
-                <p style={{ margin: '0 0 8px', fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>
-                  Edit Purchase
-                </p>
-                {/* Language */}
-                <div style={{ marginBottom: 8 }}>
-                  <label style={{ fontSize: 9, fontWeight: 700, color: 'var(--text3)', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>Language</label>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    {(['EN', 'JP', 'CN'] as const).map(lang => (
-                      <button key={lang} onClick={() => setEditLanguage(lang)} style={{
-                        flex: 1, padding: '5px 0', borderRadius: 7, fontSize: 11, fontWeight: 800,
-                        background: editLanguage === lang
-                          ? lang === 'JP' ? '#E53E3E' : lang === 'CN' ? '#C05621' : 'var(--sky)'
-                          : 'transparent',
-                        color: editLanguage === lang ? '#fff' : 'var(--text3)',
-                        border: editLanguage === lang ? 'none' : '1px solid var(--border)',
-                        cursor: 'pointer',
-                      }}>{lang}</button>
-                    ))}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                  <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: 9, fontWeight: 700, color: 'var(--text3)', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 3 }}>Price Paid</label>
-                    <div style={{ position: 'relative' }}>
-                      <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: 'var(--text3)', fontWeight: 700 }}>$</span>
-                      <input type="number" min="0" step="0.01" value={editPaid} onChange={e => setEditPaid(e.target.value)}
-                        style={{ width: '100%', paddingLeft: 18, paddingRight: 8, paddingTop: 7, paddingBottom: 7, borderRadius: 7, fontSize: 12, background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', outline: 'none', boxSizing: 'border-box' }} />
-                    </div>
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: 9, fontWeight: 700, color: 'var(--text3)', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 3 }}>From</label>
-                    <input type="text" placeholder="eBay, local…" value={editFrom} onChange={e => setEditFrom(e.target.value)}
-                      style={{ width: '100%', padding: '7px 8px', borderRadius: 7, fontSize: 12, background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', outline: 'none', boxSizing: 'border-box' }} />
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button onClick={saveEdit} style={{ flex: 1, padding: '7px', borderRadius: 7, fontSize: 11, fontWeight: 700, background: 'var(--sky)', color: '#0D0F1A', border: 'none', cursor: 'pointer' }}>Save</button>
-                  <button onClick={() => setIsEditing(false)} style={{ padding: '7px 12px', borderRadius: 7, fontSize: 11, fontWeight: 600, background: 'transparent', color: 'var(--text3)', border: '1px solid var(--border)', cursor: 'pointer' }}>Cancel</button>
-                </div>
+          {view === 'portfolio' && card.price_paid != null && (
+            <div style={{ marginBottom: 14 }}>
+              <p style={{ margin: '0 0 6px', fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>
+                My Purchase
+              </p>
+              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: profit != null ? 8 : 0 }}>
+                <MiniStat label="Paid"       value={formatPrice(card.price_paid)} />
+                {card.market_at_buy != null && <MiniStat label="Mkt at Buy" value={formatPrice(card.market_at_buy)} />}
+                {card.bought_from   && <MiniStat label="From"       value={card.bought_from} />}
+                {card.date_added    && <MiniStat label="Date"        value={formatDate(card.date_added)} />}
               </div>
-            ) : card.price_paid != null && (
-              <div style={{ marginBottom: 14 }}>
-                <p style={{ margin: '0 0 6px', fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>
-                  My Purchase
-                </p>
-                {/* Single row */}
-                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: profit != null ? 8 : 0 }}>
-                  <MiniStat label="Paid"       value={formatPrice(card.price_paid)} />
-                  {card.market_at_buy != null && <MiniStat label="Mkt at Buy" value={formatPrice(card.market_at_buy)} />}
-                  {card.bought_from   && <MiniStat label="From"       value={card.bought_from} />}
-                  {card.date_added    && <MiniStat label="Date"        value={formatDate(card.date_added)} />}
+              {profit != null && (
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '5px 10px', borderRadius: 7,
+                  background: profit >= 0 ? 'rgba(69,219,141,0.10)' : 'rgba(242,69,96,0.10)',
+                  border: `1px solid ${profit >= 0 ? 'rgba(69,219,141,0.22)' : 'rgba(242,69,96,0.22)'}`,
+                }}>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: profit >= 0 ? 'var(--emerald)' : 'var(--crimson)' }}>
+                    {profit >= 0 ? '▲' : '▼'} {formatPrice(Math.abs(profit))} unrealized
+                    {profitPct != null && (
+                      <span style={{ fontWeight: 600, opacity: 0.75, marginLeft: 4 }}>
+                        ({profitPct >= 0 ? '+' : ''}{profitPct.toFixed(1)}%)
+                      </span>
+                    )}
+                  </span>
                 </div>
-                {/* Gain/Loss banner */}
-                {profit != null && (
-                  <div style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                    padding: '5px 10px', borderRadius: 7,
-                    background: profit >= 0 ? 'rgba(69,219,141,0.10)' : 'rgba(242,69,96,0.10)',
-                    border: `1px solid ${profit >= 0 ? 'rgba(69,219,141,0.22)' : 'rgba(242,69,96,0.22)'}`,
-                  }}>
-                    <span style={{ fontSize: 12, fontWeight: 800, color: profit >= 0 ? 'var(--emerald)' : 'var(--crimson)' }}>
-                      {profit >= 0 ? '▲' : '▼'} {formatPrice(Math.abs(profit))} unrealized
-                      {profitPct != null && (
-                        <span style={{ fontWeight: 600, opacity: 0.75, marginLeft: 4 }}>
-                          ({profitPct >= 0 ? '+' : ''}{profitPct.toFixed(1)}%)
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )
+              )}
+            </div>
           )}
 
           {/* ── WHEN ADDED (wishlist) ── */}
@@ -471,30 +409,38 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                   ✓ Mark as Owned
                 </button>
                 {/* Secondary: TCG + alerts + remove */}
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <TcgLink url={tcgSearchUrl(card.name, card.set_name)} style={{
-                    flex: 1, padding: '7px 0', borderRadius: 8, fontSize: 11, fontWeight: 700,
-                    color: 'var(--text3)', background: 'transparent',
-                    border: '1px solid rgba(255,255,255,0.10)', textDecoration: 'none',
-                    textAlign: 'center', display: 'block',
-                  }}>↗ TCGPlayer</TcgLink>
-                  <button
-                    onClick={() => updateCard(card.id, { alerts_enabled: !card.alerts_enabled })}
-                    style={{
+                {showRemoveConfirm ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 8, background: 'rgba(242,69,96,0.08)', border: '1px solid rgba(242,69,96,0.22)' }}>
+                    <span style={{ flex: 1, fontSize: 11, color: 'var(--text3)' }}>Remove from wishlist?</span>
+                    <button onClick={handleRemove} style={{ padding: '5px 12px', borderRadius: 7, fontSize: 11, fontWeight: 700, background: 'linear-gradient(135deg, #F87171, #DC143C)', color: '#fff', border: 'none', cursor: 'pointer' }}>Remove</button>
+                    <button onClick={() => setShowRemoveConfirm(false)} style={{ padding: '5px 10px', borderRadius: 7, fontSize: 11, background: 'transparent', color: 'var(--text3)', border: '1px solid var(--border)', cursor: 'pointer' }}>Cancel</button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <TcgLink url={tcgSearchUrl(card.name, card.set_name)} style={{
                       flex: 1, padding: '7px 0', borderRadius: 8, fontSize: 11, fontWeight: 700,
-                      background: card.alerts_enabled ? 'rgba(255,200,69,0.12)' : 'transparent',
-                      color: card.alerts_enabled ? 'var(--gold)' : 'var(--text3)',
-                      border: `1px solid ${card.alerts_enabled ? 'rgba(255,200,69,0.30)' : 'rgba(255,255,255,0.10)'}`,
-                      cursor: 'pointer',
-                    }}>
-                    {card.alerts_enabled ? 'Alert On' : 'Alert Off'}
-                  </button>
-                  <button onClick={handleRemove} style={{
-                    width: 36, borderRadius: 8, fontSize: 14, fontWeight: 700,
-                    background: 'linear-gradient(135deg, #F87171, #DC143C)', color: '#fff',
-                    border: 'none', cursor: 'pointer',
-                  }}>✕</button>
-                </div>
+                      color: 'var(--text3)', background: 'transparent',
+                      border: '1px solid rgba(255,255,255,0.10)', textDecoration: 'none',
+                      textAlign: 'center', display: 'block',
+                    }}>↗ TCGPlayer</TcgLink>
+                    <button
+                      onClick={() => updateCard(card.id, { alerts_enabled: !card.alerts_enabled })}
+                      style={{
+                        flex: 1, padding: '7px 0', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                        background: card.alerts_enabled ? 'rgba(255,200,69,0.12)' : 'transparent',
+                        color: card.alerts_enabled ? 'var(--gold)' : 'var(--text3)',
+                        border: `1px solid ${card.alerts_enabled ? 'rgba(255,200,69,0.30)' : 'rgba(255,255,255,0.10)'}`,
+                        cursor: 'pointer',
+                      }}>
+                      {card.alerts_enabled ? 'Alert On' : 'Alert Off'}
+                    </button>
+                    <button onClick={() => setShowRemoveConfirm(true)} style={{
+                      width: 36, borderRadius: 8, fontSize: 14, fontWeight: 700,
+                      background: 'linear-gradient(135deg, #F87171, #DC143C)', color: '#fff',
+                      border: 'none', cursor: 'pointer',
+                    }}>✕</button>
+                  </div>
+                )}
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -513,17 +459,25 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                     }}>GIFT</button>
                   </div>
                 )}
-                {/* Row 2: Toggles (left) + utilities/destructive (right) */}
-                <div style={{ display: 'flex', gap: 6, justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <Btn label="Edit" onClick={startEdit} />
-                    <Btn label="↗ TCG" href={tcgSearchUrl(card.name, card.set_name ?? '')} />
+                {/* Row 2 */}
+                {showRemoveConfirm ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 9, background: 'rgba(242,69,96,0.08)', border: '1px solid rgba(242,69,96,0.22)' }}>
+                    <span style={{ flex: 1, fontSize: 11, color: 'var(--text3)' }}>Remove this card?</span>
+                    <button onClick={handleRemove} style={{ padding: '5px 12px', borderRadius: 7, fontSize: 11, fontWeight: 700, background: 'linear-gradient(135deg, #F87171, #DC143C)', color: '#fff', border: 'none', cursor: 'pointer' }}>Remove</button>
+                    <button onClick={() => setShowRemoveConfirm(false)} style={{ padding: '5px 10px', borderRadius: 7, fontSize: 11, background: 'transparent', color: 'var(--text3)', border: '1px solid var(--border)', cursor: 'pointer' }}>Cancel</button>
                   </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <Btn label="↩ Watch" onClick={handleToWatch} />
-                    <Btn label="✕" gradient="linear-gradient(135deg, #F87171, #DC143C)" onClick={handleRemove} />
+                ) : (
+                  <div style={{ display: 'flex', gap: 6, justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <Btn label="Edit" onClick={() => setShowEdit(true)} />
+                      <Btn label="↗ TCG" href={tcgSearchUrl(card.name, card.set_name ?? '')} />
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <Btn label="↩ Watch" onClick={handleToWatch} />
+                      <Btn label="✕" gradient="linear-gradient(135deg, #F87171, #DC143C)" onClick={() => setShowRemoveConfirm(true)} />
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
           </div>
@@ -534,6 +488,11 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
         <MoveToPortfolioModal card={card}
           onClose={() => { setShowMove(false); onClose() }}
           onBack={() => setShowMove(false)} />
+      )}
+      {showEdit && (
+        <EditCardModal card={card}
+          onClose={() => { setShowEdit(false); onClose() }}
+          onBack={() => setShowEdit(false)} />
       )}
       {showSell && (
         <SellModal card={card} giftMode={false}

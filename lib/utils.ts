@@ -70,7 +70,7 @@ export function rarityWeight(rarity?: string | null): number {
   if (r.includes('hyper rare')) return 90
   if (r.includes('rainbow')) return 85
   if (r.includes('shiny ultra')) return 75
-  if (r.includes('illustration rare')) return 70
+  if (r.includes('illustration rare')) return 80
   if (r.includes('secret')) return 70
   if (r.includes('ultra rare')) return 65
   if (r.includes('ace spec')) return 65
