@@ -54,11 +54,16 @@ function rarityGroupMatch(rarity: string | undefined, group: RarityGroup): boole
   }
 }
 
+function lsGet<T>(key: string, def: T): T {
+  if (typeof window === 'undefined') return def
+  try { const s = localStorage.getItem(key); return s != null ? JSON.parse(s) as T : def } catch { return def }
+}
+
 export default function BrowsePage() {
   const { cards } = useCollection()
   const [query, setQuery] = useState('')
-  const [sort, setSort] = useState<SortMode>('premium')
-  const [rarityGroup, setRarityGroup] = useState<RarityGroup>('all')
+  const [sort, setSort] = useState<SortMode>(() => lsGet('catchm_b_sort', 'premium'))
+  const [rarityGroup, setRarityGroup] = useState<RarityGroup>(() => lsGet('catchm_b_rarity', 'all'))
   const [showFilters, setShowFilters] = useState(false)
   const [setFilter, setSetFilter] = useState('')
   const [priceMin, setPriceMin] = useState('')
@@ -76,6 +81,8 @@ export default function BrowsePage() {
   const sentinelRef = useRef<HTMLDivElement>(null)
   const pageRef = useRef(page)
   useEffect(() => { pageRef.current = page }, [page])
+  useEffect(() => { try { localStorage.setItem('catchm_b_sort', JSON.stringify(sort)) } catch {} }, [sort])
+  useEffect(() => { try { localStorage.setItem('catchm_b_rarity', JSON.stringify(rarityGroup)) } catch {} }, [rarityGroup])
 
   // Save scroll on unmount, restore on mount when cache is warm
   useEffect(() => {

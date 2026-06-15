@@ -1,5 +1,5 @@
 'use client'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { Modal } from '@/components/ui/Modal'
 import { PortfolioTile } from '@/components/cards/CardTile'
@@ -41,15 +41,23 @@ function rarityGroupMatch(rarity: string | undefined, group: RarityGroup): boole
   }
 }
 
+function lsGet<T>(key: string, def: T): T {
+  if (typeof window === 'undefined') return def
+  try { const s = localStorage.getItem(key); return s != null ? JSON.parse(s) as T : def } catch { return def }
+}
+
 export default function WishlistPage() {
   const { cards, loading, removeCard } = useCollection()
   const [detailCardId, setDetailCardId] = useState<string | null>(null)
   const [showBudget, setShowBudget] = useState(false)
-  const [sort, setSort] = useState<WLSort>('rarity')
-  const [rarityGroup, setRarityGroup] = useState<RarityGroup>('all')
+  const [sort, setSort] = useState<WLSort>(() => lsGet('catchm_w_sort', 'rarity'))
+  const [rarityGroup, setRarityGroup] = useState<RarityGroup>(() => lsGet('catchm_w_rarity', 'all'))
   const [search, setSearch] = useState('')
   const [showFilter, setShowFilter] = useState(false)
   const [moveCard, setMoveCard] = useState<PokemonCard | null>(null)
+
+  useEffect(() => { try { localStorage.setItem('catchm_w_sort', JSON.stringify(sort)) } catch {} }, [sort])
+  useEffect(() => { try { localStorage.setItem('catchm_w_rarity', JSON.stringify(rarityGroup)) } catch {} }, [rarityGroup])
 
   const wishlistRaw = useMemo(() => cards.filter(c => c.status === 'wishlist'), [cards])
   const owned = useMemo(() => cards.filter(c => c.status === 'owned' || c.status === 'for_sale'), [cards])
@@ -88,6 +96,8 @@ export default function WishlistPage() {
     [wishlistRaw, detailCardId]
   )
 
+  const filterCount = (sort !== 'rarity' ? 1 : 0) + (rarityGroup !== 'all' ? 1 : 0)
+
   if (loading) return <LoadingSkeleton />
 
   if (wishlistRaw.length === 0) {
@@ -111,100 +121,100 @@ export default function WishlistPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 animate-fade-in">
       {/* Header */}
-      {(() => {
-        const filterCount = (sort !== 'rarity' ? 1 : 0) + (rarityGroup !== 'all' ? 1 : 0)
-        return (
-          <>
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h1 className="text-2xl font-extrabold tracking-tight">Wishlist</h1>
-                <p className="text-sm mt-0.5" style={{ color: 'var(--text3)' }}>
-                  {wishlistRaw.length} cards · {formatPrice(totalMarket)} market value
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowFilter(f => !f)}
-                  className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold"
-                  style={{
-                    background: showFilter ? 'rgba(255,200,69,0.12)' : 'var(--surface)',
-                    border: `1px solid ${showFilter ? 'rgba(255,200,69,0.3)' : 'var(--border)'}`,
-                    color: showFilter ? 'var(--gold)' : 'var(--text2)',
-                  }}>
-                  <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" d="M3 5h18M7 10h10M11 15h2" />
-                  </svg>
-                  Filter
-                  {filterCount > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full text-xs font-black flex items-center justify-center"
-                      style={{ background: 'var(--gold)', color: '#000' }}>
-                      {filterCount}
-                    </span>
-                  )}
-                </button>
-                <button
-                  onClick={() => setShowBudget(true)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold"
-                  style={{ background: 'rgba(255,200,69,0.1)', color: 'var(--gold)', border: '1px solid rgba(255,200,69,0.2)' }}>
-                  Budget
-                </button>
-              </div>
-            </div>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight">Wishlist</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text3)' }}>
+            {wishlistRaw.length} cards · {formatPrice(totalMarket)} market value
+          </p>
+        </div>
+        <button
+          onClick={() => setShowBudget(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold"
+          style={{ background: 'rgba(255,200,69,0.1)', color: 'var(--gold)', border: '1px solid rgba(255,200,69,0.2)' }}>
+          Budget
+        </button>
+      </div>
 
-            {/* Search bar */}
-            <div className="flex items-center gap-2 px-4 py-3 rounded-xl mb-4"
-              style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"
-                style={{ color: 'var(--text3)' }}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Search your wishlist…"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="flex-1 bg-transparent outline-none text-sm"
-                style={{ color: 'var(--text)' }}
-              />
-              {search && (
-                <button onClick={() => setSearch('')} style={{ color: 'var(--text3)', fontSize: 14, lineHeight: 1 }}>✕</button>
-              )}
-            </div>
+      {/* Search + filter icon */}
+      <div className="flex gap-2 mb-4">
+        <div className="flex-1 flex items-center gap-2 px-4 py-3 rounded-xl"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"
+            style={{ color: 'var(--text3)' }}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search your wishlist…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="flex-1 bg-transparent outline-none text-sm"
+            style={{ color: 'var(--text)' }}
+          />
+          {search && (
+            <button onClick={() => setSearch('')} style={{ color: 'var(--text3)', fontSize: 14, lineHeight: 1 }}>✕</button>
+          )}
+        </div>
+        <button
+          onClick={() => setShowFilter(f => !f)}
+          style={{
+            width: 46, height: 46, borderRadius: 12, flexShrink: 0,
+            background: filterCount > 0 ? 'rgba(255,200,69,0.12)' : 'var(--surface)',
+            color: filterCount > 0 ? 'var(--gold)' : 'var(--text2)',
+            border: `1px solid ${filterCount > 0 ? 'rgba(255,200,69,0.30)' : 'var(--border)'}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            position: 'relative', cursor: 'pointer',
+          }}>
+          <svg width={18} height={18} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
+          </svg>
+          {filterCount > 0 && (
+            <span style={{
+              position: 'absolute', top: 6, right: 6,
+              minWidth: 14, height: 14, borderRadius: 7,
+              background: 'var(--gold)', color: '#0D0F1A',
+              fontSize: 8, fontWeight: 900, lineHeight: '14px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: '0 3px',
+            }}>
+              {filterCount}
+            </span>
+          )}
+        </button>
+      </div>
 
-            {/* Filter panel */}
-            {showFilter && (
-              <div className="rounded-2xl p-4 mb-5 space-y-4"
-                style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                <div>
-                  <p className="section-label mb-2">Sort</p>
-                  <div className="flex flex-wrap gap-2">
-                    {(Object.keys(WL_SORT_LABELS) as WLSort[]).map(k => (
-                      <button key={k} onClick={() => setSort(k)}
-                        className={`chip ${sort === k ? 'chip-active' : 'chip-default'}`}>
-                        {WL_SORT_LABELS[k]}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="section-label mb-2">Rarity</p>
-                  <div className="flex flex-wrap gap-2">
-                    {RARITY_GROUPS.map(({ key, label }) => (
-                      <button key={key} onClick={() => setRarityGroup(key)}
-                        className={`chip ${rarityGroup === key ? 'chip-active' : 'chip-default'}`}>
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </>
-        )
-      })()}
+      {/* Filter panel */}
+      {showFilter && (
+        <div className="rounded-2xl p-4 mb-5 space-y-4"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div>
+            <p className="section-label mb-2">Sort</p>
+            <div className="flex flex-wrap gap-2">
+              {(Object.keys(WL_SORT_LABELS) as WLSort[]).map(k => (
+                <button key={k} onClick={() => setSort(k)}
+                  className={`chip ${sort === k ? 'chip-active' : 'chip-default'}`}>
+                  {WL_SORT_LABELS[k]}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="section-label mb-2">Rarity</p>
+            <div className="flex flex-wrap gap-2">
+              {RARITY_GROUPS.map(({ key, label }) => (
+                <button key={key} onClick={() => setRarityGroup(key)}
+                  className={`chip ${rarityGroup === key ? 'chip-active' : 'chip-default'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Results count */}
-      {(search || rarityGroup !== 'all') && (
+      {wishlist.length !== wishlistRaw.length && (
         <p className="text-sm mb-4" style={{ color: 'var(--text3)' }}>
           {wishlist.length} of {wishlistRaw.length} cards
         </p>

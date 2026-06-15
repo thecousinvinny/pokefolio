@@ -318,19 +318,19 @@ export function PortfolioTile({ card, onClick, onLongPress, onSell, onGift, onAd
           <span style={{ fontSize: 17, fontWeight: 900, lineHeight: 1, color: 'var(--gold)' }}>
             {card.market_price != null ? formatPrice(card.market_price, true) : '—'}
           </span>
-          {!isWishlist && card.price_paid != null && card.market_price != null && (
+          {!isWishlist && card.price_paid != null && (
             <div style={{ textAlign: 'right', lineHeight: 1.25, flexShrink: 0 }}>
-              <span style={{ fontSize: 8, color: 'var(--text3)', display: 'block' }}>
-                pd {formatPrice(card.price_paid, true)}
-              </span>
-              {profitPct != null && (
+              {card.market_price != null && profitPct != null && (
                 <span style={{
-                  fontSize: 9, fontWeight: 800,
+                  fontSize: 9, fontWeight: 800, display: 'block',
                   color: profitPct >= 0 ? 'var(--emerald)' : 'var(--crimson)',
                 }}>
                   {profitPct >= 0 ? '+' : ''}{profitPct.toFixed(0)}%
                 </span>
               )}
+              <span style={{ fontSize: 8, color: 'var(--text3)', display: 'block' }}>
+                pd {formatPrice(card.price_paid, true)}
+              </span>
             </div>
           )}
         </div>
