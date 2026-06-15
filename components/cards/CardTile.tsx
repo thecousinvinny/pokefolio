@@ -2,6 +2,58 @@
 import { useState, useRef, memo } from 'react'
 import { formatPrice, tcgSearchUrl } from '@/lib/utils'
 import type { PokemonCard, TCGCard } from '@/types'
+
+function LangBadge({ lang }: { lang: 'JP' | 'CN' }) {
+  return (
+    <span style={{
+      fontSize: 7, fontWeight: 900, letterSpacing: '0.05em', color: '#fff',
+      background: lang === 'JP' ? '#E53E3E' : '#C05621',
+      padding: '1.5px 4px', borderRadius: 3, lineHeight: 1.4, flexShrink: 0,
+    }}>
+      {lang}
+    </span>
+  )
+}
+
+function FavShowcaseStar({ card, onFavorite, onShowcase }: {
+  card: PokemonCard; onFavorite?: () => void; onShowcase?: () => void
+}) {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const longPressed = useRef(false)
+
+  if (!onFavorite && !onShowcase) return null
+
+  const isFav = card.is_favorite
+  const isShow = card.is_showcase
+
+  return (
+    <span
+      onPointerDown={e => {
+        e.stopPropagation()
+        longPressed.current = false
+        if (onShowcase) {
+          timerRef.current = setTimeout(() => {
+            longPressed.current = true
+            onShowcase()
+          }, 500)
+        }
+      }}
+      onPointerUp={e => {
+        e.stopPropagation()
+        if (timerRef.current) clearTimeout(timerRef.current)
+        if (!longPressed.current && onFavorite) onFavorite()
+      }}
+      onPointerLeave={() => {
+        if (timerRef.current) clearTimeout(timerRef.current)
+      }}
+      style={{
+        fontSize: 13, lineHeight: 1, cursor: 'pointer', userSelect: 'none', flexShrink: 0,
+        color: isFav ? 'var(--gold)' : isShow ? 'var(--violet)' : 'rgba(255,255,255,0.25)',
+      }}>
+      {isFav ? '★' : isShow ? '◈' : '☆'}
+    </span>
+  )
+}
 import { CardArtwork, TypeBadge } from './CardArtwork'
 import { TcgLink } from '@/components/ui/TcgLink'
 
@@ -125,18 +177,19 @@ interface PortfolioTileProps {
   onGift?: (e: React.MouseEvent) => void
   onAddToPortfolio?: () => void
   onRemove?: () => void
+  onFavorite?: () => void
+  onShowcase?: () => void
   inCollection?: boolean
   selected?: boolean
 }
 
-export function PortfolioTile({ card, onClick, onLongPress, onSell, onGift, onAddToPortfolio, onRemove, inCollection, selected }: PortfolioTileProps) {
+export function PortfolioTile({ card, onClick, onLongPress, onSell, onGift, onAddToPortfolio, onRemove, onFavorite, onShowcase, inCollection, selected }: PortfolioTileProps) {
   const [pressed, setPressed] = useState(false)
   const [hovered, setHovered] = useState(false)
   const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const isWishlist = card.status === 'wishlist'
   const isHolo = isHoloRarity(card.rarity)
-  const isJP = card.language === 'JP'
   const delta = card.price_yesterday && card.market_price
     ? ((card.market_price - card.price_yesterday) / card.price_yesterday) * 100
     : null
@@ -190,18 +243,10 @@ export function PortfolioTile({ card, onClick, onLongPress, onSell, onGift, onAd
       <div style={{ position: 'relative', width: '100%', paddingTop: '139%' }}>
         <CardArtwork types={card.types} imageUrl={card.image_sm ?? undefined} imageAlt={card.name} isHolo={isHolo} />
 
-        {/* TL: JP badge / fav star */}
-        {(isJP || card.is_favorite || selected) && (
-          <div style={{ position: 'absolute', top: 7, left: 7, zIndex: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {selected && (
-              <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#0D0F1A', fontWeight: 900 }}>✓</div>
-            )}
-            {isJP && !selected && (
-              <span style={{ fontSize: 7.5, fontWeight: 900, color: '#fff', background: '#E53E3E', padding: '2px 5px', borderRadius: 4, lineHeight: 1.4 }}>JP</span>
-            )}
-            {card.is_favorite && !selected && (
-              <span style={{ fontSize: 14, lineHeight: 1, filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.7))', color: 'var(--gold)' }}>★</span>
-            )}
+        {/* TL: selected checkmark only */}
+        {selected && (
+          <div style={{ position: 'absolute', top: 7, left: 7, zIndex: 2 }}>
+            <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#0D0F1A', fontWeight: 900 }}>✓</div>
           </div>
         )}
 
@@ -228,8 +273,17 @@ export function PortfolioTile({ card, onClick, onLongPress, onSell, onGift, onAd
 
       {/* ── Info ── */}
       <div style={{ padding: '8px 10px 0' }}>
-        <div style={{ minHeight: 19, marginBottom: 5 }}>
+        {/* Rarity row: pill left, lang badge + star right */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 19, marginBottom: 5, gap: 4 }}>
           <RarityPill rarity={card.rarity} />
+          {card.status !== 'wishlist' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+              {(card.language === 'JP' || card.language === 'CN') && (
+                <LangBadge lang={card.language} />
+              )}
+              <FavShowcaseStar card={card} onFavorite={onFavorite} onShowcase={onShowcase} />
+            </div>
+          )}
         </div>
         <p style={{ margin: '0 0 2px', fontSize: 13, fontWeight: 700, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {card.name}

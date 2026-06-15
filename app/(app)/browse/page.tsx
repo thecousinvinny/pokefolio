@@ -28,19 +28,19 @@ function cacheValid(key: string) {
 }
 
 const SORT_OPTIONS: { key: SortMode; label: string }[] = [
-  { key: 'premium', label: '✨ Full Art First' },
-  { key: 'newest',  label: '🆕 Newest' },
-  { key: 'price-desc', label: '💰 Price ↓' },
-  { key: 'price-asc',  label: '💰 Price ↑' },
-  { key: 'alpha',      label: '🔤 A→Z' },
+  { key: 'premium',    label: 'Full Art First' },
+  { key: 'newest',     label: 'Newest' },
+  { key: 'price-desc', label: 'Price ↓' },
+  { key: 'price-asc',  label: 'Price ↑' },
+  { key: 'alpha',      label: 'A→Z' },
 ]
 
 const RARITY_GROUPS: { key: RarityGroup; label: string }[] = [
   { key: 'all',     label: 'All' },
-  { key: 'fullart', label: '✨ Full Art' },
-  { key: 'ultra',   label: '⭐ Ultra Rare' },
-  { key: 'holo',    label: '✦ Holo' },
-  { key: 'common',  label: '● Common' },
+  { key: 'fullart', label: 'Full Art' },
+  { key: 'ultra',   label: 'Ultra Rare' },
+  { key: 'holo',    label: 'Holo' },
+  { key: 'common',  label: 'Common' },
 ]
 
 function rarityGroupMatch(rarity: string | undefined, group: RarityGroup): boolean {

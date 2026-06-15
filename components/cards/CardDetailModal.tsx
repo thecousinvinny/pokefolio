@@ -8,6 +8,7 @@ import { useCollection } from '@/components/CollectionContext'
 import { formatPrice, formatDate, generatePriceHistory, tcgSearchUrl } from '@/lib/utils'
 import { conditionAdjustedValue, CONDITION_ORDER, CONDITION_LABELS, CONDITION_MULTIPLIERS } from '@/types'
 import { rarityColor, shortRarity } from '@/components/cards/CardTile'
+import { MoveToPortfolioModal } from '@/components/cards/MoveToPortfolioModal'
 import type { PokemonCard } from '@/types'
 
 function isHoloRarity(rarity?: string | null): boolean {
@@ -38,9 +39,11 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
   )
   const [showSell, setShowSell] = useState(initialView === 'sell')
   const [showGift, setShowGift] = useState(initialView === 'gift')
+  const [showMove, setShowMove] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editPaid, setEditPaid] = useState('')
   const [editFrom, setEditFrom] = useState('')
+  const [editLanguage, setEditLanguage] = useState<'EN' | 'JP' | 'CN'>(card?.language ?? 'EN')
   const [editingTarget, setEditingTarget] = useState(false)
   const [editTarget, setEditTarget] = useState('')
 
@@ -100,19 +103,21 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
   function startEdit() {
     setEditPaid(card!.price_paid != null ? String(card!.price_paid) : '')
     setEditFrom(card!.bought_from ?? '')
+    setEditLanguage(card!.language ?? 'EN')
     setIsEditing(true)
   }
   function saveEdit() {
     updateCard(card!.id, {
       price_paid: editPaid ? parseFloat(editPaid) : undefined,
       bought_from: editFrom.trim() || undefined,
+      language: editLanguage,
     })
     setIsEditing(false)
   }
 
   return (
     <>
-      <Modal open={!!card && !showSell && !showGift} onClose={onClose} maxWidth={520}>
+      <Modal open={!!card && !showSell && !showGift && !showMove} onClose={onClose} maxWidth={520}>
         <div style={{ position: 'relative' }}>
 
           {/* Close button */}
@@ -307,6 +312,23 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                 <p style={{ margin: '0 0 8px', fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>
                   Edit Purchase
                 </p>
+                {/* Language */}
+                <div style={{ marginBottom: 8 }}>
+                  <label style={{ fontSize: 9, fontWeight: 700, color: 'var(--text3)', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>Language</label>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {(['EN', 'JP', 'CN'] as const).map(lang => (
+                      <button key={lang} onClick={() => setEditLanguage(lang)} style={{
+                        flex: 1, padding: '5px 0', borderRadius: 7, fontSize: 11, fontWeight: 800,
+                        background: editLanguage === lang
+                          ? lang === 'JP' ? '#E53E3E' : lang === 'CN' ? '#C05621' : 'var(--sky)'
+                          : 'transparent',
+                        color: editLanguage === lang ? '#fff' : 'var(--text3)',
+                        border: editLanguage === lang ? 'none' : '1px solid var(--border)',
+                        cursor: 'pointer',
+                      }}>{lang}</button>
+                    ))}
+                  </div>
+                </div>
                 <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
                   <div style={{ flex: 1 }}>
                     <label style={{ fontSize: 9, fontWeight: 700, color: 'var(--text3)', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 3 }}>Price Paid</label>
@@ -441,7 +463,7 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
             {view === 'wishlist' ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {/* Primary: move to portfolio */}
-                <button onClick={handleMoveToPortfolio} style={{
+                <button onClick={() => setShowMove(true)} style={{
                   width: '100%', padding: '10px 0', borderRadius: 9, fontSize: 13, fontWeight: 700,
                   background: 'linear-gradient(135deg, #45DB8D, #00B4D8)', color: '#fff',
                   border: 'none', cursor: 'pointer',
@@ -465,7 +487,7 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                       border: `1px solid ${card.alerts_enabled ? 'rgba(255,200,69,0.30)' : 'rgba(255,255,255,0.10)'}`,
                       cursor: 'pointer',
                     }}>
-                    {card.alerts_enabled ? '🔔 Alerts On' : '🔕 Alerts Off'}
+                    {card.alerts_enabled ? 'Alert On' : 'Alert Off'}
                   </button>
                   <button onClick={handleRemove} style={{
                     width: 36, borderRadius: 8, fontSize: 14, fontWeight: 700,
@@ -494,16 +516,6 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                 {/* Row 2: Toggles (left) + utilities/destructive (right) */}
                 <div style={{ display: 'flex', gap: 6, justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', gap: 6 }}>
-                    <Btn
-                      label={card.is_favorite ? '★ Fav' : '☆ Fav'}
-                      color="var(--gold)" accentBg="rgba(255,200,69,0.10)"
-                      onClick={() => setFavorite(card.id)} active={card.is_favorite}
-                    />
-                    <Btn
-                      label="◈ Show"
-                      color="var(--violet)" accentBg="rgba(156,114,250,0.10)"
-                      onClick={handleShowcase} active={card.is_showcase}
-                    />
                     <Btn label="Edit" onClick={startEdit} />
                     <Btn label="↗ TCG" href={tcgSearchUrl(card.name, card.set_name ?? '')} />
                   </div>
@@ -518,6 +530,11 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
         </div>
       </Modal>
 
+      {showMove && (
+        <MoveToPortfolioModal card={card}
+          onClose={() => { setShowMove(false); onClose() }}
+          onBack={() => setShowMove(false)} />
+      )}
       {showSell && (
         <SellModal card={card} giftMode={false}
           onClose={() => { setShowSell(false); onClose() }}

@@ -9,23 +9,44 @@ import { formatPrice, rarityWeight } from '@/lib/utils'
 import type { PokemonCard } from '@/types'
 
 type SortKey = 'value' | 'gain' | 'rarity' | 'newest' | 'alpha'
+type RarityGroup = 'all' | 'fullart' | 'ultra' | 'holo' | 'common'
 
 const SORT_LABELS: Record<SortKey, string> = {
-  value:  '💰 Value',
-  gain:   '📈 Gain',
-  rarity: '✨ Rarity',
-  newest: '🆕 Newest',
-  alpha:  '🔤 A–Z',
+  value:  'Value',
+  gain:   'Gain',
+  rarity: 'Rarity',
+  newest: 'Newest',
+  alpha:  'A–Z',
+}
+
+const RARITY_GROUPS: { key: RarityGroup; label: string }[] = [
+  { key: 'all',     label: 'All' },
+  { key: 'fullart', label: 'Full Art' },
+  { key: 'ultra',   label: 'Ultra Rare' },
+  { key: 'holo',    label: 'Holo' },
+  { key: 'common',  label: 'Common' },
+]
+
+function rarityGroupMatch(rarity: string | undefined, group: RarityGroup): boolean {
+  const w = rarityWeight(rarity)
+  switch (group) {
+    case 'all':     return true
+    case 'fullart': return w >= 80
+    case 'ultra':   return w >= 50 && w < 80
+    case 'holo':    return w >= 30 && w < 50
+    case 'common':  return w < 30
+  }
 }
 
 export default function PortfolioPage() {
-  const { cards, loading } = useCollection()
+  const { cards, loading, setFavorite, setShowcase } = useCollection()
   const [sort, setSort] = useState<SortKey>('value')
+  const [rarityGroup, setRarityGroup] = useState<RarityGroup>('all')
+  const [search, setSearch] = useState('')
   const [groupBySet, setGroupBySet] = useState(false)
   const [detailCardId, setDetailCardId] = useState<string | null>(null)
   const [detailView, setDetailView] = useState<'detail' | 'sell' | 'gift'>('detail')
 
-  // Always pass the live card from context so FAV/SHOWCASE toggles reflect immediately
   const detailCard = useMemo(
     () => detailCardId ? (cards.find(c => c.id === detailCardId) ?? null) : null,
     [cards, detailCardId]
@@ -63,15 +84,25 @@ export default function PortfolioPage() {
     }
   }, [owned, sort])
 
+  const filtered = useMemo(() => {
+    let arr = sorted
+    if (rarityGroup !== 'all') arr = arr.filter(c => rarityGroupMatch(c.rarity, rarityGroup))
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      arr = arr.filter(c => c.name.toLowerCase().includes(q) || c.set_name.toLowerCase().includes(q))
+    }
+    return arr
+  }, [sorted, rarityGroup, search])
+
   const groups = useMemo(() => {
     const map = new Map<string, PokemonCard[]>()
-    for (const card of sorted) {
+    for (const card of filtered) {
       const g = map.get(card.set_name) ?? []
       g.push(card)
       map.set(card.set_name, g)
     }
     return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b))
-  }, [sorted])
+  }, [filtered])
 
   const totalValue = owned.reduce((s, c) => s + conditionAdjustedValue(c), 0)
 
@@ -80,14 +111,13 @@ export default function PortfolioPage() {
   if (owned.length === 0) {
     return (
       <div className="max-w-lg mx-auto px-4 py-20 text-center animate-fade-in">
-        <div className="text-6xl mb-5 opacity-30">📋</div>
         <h2 className="text-2xl font-extrabold mb-2">Your vault is empty</h2>
         <p className="text-sm mb-6" style={{ color: 'var(--text3)' }}>
           Find cards in the Browse tab and add them to your collection.
         </p>
         <Link href="/browse"
           className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm"
-          style={{ background: 'linear-gradient(135deg, var(--gold), var(--amber))', color: '#0D0F1A' }}>
+          style={{ background: 'linear-gradient(135deg, #FFE066, #FF9500)', color: '#fff' }}>
           Go to Browse →
         </Link>
       </div>
@@ -97,13 +127,33 @@ export default function PortfolioPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight">Portfolio</h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text3)' }}>
             {owned.length} cards · {formatPrice(totalValue)} total
           </p>
         </div>
+      </div>
+
+      {/* Search bar */}
+      <div className="flex items-center gap-2 px-4 py-3 rounded-xl mb-4"
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"
+          style={{ color: 'var(--text3)' }}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+        </svg>
+        <input
+          type="text"
+          placeholder="Search your portfolio…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="flex-1 bg-transparent outline-none text-sm"
+          style={{ color: 'var(--text)' }}
+        />
+        {search && (
+          <button onClick={() => setSearch('')} style={{ color: 'var(--text3)', fontSize: 14, lineHeight: 1 }}>✕</button>
+        )}
       </div>
 
       {/* Controls */}
@@ -114,6 +164,16 @@ export default function PortfolioPage() {
             <button key={k} onClick={() => setSort(k)}
               className={`chip ${sort === k ? 'chip-active' : 'chip-default'}`}>
               {SORT_LABELS[k]}
+            </button>
+          ))}
+        </div>
+
+        {/* Rarity filter */}
+        <div className="scroll-x flex gap-2">
+          {RARITY_GROUPS.map(({ key, label }) => (
+            <button key={key} onClick={() => setRarityGroup(key)}
+              className={`chip ${rarityGroup === key ? 'chip-active' : 'chip-default'}`}>
+              {label}
             </button>
           ))}
         </div>
@@ -134,6 +194,13 @@ export default function PortfolioPage() {
         </label>
       </div>
 
+      {/* Results count */}
+      {(search || rarityGroup !== 'all') && (
+        <p className="text-sm mb-4" style={{ color: 'var(--text3)' }}>
+          {filtered.length} of {owned.length} cards
+        </p>
+      )}
+
       {/* Grid / Groups */}
       {groupBySet ? (
         <div className="space-y-8">
@@ -145,15 +212,19 @@ export default function PortfolioPage() {
               onCardClick={c => openCard(c)}
               onSell={c => openCard(c, 'sell')}
               onGift={c => openCard(c, 'gift')}
+              onFavorite={c => setFavorite(c.id)}
+              onShowcase={c => setShowcase(c.id)}
             />
           ))}
         </div>
       ) : (
         <CardGrid
-          cards={sorted}
+          cards={filtered}
           onCardClick={c => openCard(c)}
           onSell={c => openCard(c, 'sell')}
           onGift={c => openCard(c, 'gift')}
+          onFavorite={c => setFavorite(c.id)}
+          onShowcase={c => setShowcase(c.id)}
         />
       )}
 
@@ -167,12 +238,14 @@ export default function PortfolioPage() {
   )
 }
 
-function SetSection({ setName, cards, onCardClick, onSell, onGift }: {
+function SetSection({ setName, cards, onCardClick, onSell, onGift, onFavorite, onShowcase }: {
   setName: string
   cards: PokemonCard[]
   onCardClick: (c: PokemonCard) => void
   onSell: (c: PokemonCard) => void
   onGift: (c: PokemonCard) => void
+  onFavorite: (c: PokemonCard) => void
+  onShowcase: (c: PokemonCard) => void
 }) {
   const setTotal = cards.reduce((s, c) => s + conditionAdjustedValue(c), 0)
   return (
@@ -183,16 +256,19 @@ function SetSection({ setName, cards, onCardClick, onSell, onGift }: {
           {formatPrice(setTotal)}
         </span>
       </div>
-      <CardGrid cards={cards} onCardClick={onCardClick} onSell={onSell} onGift={onGift} />
+      <CardGrid cards={cards} onCardClick={onCardClick} onSell={onSell} onGift={onGift}
+        onFavorite={onFavorite} onShowcase={onShowcase} />
     </div>
   )
 }
 
-function CardGrid({ cards, onCardClick, onSell, onGift }: {
+function CardGrid({ cards, onCardClick, onSell, onGift, onFavorite, onShowcase }: {
   cards: PokemonCard[]
   onCardClick: (c: PokemonCard) => void
   onSell: (c: PokemonCard) => void
   onGift: (c: PokemonCard) => void
+  onFavorite: (c: PokemonCard) => void
+  onShowcase: (c: PokemonCard) => void
 }) {
   return (
     <div className="grid gap-4"
@@ -204,7 +280,8 @@ function CardGrid({ cards, onCardClick, onSell, onGift }: {
             onClick={() => onCardClick(card)}
             onSell={e => { e.stopPropagation(); onSell(card) }}
             onGift={e => { e.stopPropagation(); onGift(card) }}
-            onLongPress={() => {}}
+            onFavorite={() => onFavorite(card)}
+            onShowcase={() => onShowcase(card)}
           />
         </div>
       ))}

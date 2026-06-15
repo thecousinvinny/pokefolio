@@ -35,7 +35,7 @@ export interface PokemonCard {
   rarity?: string
   image_sm?: string
   image_lg?: string
-  language?: 'EN' | 'JP'
+  language?: 'EN' | 'JP' | 'CN'
   flavor_text?: string
   set_printed_total?: number
   set_release_date?: string

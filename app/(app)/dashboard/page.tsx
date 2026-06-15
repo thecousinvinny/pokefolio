@@ -62,7 +62,7 @@ export default function DashboardPage() {
               <span className="text-base font-bold">Top Performers</span>
               <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
                 style={{ background: 'rgba(69,219,141,0.12)', color: 'var(--emerald)' }}>
-                📈 by gain
+                by gain
               </span>
             </div>
             {topPerformers.length === 0 ? (

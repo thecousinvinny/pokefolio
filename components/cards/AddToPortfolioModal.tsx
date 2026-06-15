@@ -18,12 +18,13 @@ export function AddToPortfolioModal({ card, onClose, defaultStatus = 'owned' }: 
   const today = new Date().toISOString().slice(0, 10)
 
   const [status, setStatus] = useState<'owned' | 'wishlist'>(defaultStatus)
-  const [language, setLanguage] = useState<'EN' | 'JP'>('EN')
+  const [language, setLanguage] = useState<'EN' | 'JP' | 'CN'>('EN')
   const [condition, setCondition] = useState<number>(0)
   const [pricePaid, setPricePaid] = useState('')
   const [boughtFrom, setBoughtFrom] = useState('')
   const [dateBought, setDateBought] = useState(today)
   const [targetPrice, setTargetPrice] = useState('')
+  const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
 
   const marketPrice = card ? getBestTCGPrice(card) : undefined
@@ -41,6 +42,7 @@ export function AddToPortfolioModal({ card, onClose, defaultStatus = 'owned' }: 
       market_at_buy: marketPrice,
       bought_from: status === 'owned' && boughtFrom.trim() ? boughtFrom.trim() : undefined,
       target_price: status === 'wishlist' && targetPrice ? parseFloat(targetPrice) : undefined,
+      notes: status === 'owned' && notes.trim() ? notes.trim() : undefined,
       alerts_enabled: status === 'wishlist',
       is_favorite: false,
       date_added: dateBought ? new Date(dateBought).toISOString() : new Date().toISOString(),
@@ -88,22 +90,22 @@ export function AddToPortfolioModal({ card, onClose, defaultStatus = 'owned' }: 
                   background: status === s ? (s === 'owned' ? 'var(--emerald)' : 'var(--violet)') : 'var(--s2)',
                   color: status === s ? (s === 'owned' ? '#0D0F1A' : '#fff') : 'var(--text2)',
                 }}>
-                {s === 'owned' ? '📋 Portfolio' : '♥ Wishlist'}
+                {s === 'owned' ? 'Portfolio' : 'Watchlist'}
               </button>
             ))}
           </div>
 
-          {/* JP / EN language toggle */}
+          {/* Language */}
           <div>
             <label className="section-label block mb-2">Language</label>
             <div className="flex gap-2">
-              {(['EN', 'JP'] as const).map(lang => (
+              {(['EN', 'JP', 'CN'] as const).map(lang => (
                 <button key={lang} onClick={() => setLanguage(lang)}
                   style={{
                     flex: 1, padding: '8px 0', borderRadius: 10,
                     fontSize: 13, fontWeight: 800, letterSpacing: '0.04em',
                     background: language === lang
-                      ? lang === 'JP' ? '#E53E3E' : 'var(--sky)'
+                      ? lang === 'JP' ? '#E53E3E' : lang === 'CN' ? '#C05621' : 'var(--sky)'
                       : 'var(--s2)',
                     color: language === lang ? '#fff' : 'var(--text2)',
                     border: 'none', cursor: 'pointer', transition: 'all 0.14s ease',
@@ -177,6 +179,21 @@ export function AddToPortfolioModal({ card, onClose, defaultStatus = 'owned' }: 
             </div>
           )}
 
+          {/* Notes (owned only) */}
+          {status === 'owned' && (
+            <div>
+              <label className="section-label block mb-1.5">Notes</label>
+              <textarea
+                placeholder="Optional notes…"
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                rows={2}
+                className="w-full px-3 py-2.5 rounded-xl text-sm outline-none resize-none"
+                style={{ background: 'var(--s2)', border: '1px solid var(--border)', color: 'var(--text)' }}
+              />
+            </div>
+          )}
+
           {/* Target price (wishlist) */}
           {status === 'wishlist' && (
             <div>
@@ -201,9 +218,9 @@ export function AddToPortfolioModal({ card, onClose, defaultStatus = 'owned' }: 
             className="w-full py-3.5 rounded-xl font-bold text-sm transition-opacity"
             style={{
               background: status === 'owned'
-                ? 'linear-gradient(135deg, var(--emerald), var(--sky))'
-                : 'linear-gradient(135deg, var(--violet), var(--sky))',
-              color: status === 'owned' ? '#0D0F1A' : '#fff',
+                ? 'linear-gradient(135deg, #45DB8D, #00B4D8)'
+                : 'linear-gradient(135deg, #C084FC, #7C3AED)',
+              color: '#fff',
               opacity: saving ? 0.7 : 1,
             }}>
             {saving ? 'Saving…' : status === 'owned' ? 'Add to Portfolio' : 'Add to Wishlist'}
