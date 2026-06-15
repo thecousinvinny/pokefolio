@@ -8,7 +8,7 @@ import { TcgLink } from '@/components/ui/TcgLink'
 import { Modal } from '@/components/ui/Modal'
 import { useCollection } from '@/components/CollectionContext'
 import { formatPrice, generatePriceHistory, rarityWeight, tcgSearchUrl } from '@/lib/utils'
-import { getBestTCGPrice, getBestTCGPriceTiers } from '@/types'
+import { getBestTCGPrice, getBestTCGPriceTiers, tcgCardToPortfolioCard } from '@/types'
 import type { TCGCard } from '@/types'
 
 type SortMode = 'premium' | 'newest' | 'price-desc' | 'price-asc' | 'alpha'
@@ -60,7 +60,7 @@ function lsGet<T>(key: string, def: T): T {
 }
 
 export default function BrowsePage() {
-  const { cards } = useCollection()
+  const { cards, addCard, removeCard } = useCollection()
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<SortMode>(() => lsGet('catchm_b_sort', 'premium'))
   const [rarityGroup, setRarityGroup] = useState<RarityGroup>(() => lsGet('catchm_b_rarity', 'all'))
@@ -230,7 +230,22 @@ export default function BrowsePage() {
 
   const handleCardClick = useCallback((card: TCGCard) => setDetailCard(card), [])
   const handleAddToPortfolio = useCallback((card: TCGCard) => { setAddTarget(card); setAddDefaultStatus('owned') }, [])
-  const handleAddToWishlist = useCallback((card: TCGCard) => { setAddTarget(card); setAddDefaultStatus('wishlist') }, [])
+  const handleToggleWishlist = useCallback((card: TCGCard) => {
+    const existing = cards.find(c => c.status === 'wishlist' && c.tcg_id === card.id)
+    if (existing) {
+      removeCard(existing.id)
+    } else {
+      addCard({
+        ...tcgCardToPortfolioCard(card),
+        status: 'wishlist',
+        condition: 'NM',
+        market_at_buy: getBestTCGPrice(card),
+        alerts_enabled: true,
+        is_favorite: false,
+        date_added: new Date().toISOString(),
+      })
+    }
+  }, [cards, addCard, removeCard])
 
   useEffect(() => {
     const el = sentinelRef.current
@@ -407,7 +422,7 @@ export default function BrowsePage() {
                   card={card}
                   onClick={handleCardClick}
                   onAddToPortfolio={handleAddToPortfolio}
-                  onAddToWishlist={handleAddToWishlist}
+                  onAddToWishlist={handleToggleWishlist}
                   inCollection={ownedTcgIds.has(card.id)}
                   inWishlist={wishlistTcgIds.has(card.id)}
                 />
@@ -432,7 +447,7 @@ export default function BrowsePage() {
           card={detailCard}
           onClose={() => setDetailCard(null)}
           onAddToPortfolio={() => { setAddTarget(detailCard); setAddDefaultStatus('owned'); setDetailCard(null) }}
-          onAddToWishlist={() => { setAddTarget(detailCard); setAddDefaultStatus('wishlist'); setDetailCard(null) }}
+          onAddToWishlist={() => handleToggleWishlist(detailCard)}
           inCollection={ownedTcgIds.has(detailCard.id)}
           inWishlist={wishlistTcgIds.has(detailCard.id)}
         />
@@ -569,13 +584,13 @@ function BrowseDetailModal({ card, onClose, onAddToPortfolio, onAddToWishlist, i
         <div style={{ paddingTop: 14, borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {/* Primary: Watchlist + CATCHM side by side */}
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={onAddToWishlist} disabled={inWishlist}
+            <button onClick={onAddToWishlist}
               style={{
                 flex: 1, padding: '9px 0', borderRadius: 9, fontSize: 12, fontWeight: 700,
                 background: inWishlist ? 'linear-gradient(135deg, #C084FC, #7C3AED)' : 'transparent',
                 color: inWishlist ? '#fff' : 'var(--text3)',
                 border: inWishlist ? 'none' : '1px solid rgba(255,255,255,0.10)',
-                cursor: inWishlist ? 'default' : 'pointer',
+                cursor: 'pointer',
               }}>
               {inWishlist ? '♥ In Wishlist' : '♥ Wishlist'}
             </button>

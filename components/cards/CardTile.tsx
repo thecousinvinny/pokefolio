@@ -444,14 +444,13 @@ function BrowseTileInner({ card, onClick, onAddToPortfolio, onAddToWishlist, inC
         {/* Wishlist heart */}
         <button
           onClick={e => { e.stopPropagation(); onAddToWishlist?.(card) }}
-          disabled={inWishlist}
           style={{
             width: 30, height: 30, borderRadius: 7, flexShrink: 0,
             background: inWishlist ? 'linear-gradient(135deg, #C084FC, #7C3AED)' : 'transparent',
             color: inWishlist ? '#fff' : 'rgba(255,255,255,0.30)',
             border: inWishlist ? 'none' : '1px solid rgba(255,255,255,0.14)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: inWishlist ? 'default' : 'pointer',
+            cursor: 'pointer',
           }}>
           <svg width={13} height={13} viewBox="0 0 24 24"
             fill={inWishlist ? 'currentColor' : 'none'}
