@@ -4,6 +4,14 @@ export function cn(...inputs: ClassValue[]) {
   return clsx(inputs)
 }
 
+// Builds a direct TCGPlayer search URL, bypassing the prices.pokemontcg.io
+// redirect service which adds 1-2 extra network hops before the page loads.
+export function tcgSearchUrl(name: string, setName?: string): string {
+  const params = new URLSearchParams({ q: name, productLineName: 'pokemon' })
+  if (setName) params.set('setName', setName)
+  return `https://www.tcgplayer.com/search/pokemon/product?${params}`
+}
+
 export function formatPrice(value: number, compact = false): string {
   if (compact && value >= 1000) {
     return `$${(value / 1000).toFixed(1)}k`

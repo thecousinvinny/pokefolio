@@ -5,7 +5,7 @@ import { Sparkline } from '@/components/ui/Sparkline'
 import { CardArtwork } from '@/components/cards/CardArtwork'
 import { TcgLink } from '@/components/ui/TcgLink'
 import { useCollection } from '@/components/CollectionContext'
-import { formatPrice, formatDate, generatePriceHistory } from '@/lib/utils'
+import { formatPrice, formatDate, generatePriceHistory, tcgSearchUrl } from '@/lib/utils'
 import { conditionAdjustedValue, CONDITION_ORDER, CONDITION_LABELS, CONDITION_MULTIPLIERS } from '@/types'
 import { rarityColor, shortRarity } from '@/components/cards/CardTile'
 import type { PokemonCard } from '@/types'
@@ -450,14 +450,12 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                 </button>
                 {/* Secondary: TCG + alerts + remove */}
                 <div style={{ display: 'flex', gap: 8 }}>
-                  {card.tcgplayer_url && (
-                    <TcgLink url={card.tcgplayer_url} style={{
-                      flex: 1, padding: '7px 0', borderRadius: 8, fontSize: 11, fontWeight: 700,
-                      color: 'var(--text3)', background: 'transparent',
-                      border: '1px solid rgba(255,255,255,0.10)', textDecoration: 'none',
-                      textAlign: 'center', display: 'block',
-                    }}>↗ TCGPlayer</TcgLink>
-                  )}
+                  <TcgLink url={tcgSearchUrl(card.name, card.set_name)} style={{
+                    flex: 1, padding: '7px 0', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                    color: 'var(--text3)', background: 'transparent',
+                    border: '1px solid rgba(255,255,255,0.10)', textDecoration: 'none',
+                    textAlign: 'center', display: 'block',
+                  }}>↗ TCGPlayer</TcgLink>
                   <button
                     onClick={() => updateCard(card.id, { alerts_enabled: !card.alerts_enabled })}
                     style={{
@@ -507,7 +505,7 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                       onClick={handleShowcase} active={card.is_showcase}
                     />
                     <Btn label="Edit" onClick={startEdit} />
-                    {card.tcgplayer_url && <Btn label="↗ TCG" href={card.tcgplayer_url} />}
+                    <Btn label="↗ TCG" href={tcgSearchUrl(card.name, card.set_name ?? '')} />
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
                     <Btn label="↩ Watch" onClick={handleToWatch} />

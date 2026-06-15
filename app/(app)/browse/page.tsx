@@ -7,7 +7,7 @@ import { Sparkline } from '@/components/ui/Sparkline'
 import { TcgLink } from '@/components/ui/TcgLink'
 import { Modal } from '@/components/ui/Modal'
 import { useCollection } from '@/components/CollectionContext'
-import { formatPrice, generatePriceHistory, rarityWeight } from '@/lib/utils'
+import { formatPrice, generatePriceHistory, rarityWeight, tcgSearchUrl } from '@/lib/utils'
 import { getBestTCGPrice, getBestTCGPriceTiers } from '@/types'
 import type { TCGCard } from '@/types'
 
@@ -575,14 +575,12 @@ function BrowseDetailModal({ card, onClose, onAddToPortfolio, onAddToWishlist, i
             </button>
           </div>
           {/* Secondary: TCG link, full width, subdued */}
-          {card.tcgplayer?.url && (
-            <TcgLink url={card.tcgplayer.url} style={{
-              display: 'block', textAlign: 'center',
-              padding: '7px 0', borderRadius: 8, fontSize: 11, fontWeight: 700,
-              color: 'var(--text3)', background: 'transparent',
-              border: '1px solid rgba(255,255,255,0.08)', textDecoration: 'none',
-            }}>↗ View on TCGPlayer</TcgLink>
-          )}
+          <TcgLink url={tcgSearchUrl(card.name, card.set.name)} style={{
+            display: 'block', textAlign: 'center',
+            padding: '7px 0', borderRadius: 8, fontSize: 11, fontWeight: 700,
+            color: 'var(--text3)', background: 'transparent',
+            border: '1px solid rgba(255,255,255,0.08)', textDecoration: 'none',
+          }}>↗ View on TCGPlayer</TcgLink>
         </div>
       </div>
     </Modal>

@@ -1,6 +1,6 @@
 'use client'
 import { useState, useRef, memo } from 'react'
-import { formatPrice } from '@/lib/utils'
+import { formatPrice, tcgSearchUrl } from '@/lib/utils'
 import type { PokemonCard, TCGCard } from '@/types'
 import { CardArtwork, TypeBadge } from './CardArtwork'
 import { TcgLink } from '@/components/ui/TcgLink'
@@ -378,25 +378,21 @@ function BrowseTileInner({ card, onClick, onAddToPortfolio, onAddToWishlist, inC
           </svg>
         </button>
 
-        {/* TCG external link */}
-        {card.tcgplayer?.url ? (
-          <TcgLink
-            url={card.tcgplayer.url}
-            style={{
-              width: 30, height: 30, borderRadius: 7, flexShrink: 0,
-              background: 'transparent',
-              border: '1px solid rgba(255,255,255,0.10)',
-              color: 'var(--text3)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              textDecoration: 'none',
-            }}>
-            <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-            </svg>
-          </TcgLink>
-        ) : (
-          <div style={{ width: 30, height: 30, flexShrink: 0 }} />
-        )}
+        {/* TCG external link — direct search URL, no redirect hop */}
+        <TcgLink
+          url={tcgSearchUrl(card.name, card.set?.name)}
+          style={{
+            width: 30, height: 30, borderRadius: 7, flexShrink: 0,
+            background: 'transparent',
+            border: '1px solid rgba(255,255,255,0.10)',
+            color: 'var(--text3)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            textDecoration: 'none',
+          }}>
+          <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+          </svg>
+        </TcgLink>
 
         {/* + CATCHM (fills remaining space) */}
         <button
