@@ -128,12 +128,12 @@ export default function PortfolioPage() {
       <div className="max-w-lg mx-auto px-4 py-20 text-center animate-fade-in">
         <h2 className="text-2xl font-extrabold mb-2">Your vault is empty</h2>
         <p className="text-sm mb-6" style={{ color: 'var(--text3)' }}>
-          Find cards in the Browse tab and add them to your collection.
+          Find cards in the FIND tab and add them to your collection.
         </p>
         <Link href="/browse"
           className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm"
           style={{ background: 'linear-gradient(135deg, #FFE066, #FF9500)', color: '#fff' }}>
-          Go to Browse →
+          Go to FIND →
         </Link>
       </div>
     )
@@ -143,7 +143,7 @@ export default function PortfolioPage() {
     <div className="max-w-5xl mx-auto px-4 py-8 animate-fade-in">
       {/* Header */}
       <div className="mb-5">
-        <h1 className="text-2xl font-extrabold tracking-tight">Portfolio</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight">CATCHM</h1>
         <p className="text-sm mt-0.5" style={{ color: 'var(--text3)' }}>
           {owned.length} cards · {formatPrice(totalValue)} total
         </p>

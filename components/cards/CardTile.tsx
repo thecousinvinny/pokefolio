@@ -482,7 +482,7 @@ function BrowseTileInner({ card, onClick, onAddToPortfolio, onAddToWishlist, inC
           style={{
             flex: 1, height: 30, borderRadius: 7,
             fontSize: 10, fontWeight: 800, letterSpacing: '0.03em',
-            background: 'linear-gradient(135deg, #FFE066, #FF9500)',
+            background: 'linear-gradient(135deg, #45DB8D, #00B4D8)',
             color: '#fff',
             border: 'none', cursor: 'pointer',
           }}>

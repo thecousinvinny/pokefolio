@@ -4,11 +4,11 @@ import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 
 const NAV = [
-  { href: '/dashboard', label: 'Dashboard', icon: DashIcon },
-  { href: '/browse',    label: 'Browse',    icon: BrowseIcon },
-  { href: '/wishlist',  label: 'Wishlist',  icon: WishlistIcon },
-  { href: '/portfolio', label: 'Portfolio', icon: PortfolioIcon },
-  { href: '/sold',      label: 'Sold',      icon: SoldIcon },
+  { href: '/dashboard', label: 'DASH',   icon: DashIcon },
+  { href: '/browse',    label: 'FIND',   icon: BrowseIcon },
+  { href: '/wishlist',  label: 'WISH',   icon: WishlistIcon },
+  { href: '/portfolio', label: 'CATCHM', icon: PortfolioIcon },
+  { href: '/sold',      label: 'LEDGER', icon: SoldIcon },
 ]
 
 export function AppShell({ children }: { children: React.ReactNode }) {

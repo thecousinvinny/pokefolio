@@ -105,12 +105,12 @@ export default function WishlistPage() {
       <div className="max-w-lg mx-auto px-4 py-20 text-center animate-fade-in">
         <h2 className="text-2xl font-extrabold mb-2">No cards on your wishlist</h2>
         <p className="text-sm mb-6" style={{ color: 'var(--text3)' }}>
-          Tap the heart on any card in Browse to track its price and set a target.
+          Tap the heart on any card in FIND to track its price and set a target.
         </p>
         <Link href="/browse"
           className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm"
           style={{ background: 'linear-gradient(135deg, #C084FC, #7C3AED)', color: '#fff' }}>
-          Go to Browse →
+          Go to FIND →
         </Link>
       </div>
     )
@@ -123,7 +123,7 @@ export default function WishlistPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight">Wishlist</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight">WISH</h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text3)' }}>
             {wishlistRaw.length} cards · {formatPrice(totalMarket)} market value
           </p>

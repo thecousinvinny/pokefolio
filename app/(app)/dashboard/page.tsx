@@ -24,7 +24,7 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6 animate-fade-in">
-      <h1 className="text-2xl font-extrabold tracking-tight">Dashboard</h1>
+      <h1 className="text-2xl font-extrabold tracking-tight">DASH</h1>
 
       {loading ? (
         <LoadingSkeleton />

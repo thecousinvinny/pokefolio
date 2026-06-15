@@ -52,7 +52,7 @@ export function AddToPortfolioModal({ card, onClose, defaultStatus = 'owned' }: 
   }
 
   return (
-    <Modal open={!!card} onClose={onClose} title={status === 'owned' ? 'Add to Portfolio' : 'Add to Wishlist'}>
+    <Modal open={!!card} onClose={onClose} title={status === 'owned' ? 'Add to CATCHM' : 'Add to WISH'}>
       {card && (
         <div className="space-y-4">
           {/* Card preview */}
@@ -209,7 +209,7 @@ export function AddToPortfolioModal({ card, onClose, defaultStatus = 'owned' }: 
               color: '#fff',
               opacity: saving ? 0.7 : 1,
             }}>
-            {saving ? 'Saving…' : status === 'owned' ? 'Add to Portfolio' : 'Add to Wishlist'}
+            {saving ? 'Saving…' : status === 'owned' ? 'Add to CATCHM' : 'Add to WISH'}
           </button>
         </div>
       )}

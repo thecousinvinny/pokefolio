@@ -21,6 +21,24 @@ let _browseScrollY = 0   // persists across tab switches; restored on remount
 type CacheEntry = { results: TCGCard[]; totalCount: number; hasMore: boolean; ts: number }
 const _browseCache = new Map<string, CacheEntry>()
 
+// Persists default browse across page refreshes / new tabs — 30-min TTL
+const BROWSE_LS_KEY = 'catchm_browse_default_v2'
+const LS_TTL_MS = 30 * 60 * 1000
+
+function lsGetDefault(): CacheEntry | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const s = localStorage.getItem(BROWSE_LS_KEY)
+    if (!s) return null
+    const e: CacheEntry = JSON.parse(s)
+    return Date.now() - e.ts < LS_TTL_MS ? e : null
+  } catch { return null }
+}
+
+function lsSaveDefault(e: CacheEntry) {
+  try { localStorage.setItem(BROWSE_LS_KEY, JSON.stringify(e)) } catch {}
+}
+
 function cacheKey(q: string, set: string) { return `${q}|${set}` }
 function cacheValid(key: string) {
   const e = _browseCache.get(key)
@@ -69,12 +87,28 @@ export default function BrowsePage() {
   const [priceMin, setPriceMin] = useState('')
   const [priceMax, setPriceMax] = useState('')
   const defaultKey = cacheKey('', '')
-  const [rawResults, setRawResults] = useState<TCGCard[]>(() => cacheValid(defaultKey) ? _browseCache.get(defaultKey)!.results : [])
-  const [loading, setLoading] = useState(!cacheValid(defaultKey))
+
+  // Compute initial data once: module cache (fastest) → localStorage → nothing
+  const [initState] = useState(() => {
+    if (cacheValid(defaultKey)) {
+      const c = _browseCache.get(defaultKey)!
+      return { results: c.results, hasMore: c.hasMore, totalCount: c.totalCount, ready: true }
+    }
+    const ls = lsGetDefault()
+    if (ls) {
+      // Warm the module cache so in-session navigation stays instant
+      _browseCache.set(defaultKey, { ...ls, ts: Date.now() })
+      return { results: ls.results, hasMore: ls.hasMore, totalCount: ls.totalCount, ready: true }
+    }
+    return { results: [] as TCGCard[], hasMore: false, totalCount: 0, ready: false }
+  })
+
+  const [rawResults, setRawResults] = useState<TCGCard[]>(initState.results)
+  const [loading, setLoading] = useState(!initState.ready)
   const [page, setPage] = useState(1)
-  const [hasMore, setHasMore] = useState(() => cacheValid(defaultKey) ? _browseCache.get(defaultKey)!.hasMore : false)
-  const [totalCount, setTotalCount] = useState(() => cacheValid(defaultKey) ? _browseCache.get(defaultKey)!.totalCount : 0)
-  const skipInitialLoad = useRef(cacheValid(defaultKey))
+  const [hasMore, setHasMore] = useState(initState.hasMore)
+  const [totalCount, setTotalCount] = useState(initState.totalCount)
+  const skipInitialLoad = useRef(initState.ready)
   const [addTarget, setAddTarget] = useState<TCGCard | null>(null)
   const [addDefaultStatus, setAddDefaultStatus] = useState<'owned' | 'wishlist'>('owned')
   const [detailCard, setDetailCard] = useState<TCGCard | null>(null)
@@ -135,7 +169,9 @@ export default function BrowsePage() {
       const key = cacheKey(q, set)
       setRawResults(prev => {
         const next = append ? [...prev, ...batch] : batch
-        _browseCache.set(key, { results: next, totalCount: data.totalCount ?? 0, hasMore: nextHasMore, ts: Date.now() })
+        const cEntry: CacheEntry = { results: next, totalCount: data.totalCount ?? 0, hasMore: nextHasMore, ts: Date.now() }
+        _browseCache.set(key, cEntry)
+        if (!q && !set) lsSaveDefault(cEntry)  // persist default browse for instant repeat loads
         return next
       })
       setTotalCount(data.totalCount ?? 0)
@@ -277,7 +313,7 @@ export default function BrowsePage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 animate-fade-in">
-      <h1 className="text-2xl font-extrabold tracking-tight mb-5">Browse</h1>
+      <h1 className="text-2xl font-extrabold tracking-tight mb-5">FIND</h1>
 
       {/* Search bar + icon-only filter button */}
       <div className="flex gap-2 mb-4">
@@ -592,12 +628,12 @@ function BrowseDetailModal({ card, onClose, onAddToPortfolio, onAddToWishlist, i
                 border: inWishlist ? 'none' : '1px solid rgba(255,255,255,0.10)',
                 cursor: 'pointer',
               }}>
-              {inWishlist ? '♥ In Wishlist' : '♥ Wishlist'}
+              {inWishlist ? '♥ In WISH' : '♥ WISH'}
             </button>
             <button onClick={onAddToPortfolio}
               style={{
                 flex: 1, padding: '9px 0', borderRadius: 9, fontSize: 12, fontWeight: 700,
-                background: 'linear-gradient(135deg, #FFE066, #FF9500)',
+                background: 'linear-gradient(135deg, #45DB8D, #00B4D8)',
                 color: '#fff',
                 border: 'none', cursor: 'pointer',
               }}>

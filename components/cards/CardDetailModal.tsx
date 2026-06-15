@@ -192,8 +192,8 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                         flex: 1, padding: '5px 0', borderRadius: 6,
                         fontSize: 10, fontWeight: 700,
                         border: `1px solid ${i === condition ? 'rgba(255,200,69,0.50)' : 'var(--border)'}`,
-                        background: i === condition ? 'rgba(255,200,69,0.12)' : 'transparent',
-                        color: i === condition ? 'var(--gold)' : 'var(--text3)',
+                        background: i === condition ? 'linear-gradient(135deg, #FFF9E0, #FFC845)' : 'transparent',
+                        color: i === condition ? '#0D0F1A' : 'var(--text3)',
                         cursor: 'pointer', transition: 'all 0.12s ease',
                       }}>
                         {c}
@@ -413,7 +413,7 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                   background: 'linear-gradient(135deg, #45DB8D, #00B4D8)', color: '#fff',
                   border: 'none', cursor: 'pointer',
                 }}>
-                  ✓ Mark as Owned
+                  + CATCHM
                 </button>
                 {/* Secondary: TCG + alerts + remove */}
                 {showRemoveConfirm ? (
@@ -434,12 +434,15 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                       onClick={() => updateCard(card.id, { alerts_enabled: !card.alerts_enabled })}
                       style={{
                         flex: 1, padding: '7px 0', borderRadius: 8, fontSize: 11, fontWeight: 700,
-                        background: card.alerts_enabled ? 'rgba(255,200,69,0.12)' : 'transparent',
-                        color: card.alerts_enabled ? 'var(--gold)' : 'var(--text3)',
-                        border: `1px solid ${card.alerts_enabled ? 'rgba(255,200,69,0.30)' : 'rgba(255,255,255,0.10)'}`,
+                        background: card.alerts_enabled ? 'linear-gradient(135deg, #FFFFFF, #FFC845)' : 'transparent',
+                        color: card.alerts_enabled ? '#0D0F1A' : 'rgba(255,200,69,0.45)',
+                        border: card.alerts_enabled ? 'none' : '1px solid rgba(255,200,69,0.20)',
                         cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}>
-                      {card.alerts_enabled ? 'Alert On' : 'Alert Off'}
+                      <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                      </svg>
                     </button>
                     <button onClick={() => setShowRemoveConfirm(true)} style={{
                       width: 36, borderRadius: 8, fontSize: 14, fontWeight: 700,
@@ -456,7 +459,7 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={() => setShowSell(true)} style={{
                       flex: 1, padding: '9px 0', borderRadius: 9, fontSize: 12, fontWeight: 700,
-                      background: 'linear-gradient(135deg, #F87171, #DC143C)', color: '#fff',
+                      background: 'linear-gradient(135deg, #F87171, #45DB8D)', color: '#fff',
                       border: 'none', cursor: 'pointer',
                     }}>SELL</button>
                     <button onClick={() => setShowGift(true)} style={{
@@ -480,7 +483,7 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                       <Btn label="↗ TCG" href={tcgSearchUrl(card.name, card.set_name ?? '')} />
                     </div>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <Btn label="↩ Watch" onClick={handleToWatch} />
+                      <Btn label="↩ WISH" onClick={handleToWatch} />
                       <Btn label="✕" gradient="linear-gradient(135deg, #F87171, #DC143C)" onClick={() => setShowRemoveConfirm(true)} />
                     </div>
                   </div>

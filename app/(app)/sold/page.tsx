@@ -24,7 +24,7 @@ export default function SoldPage() {
         <div className="text-6xl mb-5 opacity-30">📊</div>
         <h2 className="text-2xl font-extrabold mb-2">No sales yet</h2>
         <p className="text-sm" style={{ color: 'var(--text3)' }}>
-          When you sell a card from your Portfolio, your profit ledger appears here.
+          When you sell a card from CATCHM, your profit ledger appears here.
         </p>
       </div>
     )
@@ -32,7 +32,7 @@ export default function SoldPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6 animate-fade-in">
-      <h1 className="text-2xl font-extrabold tracking-tight">Sold / Traded</h1>
+      <h1 className="text-2xl font-extrabold tracking-tight">LEDGER</h1>
 
       {/* Summary card */}
       <div className="surface-card p-6">
