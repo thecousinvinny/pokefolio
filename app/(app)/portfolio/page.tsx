@@ -44,6 +44,7 @@ export default function PortfolioPage() {
   const [rarityGroup, setRarityGroup] = useState<RarityGroup>('all')
   const [search, setSearch] = useState('')
   const [groupBySet, setGroupBySet] = useState(false)
+  const [showFilter, setShowFilter] = useState(false)
   const [detailCardId, setDetailCardId] = useState<string | null>(null)
   const [detailView, setDetailView] = useState<'detail' | 'sell' | 'gift'>('detail')
 
@@ -127,72 +128,102 @@ export default function PortfolioPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight">Portfolio</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--text3)' }}>
-            {owned.length} cards · {formatPrice(totalValue)} total
-          </p>
-        </div>
-      </div>
+      {(() => {
+        const filterCount = (sort !== 'value' ? 1 : 0) + (rarityGroup !== 'all' ? 1 : 0) + (groupBySet ? 1 : 0)
+        return (
+          <>
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h1 className="text-2xl font-extrabold tracking-tight">Portfolio</h1>
+                <p className="text-sm mt-0.5" style={{ color: 'var(--text3)' }}>
+                  {owned.length} cards · {formatPrice(totalValue)} total
+                </p>
+              </div>
+              <button
+                onClick={() => setShowFilter(f => !f)}
+                className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold"
+                style={{
+                  background: showFilter ? 'rgba(255,200,69,0.12)' : 'var(--surface)',
+                  border: `1px solid ${showFilter ? 'rgba(255,200,69,0.3)' : 'var(--border)'}`,
+                  color: showFilter ? 'var(--gold)' : 'var(--text2)',
+                }}>
+                <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" d="M3 5h18M7 10h10M11 15h2" />
+                </svg>
+                Filter
+                {filterCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full text-xs font-black flex items-center justify-center"
+                    style={{ background: 'var(--gold)', color: '#000' }}>
+                    {filterCount}
+                  </span>
+                )}
+              </button>
+            </div>
 
-      {/* Search bar */}
-      <div className="flex items-center gap-2 px-4 py-3 rounded-xl mb-4"
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-        <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"
-          style={{ color: 'var(--text3)' }}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-        </svg>
-        <input
-          type="text"
-          placeholder="Search your portfolio…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="flex-1 bg-transparent outline-none text-sm"
-          style={{ color: 'var(--text)' }}
-        />
-        {search && (
-          <button onClick={() => setSearch('')} style={{ color: 'var(--text3)', fontSize: 14, lineHeight: 1 }}>✕</button>
-        )}
-      </div>
+            {/* Search bar */}
+            <div className="flex items-center gap-2 px-4 py-3 rounded-xl mb-4"
+              style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"
+                style={{ color: 'var(--text3)' }}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search your portfolio…"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="flex-1 bg-transparent outline-none text-sm"
+                style={{ color: 'var(--text)' }}
+              />
+              {search && (
+                <button onClick={() => setSearch('')} style={{ color: 'var(--text3)', fontSize: 14, lineHeight: 1 }}>✕</button>
+              )}
+            </div>
 
-      {/* Controls */}
-      <div className="space-y-3 mb-5">
-        {/* Sort chips */}
-        <div className="scroll-x flex gap-2">
-          {(Object.keys(SORT_LABELS) as SortKey[]).map(k => (
-            <button key={k} onClick={() => setSort(k)}
-              className={`chip ${sort === k ? 'chip-active' : 'chip-default'}`}>
-              {SORT_LABELS[k]}
-            </button>
-          ))}
-        </div>
-
-        {/* Rarity filter */}
-        <div className="scroll-x flex gap-2">
-          {RARITY_GROUPS.map(({ key, label }) => (
-            <button key={key} onClick={() => setRarityGroup(key)}
-              className={`chip ${rarityGroup === key ? 'chip-active' : 'chip-default'}`}>
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {/* Group by set toggle */}
-        <label className="flex items-center gap-3 cursor-pointer w-fit">
-          <div
-            className="relative w-10 h-6 rounded-full transition-colors"
-            style={{ background: groupBySet ? 'var(--gold)' : 'var(--s2)' }}
-            onClick={() => setGroupBySet(g => !g)}>
-            <div className="absolute top-1 w-4 h-4 rounded-full transition-transform"
-              style={{
-                background: groupBySet ? '#0D0F1A' : 'var(--text3)',
-                transform: groupBySet ? 'translateX(20px)' : 'translateX(4px)',
-              }} />
-          </div>
-          <span className="text-sm font-semibold">Group by set</span>
-        </label>
-      </div>
+            {/* Filter panel */}
+            {showFilter && (
+              <div className="rounded-2xl p-4 mb-5 space-y-4"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <div>
+                  <p className="section-label mb-2">Sort</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(Object.keys(SORT_LABELS) as SortKey[]).map(k => (
+                      <button key={k} onClick={() => setSort(k)}
+                        className={`chip ${sort === k ? 'chip-active' : 'chip-default'}`}>
+                        {SORT_LABELS[k]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="section-label mb-2">Rarity</p>
+                  <div className="flex flex-wrap gap-2">
+                    {RARITY_GROUPS.map(({ key, label }) => (
+                      <button key={key} onClick={() => setRarityGroup(key)}
+                        className={`chip ${rarityGroup === key ? 'chip-active' : 'chip-default'}`}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <div
+                    className="relative w-10 h-6 rounded-full transition-colors"
+                    style={{ background: groupBySet ? 'var(--gold)' : 'var(--s2)' }}
+                    onClick={() => setGroupBySet(g => !g)}>
+                    <div className="absolute top-1 w-4 h-4 rounded-full transition-transform"
+                      style={{
+                        background: groupBySet ? '#0D0F1A' : 'var(--text3)',
+                        transform: groupBySet ? 'translateX(20px)' : 'translateX(4px)',
+                      }} />
+                  </div>
+                  <span className="text-sm font-semibold">Group by set</span>
+                </label>
+              </div>
+            )}
+          </>
+        )
+      })()}
 
       {/* Results count */}
       {(search || rarityGroup !== 'all') && (

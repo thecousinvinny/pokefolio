@@ -14,7 +14,7 @@ export default function DashboardPage() {
   const totalCost = owned.reduce((s, c) => s + (c.price_paid ?? 0), 0)
   const unrealized = totalValue - totalCost
   const lifetimeEarned = sales.reduce((s, sale) => s + sale.net_profit, 0)
-  const favoriteCard = cards.find(c => c.is_favorite)
+  const showcaseCard = cards.find(c => c.is_showcase) ?? cards.find(c => c.is_favorite)
 
   // Top performers by unrealized profit
   const topPerformers = owned
@@ -49,11 +49,11 @@ export default function DashboardPage() {
             />
           </div>
 
-          {/* ── Favorite card ── */}
-          {favoriteCard ? (
-            <FavoriteSection card={favoriteCard} />
+          {/* ── Showcase card ── */}
+          {showcaseCard ? (
+            <ShowcaseSection card={showcaseCard} />
           ) : (
-            <FavoriteEmpty />
+            <ShowcaseEmpty />
           )}
 
           {/* ── Market movers ── */}
@@ -127,16 +127,16 @@ function StatCard({ label, value, icon, color }: { label: string; value: string;
   )
 }
 
-function FavoriteSection({ card }: { card: import('@/types').PokemonCard }) {
+function ShowcaseSection({ card }: { card: import('@/types').PokemonCard }) {
   const value = conditionAdjustedValue(card)
   return (
     <section>
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-base font-bold">Favorite Card</span>
-        <span className="text-gold">★</span>
+        <span className="text-base font-bold">Showcase</span>
+        <span style={{ color: '#fff', textShadow: '0 0 8px rgba(255,255,255,0.9)' }}>◈</span>
       </div>
       <div className="surface-card overflow-hidden"
-        style={{ border: '1px solid rgba(255,200,69,0.35)', boxShadow: '0 10px 40px rgba(255,200,69,0.15)' }}>
+        style={{ border: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 10px 40px rgba(255,255,255,0.06)' }}>
         <div className="relative w-full" style={{ paddingTop: '70%', background: 'var(--bg)' }}>
           {card.image_lg || card.image_sm ? (
             <Image
@@ -166,13 +166,13 @@ function FavoriteSection({ card }: { card: import('@/types').PokemonCard }) {
   )
 }
 
-function FavoriteEmpty() {
+function ShowcaseEmpty() {
   return (
     <div className="surface-card p-8 text-center">
-      <div className="text-4xl mb-3 opacity-40">★</div>
-      <p className="font-bold mb-1">No favorite yet</p>
+      <div className="text-4xl mb-3 opacity-40">◈</div>
+      <p className="font-bold mb-1">No showcase card yet</p>
       <p className="text-sm" style={{ color: 'var(--text3)' }}>
-        Long-press any card in your Portfolio or Wishlist to crown your favorite.
+        Long-press any card's star in Portfolio to set your showcase card.
       </p>
     </div>
   )

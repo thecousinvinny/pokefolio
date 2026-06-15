@@ -48,6 +48,7 @@ export default function WishlistPage() {
   const [sort, setSort] = useState<WLSort>('rarity')
   const [rarityGroup, setRarityGroup] = useState<RarityGroup>('all')
   const [search, setSearch] = useState('')
+  const [showFilter, setShowFilter] = useState(false)
   const [moveCard, setMoveCard] = useState<PokemonCard | null>(null)
 
   const wishlistRaw = useMemo(() => cards.filter(c => c.status === 'wishlist'), [cards])
@@ -110,60 +111,97 @@ export default function WishlistPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight">Wishlist</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--text3)' }}>
-            {wishlistRaw.length} cards · {formatPrice(totalMarket)} market value
-          </p>
-        </div>
-        <button
-          onClick={() => setShowBudget(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold"
-          style={{ background: 'rgba(255,200,69,0.1)', color: 'var(--gold)', border: '1px solid rgba(255,200,69,0.2)' }}>
-          Budget
-        </button>
-      </div>
+      {(() => {
+        const filterCount = (sort !== 'rarity' ? 1 : 0) + (rarityGroup !== 'all' ? 1 : 0)
+        return (
+          <>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h1 className="text-2xl font-extrabold tracking-tight">Wishlist</h1>
+                <p className="text-sm mt-0.5" style={{ color: 'var(--text3)' }}>
+                  {wishlistRaw.length} cards · {formatPrice(totalMarket)} market value
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowFilter(f => !f)}
+                  className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold"
+                  style={{
+                    background: showFilter ? 'rgba(255,200,69,0.12)' : 'var(--surface)',
+                    border: `1px solid ${showFilter ? 'rgba(255,200,69,0.3)' : 'var(--border)'}`,
+                    color: showFilter ? 'var(--gold)' : 'var(--text2)',
+                  }}>
+                  <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" d="M3 5h18M7 10h10M11 15h2" />
+                  </svg>
+                  Filter
+                  {filterCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full text-xs font-black flex items-center justify-center"
+                      style={{ background: 'var(--gold)', color: '#000' }}>
+                      {filterCount}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowBudget(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold"
+                  style={{ background: 'rgba(255,200,69,0.1)', color: 'var(--gold)', border: '1px solid rgba(255,200,69,0.2)' }}>
+                  Budget
+                </button>
+              </div>
+            </div>
 
-      {/* Search bar */}
-      <div className="flex items-center gap-2 px-4 py-3 rounded-xl mb-4"
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-        <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"
-          style={{ color: 'var(--text3)' }}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-        </svg>
-        <input
-          type="text"
-          placeholder="Search your wishlist…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="flex-1 bg-transparent outline-none text-sm"
-          style={{ color: 'var(--text)' }}
-        />
-        {search && (
-          <button onClick={() => setSearch('')} style={{ color: 'var(--text3)', fontSize: 14, lineHeight: 1 }}>✕</button>
-        )}
-      </div>
+            {/* Search bar */}
+            <div className="flex items-center gap-2 px-4 py-3 rounded-xl mb-4"
+              style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"
+                style={{ color: 'var(--text3)' }}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search your wishlist…"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="flex-1 bg-transparent outline-none text-sm"
+                style={{ color: 'var(--text)' }}
+              />
+              {search && (
+                <button onClick={() => setSearch('')} style={{ color: 'var(--text3)', fontSize: 14, lineHeight: 1 }}>✕</button>
+              )}
+            </div>
 
-      {/* Sort + Rarity chips */}
-      <div className="space-y-2 mb-5">
-        <div className="scroll-x flex gap-2 pb-1">
-          {(Object.keys(WL_SORT_LABELS) as WLSort[]).map(k => (
-            <button key={k} onClick={() => setSort(k)}
-              className={`chip ${sort === k ? 'chip-active' : 'chip-default'}`} style={{ fontSize: 12 }}>
-              {WL_SORT_LABELS[k]}
-            </button>
-          ))}
-        </div>
-        <div className="scroll-x flex gap-2 pb-1">
-          {RARITY_GROUPS.map(({ key, label }) => (
-            <button key={key} onClick={() => setRarityGroup(key)}
-              className={`chip ${rarityGroup === key ? 'chip-active' : 'chip-default'}`} style={{ fontSize: 12 }}>
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
+            {/* Filter panel */}
+            {showFilter && (
+              <div className="rounded-2xl p-4 mb-5 space-y-4"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <div>
+                  <p className="section-label mb-2">Sort</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(Object.keys(WL_SORT_LABELS) as WLSort[]).map(k => (
+                      <button key={k} onClick={() => setSort(k)}
+                        className={`chip ${sort === k ? 'chip-active' : 'chip-default'}`}>
+                        {WL_SORT_LABELS[k]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="section-label mb-2">Rarity</p>
+                  <div className="flex flex-wrap gap-2">
+                    {RARITY_GROUPS.map(({ key, label }) => (
+                      <button key={key} onClick={() => setRarityGroup(key)}
+                        className={`chip ${rarityGroup === key ? 'chip-active' : 'chip-default'}`}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )
+      })()}
 
       {/* Results count */}
       {(search || rarityGroup !== 'all') && (

@@ -48,7 +48,8 @@ function FavShowcaseStar({ card, onFavorite, onShowcase }: {
       }}
       style={{
         fontSize: 13, lineHeight: 1, cursor: 'pointer', userSelect: 'none', flexShrink: 0,
-        color: isFav ? 'var(--gold)' : isShow ? 'var(--violet)' : 'rgba(255,255,255,0.25)',
+        color: isFav ? 'var(--gold)' : isShow ? '#fff' : 'rgba(255,255,255,0.25)',
+        textShadow: isShow ? '0 0 8px rgba(255,255,255,0.9), 0 0 16px rgba(255,255,255,0.5)' : undefined,
       }}>
       {isFav ? '★' : isShow ? '◈' : '☆'}
     </span>
@@ -63,15 +64,18 @@ export function rarityColor(rarity?: string | null): string {
   if (!rarity) return 'rgba(255,255,255,0.25)'
   const r = rarity.toLowerCase()
   if (r.includes('special illustration')) return '#FFC845'
-  if (r.includes('illustration rare'))    return '#D166F2'
   if (r.includes('hyper rare') || r.includes('rainbow')) return '#73D9D9'
-  if (r.includes('secret'))     return '#5DA9FF'
-  if (r.includes('vmax') || r.includes('vstar')) return '#FF9E2E'
-  if (r.includes('amazing'))    return '#73D9D9'
-  if (r.includes('ultra rare') || r.includes(' ex') || r.includes(' gx')) return '#FF9E2E'
-  if (r.includes('holo'))       return 'rgba(200,210,255,0.75)'
-  if (r === 'rare')             return 'rgba(255,255,255,0.55)'
-  if (r === 'uncommon')         return 'rgba(255,255,255,0.35)'
+  if (r.includes('shiny ultra'))          return '#73D9D9'
+  if (r.includes('illustration rare'))    return '#D166F2'
+  if (r.includes('secret'))              return '#5DA9FF'
+  if (r.includes('ultra rare') || r.includes('ace spec')) return '#FF9E2E'
+  if (r.includes('vmax') || r.includes('vstar') || r.includes('rare ultra')) return '#FF9E2E'
+  if (r.includes('double rare'))          return '#FF9E2E'
+  if (r.includes('shiny rare'))           return '#73D9D9'
+  if (r.includes('trainer gallery') || r.includes('amazing')) return '#9C72FA'
+  if (r.includes('holo'))                return 'rgba(200,210,255,0.75)'
+  if (r.includes('rare'))                return 'rgba(255,255,255,0.55)'
+  if (r.includes('uncommon'))            return 'rgba(255,255,255,0.35)'
   return 'rgba(255,255,255,0.22)'
 }
 
@@ -79,17 +83,24 @@ export function shortRarity(rarity?: string | null): string {
   if (!rarity) return 'Common'
   const r = rarity.toLowerCase()
   if (r.includes('special illustration')) return 'Spec Illus Rare'
-  if (r.includes('illustration rare')) return 'Illus Rare'
-  if (r.includes('hyper rare')) return 'Hyper Rare'
-  if (r.includes('rainbow')) return 'Rainbow Rare'
-  if (r.includes('secret rare')) return 'Secret Rare'
-  if (r.includes('ultra rare')) return 'Ultra Rare'
-  if (r.includes('amazing')) return 'Amazing Rare'
-  if (r.includes('vmax')) return 'VMAX'
-  if (r.includes('vstar')) return 'VSTAR'
-  if (r.includes('holo')) return 'Holo Rare'
-  if (r === 'rare') return 'Rare'
-  if (r === 'uncommon') return 'Uncommon'
+  if (r.includes('illustration rare'))    return 'Illus Rare'
+  if (r.includes('hyper rare'))           return 'Hyper Rare'
+  if (r.includes('rainbow'))              return 'Rainbow Rare'
+  if (r.includes('shiny ultra'))          return 'Shiny Ultra'
+  if (r.includes('shiny rare'))           return 'Shiny Rare'
+  if (r.includes('secret'))              return 'Secret Rare'
+  if (r.includes('ultra rare'))           return 'Ultra Rare'
+  if (r.includes('ace spec'))             return 'ACE SPEC'
+  if (r.includes('rare ultra'))           return 'Ultra Rare'
+  if (r.includes('double rare'))          return 'Double Rare'
+  if (r.includes('vmax'))                 return 'VMAX'
+  if (r.includes('vstar'))               return 'VSTAR'
+  if (r.includes('trainer gallery'))      return 'Trainer Gallery'
+  if (r.includes('amazing'))             return 'Amazing Rare'
+  if (r.includes('holo'))                return 'Holo Rare'
+  if (r.includes('promo'))               return 'Promo'
+  if (r.includes('rare'))                return 'Rare'
+  if (r.includes('uncommon'))            return 'Uncommon'
   return 'Common'
 }
 
@@ -98,7 +109,9 @@ function isHoloRarity(rarity?: string | null): boolean {
   const r = rarity.toLowerCase()
   return r.includes('holo') || r.includes('ultra') || r.includes('secret') ||
     r.includes('special') || r.includes('vmax') || r.includes('vstar') ||
-    r.includes(' ex') || r.includes(' gx')
+    r.includes('double rare') || r.includes('rare ultra') ||
+    r.includes('shiny') || r.includes('ace spec') ||
+    r.includes('illustration') || r.includes('hyper') || r.includes('rainbow')
 }
 
 function getBrowsePrice(card: TCGCard): number | undefined {

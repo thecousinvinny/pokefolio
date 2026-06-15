@@ -66,16 +66,24 @@ export function rarityGradient(rarity?: string): string {
 export function rarityWeight(rarity?: string | null): number {
   if (!rarity) return 0
   const r = rarity.toLowerCase()
-  if (r.includes('special illustration')) return 100
-  if (r.includes('hyper rare') || r.includes('rainbow')) return 90
-  if (r.includes('illustration rare')) return 80
+  if (r.includes('special illustration')) return 95
+  if (r.includes('hyper rare')) return 90
+  if (r.includes('rainbow')) return 85
+  if (r.includes('shiny ultra')) return 75
+  if (r.includes('illustration rare')) return 70
   if (r.includes('secret')) return 70
+  if (r.includes('ultra rare')) return 65
+  if (r.includes('ace spec')) return 65
   if (r.includes('vmax') || r.includes('vstar')) return 60
-  if (r.includes('ultra rare') || r.includes(' ex') || r.includes(' gx')) return 50
+  if (r.includes('rare ultra')) return 60
+  if (r.includes('double rare')) return 55
+  if (r.includes('shiny rare')) return 45
+  if (r.includes('trainer gallery')) return 40
   if (r.includes('amazing')) return 40
   if (r.includes('holo')) return 30
-  if (r === 'rare') return 20
-  if (r === 'uncommon') return 10
+  if (r.includes('promo')) return 15
+  if (r.includes('rare')) return 20
+  if (r.includes('uncommon')) return 10
   return 0
 }
 
