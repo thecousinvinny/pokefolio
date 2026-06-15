@@ -259,20 +259,20 @@ export function PortfolioTile({ card, onClick, onLongPress, onSell, onGift, onAd
         <div style={{ display: 'flex', gap: 5, padding: '8px 10px 10px' }}>
           <TileBtn
             label={inCollection ? '✓ In CATCHM' : '+ CATCHM'}
-            color="var(--gold)" bg="rgba(255,200,69,0.12)"
+            color="#fff" bg="linear-gradient(135deg, #FFE066, #FF9500)"
             onClick={e => { e.stopPropagation(); onAddToPortfolio?.() }}
             disabled={inCollection}
           />
           <TileBtn
             label="✕ Remove"
-            color="var(--crimson)" bg="rgba(242,69,96,0.10)"
+            color="#fff" bg="linear-gradient(135deg, #F87171, #DC143C)"
             onClick={e => { e.stopPropagation(); onRemove?.() }}
           />
         </div>
       ) : showSellGift ? (
         <div style={{ display: 'flex', gap: 5, padding: '8px 10px 10px' }}>
-          <TileBtn label="SELL" color="var(--crimson)" bg="rgba(242,69,96,0.10)" onClick={e => { e.stopPropagation(); onSell?.(e) }} />
-          <TileBtn label="GIFT" color="var(--violet)" bg="rgba(156,114,250,0.10)" onClick={e => { e.stopPropagation(); onGift?.(e) }} />
+          <TileBtn label="SELL" color="#fff" bg="linear-gradient(135deg, #F87171, #DC143C)" onClick={e => { e.stopPropagation(); onSell?.(e) }} />
+          <TileBtn label="GIFT" color="#fff" bg="linear-gradient(135deg, #C084FC, #7C3AED)" onClick={e => { e.stopPropagation(); onGift?.(e) }} />
         </div>
       ) : (
         <div style={{ height: 10 }} />
@@ -364,9 +364,9 @@ function BrowseTileInner({ card, onClick, onAddToPortfolio, onAddToWishlist, inC
           disabled={inWishlist}
           style={{
             width: 30, height: 30, borderRadius: 7, flexShrink: 0,
-            background: inWishlist ? 'rgba(156,114,250,0.14)' : 'transparent',
-            color: inWishlist ? 'var(--violet)' : 'var(--text3)',
-            border: `1px solid ${inWishlist ? 'rgba(156,114,250,0.30)' : 'rgba(255,255,255,0.10)'}`,
+            background: inWishlist ? 'rgba(156,114,250,0.14)' : 'linear-gradient(135deg, #C084FC, #7C3AED)',
+            color: '#fff',
+            border: inWishlist ? '1px solid rgba(156,114,250,0.30)' : 'none',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: inWishlist ? 'default' : 'pointer',
           }}>
@@ -401,8 +401,8 @@ function BrowseTileInner({ card, onClick, onAddToPortfolio, onAddToWishlist, inC
           style={{
             flex: 1, height: 30, borderRadius: 7,
             fontSize: 10, fontWeight: 800, letterSpacing: '0.03em',
-            background: inCollection ? 'rgba(255,200,69,0.08)' : 'var(--gold)',
-            color: inCollection ? 'rgba(255,200,69,0.35)' : '#0D0F1A',
+            background: inCollection ? 'rgba(255,200,69,0.08)' : 'linear-gradient(135deg, #FFE066, #FF9500)',
+            color: inCollection ? 'rgba(255,200,69,0.35)' : '#fff',
             border: 'none', cursor: inCollection ? 'default' : 'pointer',
           }}>
           {inCollection ? '✓ CATCHM' : '+ CATCHM'}

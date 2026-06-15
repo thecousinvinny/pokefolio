@@ -558,17 +558,18 @@ function BrowseDetailModal({ card, onClose, onAddToPortfolio, onAddToWishlist, i
             <button onClick={onAddToWishlist} disabled={inWishlist}
               style={{
                 flex: 1, padding: '9px 0', borderRadius: 9, fontSize: 12, fontWeight: 700,
-                background: inWishlist ? 'rgba(156,114,250,0.06)' : 'rgba(156,114,250,0.14)',
-                color: inWishlist ? 'rgba(156,114,250,0.40)' : 'var(--violet)',
-                border: '1px solid rgba(156,114,250,0.22)', cursor: inWishlist ? 'default' : 'pointer',
+                background: inWishlist ? 'rgba(156,114,250,0.06)' : 'linear-gradient(135deg, #C084FC, #7C3AED)',
+                color: inWishlist ? 'rgba(156,114,250,0.40)' : '#fff',
+                border: inWishlist ? '1px solid rgba(156,114,250,0.22)' : 'none',
+                cursor: inWishlist ? 'default' : 'pointer',
               }}>
               {inWishlist ? '♥ In Watchlist' : '♥ Watchlist'}
             </button>
             <button onClick={onAddToPortfolio} disabled={inCollection}
               style={{
                 flex: 1, padding: '9px 0', borderRadius: 9, fontSize: 12, fontWeight: 700,
-                background: inCollection ? 'rgba(255,200,69,0.08)' : 'var(--gold)',
-                color: inCollection ? 'rgba(255,200,69,0.40)' : '#0D0F1A',
+                background: inCollection ? 'rgba(255,200,69,0.08)' : 'linear-gradient(135deg, #FFE066, #FF9500)',
+                color: inCollection ? 'rgba(255,200,69,0.40)' : '#fff',
                 border: 'none', cursor: inCollection ? 'default' : 'pointer',
               }}>
               {inCollection ? '✓ In CATCHM' : '+ Add to CATCHM'}

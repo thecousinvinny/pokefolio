@@ -443,8 +443,8 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                 {/* Primary: move to portfolio */}
                 <button onClick={handleMoveToPortfolio} style={{
                   width: '100%', padding: '10px 0', borderRadius: 9, fontSize: 13, fontWeight: 700,
-                  background: 'rgba(69,219,141,0.14)', color: 'var(--emerald)',
-                  border: '1px solid rgba(69,219,141,0.25)', cursor: 'pointer',
+                  background: 'linear-gradient(135deg, #45DB8D, #00B4D8)', color: '#fff',
+                  border: 'none', cursor: 'pointer',
                 }}>
                   ✓ Mark as Owned
                 </button>
@@ -469,8 +469,8 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                   </button>
                   <button onClick={handleRemove} style={{
                     width: 36, borderRadius: 8, fontSize: 14, fontWeight: 700,
-                    background: 'rgba(242,69,96,0.10)', color: 'var(--crimson)',
-                    border: '1px solid rgba(242,69,96,0.20)', cursor: 'pointer',
+                    background: 'linear-gradient(135deg, #F87171, #DC143C)', color: '#fff',
+                    border: 'none', cursor: 'pointer',
                   }}>✕</button>
                 </div>
               </div>
@@ -481,13 +481,13 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={() => setShowSell(true)} style={{
                       flex: 1, padding: '9px 0', borderRadius: 9, fontSize: 12, fontWeight: 700,
-                      background: 'rgba(242,69,96,0.12)', color: 'var(--crimson)',
-                      border: '1px solid rgba(242,69,96,0.22)', cursor: 'pointer',
+                      background: 'linear-gradient(135deg, #F87171, #DC143C)', color: '#fff',
+                      border: 'none', cursor: 'pointer',
                     }}>SELL</button>
                     <button onClick={() => setShowGift(true)} style={{
                       flex: 1, padding: '9px 0', borderRadius: 9, fontSize: 12, fontWeight: 700,
-                      background: 'rgba(156,114,250,0.12)', color: 'var(--violet)',
-                      border: '1px solid rgba(156,114,250,0.22)', cursor: 'pointer',
+                      background: 'linear-gradient(135deg, #C084FC, #7C3AED)', color: '#fff',
+                      border: 'none', cursor: 'pointer',
                     }}>GIFT</button>
                   </div>
                 )}
@@ -509,7 +509,7 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
                     <Btn label="↩ Watch" onClick={handleToWatch} />
-                    <Btn label="✕" color="var(--crimson)" onClick={handleRemove} />
+                    <Btn label="✕" gradient="linear-gradient(135deg, #F87171, #DC143C)" onClick={handleRemove} />
                   </div>
                 </div>
               </div>
@@ -547,16 +547,16 @@ function Divider() {
   return <div style={{ width: 1, height: 16, background: 'var(--border)', flexShrink: 0 }} />
 }
 
-function Btn({ label, color = 'var(--text2)', accentBg, onClick, href, active, wide }: {
-  label: string; color?: string; accentBg?: string
+function Btn({ label, color = 'var(--text2)', accentBg, gradient, onClick, href, active, wide }: {
+  label: string; color?: string; accentBg?: string; gradient?: string
   onClick?: () => void; href?: string; active?: boolean; wide?: boolean
 }) {
   const style: React.CSSProperties = {
     padding: wide ? '6px 18px' : '6px 10px',
     borderRadius: 7, fontSize: 11, fontWeight: 800, letterSpacing: '0.03em',
-    color: active ? '#0D0F1A' : color,
-    background: active ? color : (accentBg ?? 'transparent'),
-    border: `1px solid ${active ? 'transparent' : 'rgba(255,255,255,0.10)'}`,
+    color: active ? '#0D0F1A' : (gradient ? '#fff' : color),
+    background: active ? color : (gradient ?? accentBg ?? 'transparent'),
+    border: (active || gradient) ? 'none' : '1px solid rgba(255,255,255,0.10)',
     cursor: 'pointer', textDecoration: 'none', display: 'inline-block',
     whiteSpace: 'nowrap', transition: 'all 0.12s ease', lineHeight: 1.4,
   }
