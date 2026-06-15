@@ -244,38 +244,45 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
               )}
             </div>
 
-            {/* NM Low / Mid / High row */}
-            {(card.market_low != null || card.market_mid != null || card.market_high != null || card.market_direct_low != null) && (
-              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                {([
-                  { label: 'NM Low',  val: card.market_low },
-                  { label: 'Mid',     val: card.market_mid },
-                  { label: 'High',    val: card.market_high },
-                  { label: 'Direct',  val: card.market_direct_low },
-                ] as { label: string; val: number | null | undefined }[]).filter(x => x.val != null).map(({ label, val }) => (
-                  <div key={label}>
-                    <p style={{ margin: 0, fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text3)' }}>{label}</p>
-                    <p style={{ margin: '1px 0 0', fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>{formatPrice(val!)}</p>
-                  </div>
-                ))}
-              </div>
-            )}
+            {/* NM Low / Mid / High row — always shown */}
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 8 }}>
+              {([
+                { label: 'NM Low', val: card.market_low },
+                { label: 'Mid',    val: card.market_mid },
+                { label: 'High',   val: card.market_high },
+              ] as { label: string; val: number | null | undefined }[]).map(({ label, val }) => (
+                <div key={label}>
+                  <p style={{ margin: 0, fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text3)' }}>{label}</p>
+                  <p style={{ margin: '1px 0 0', fontSize: 12, fontWeight: 700, color: val != null ? 'var(--text)' : 'var(--text3)' }}>{val != null ? formatPrice(val) : '—'}</p>
+                </div>
+              ))}
+              {card.market_direct_low != null && (
+                <div>
+                  <p style={{ margin: 0, fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text3)' }}>Direct</p>
+                  <p style={{ margin: '1px 0 0', fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>{formatPrice(card.market_direct_low)}</p>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* ── 30-DAY PRICE HISTORY ── */}
-          {priceHistory.length > 1 && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>
-                  30-Day Price
-                </span>
+          {/* ── 30-DAY PRICE HISTORY — always shown ── */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+              <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>
+                30-Day Price
+              </span>
+              {priceHistory.length > 1 && (
                 <span style={{ fontSize: 9, color: 'var(--text3)' }}>
                   {formatPrice(Math.min(...priceHistory))} – {formatPrice(Math.max(...priceHistory))}
                 </span>
-              </div>
-              <Sparkline points={priceHistory} color={sparkColor} height={80} />
+              )}
             </div>
-          )}
+            {priceHistory.length > 1 ? (
+              <Sparkline points={priceHistory} color={sparkColor} height={80} />
+            ) : (
+              <div style={{ height: 100, borderRadius: 8, background: 'var(--s2)', opacity: 0.4 }} />
+            )}
+          </div>
 
           {/* ── CARD LORE ── */}
           {card.flavor_text && (
@@ -289,17 +296,17 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
             </p>
           )}
 
-          {/* ── MY PURCHASE (portfolio) ── */}
-          {view === 'portfolio' && card.price_paid != null && (
+          {/* ── MY PURCHASE (portfolio) — always shown ── */}
+          {view === 'portfolio' && (
             <div style={{ marginBottom: 14 }}>
               <p style={{ margin: '0 0 6px', fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>
                 My Purchase
               </p>
               <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: profit != null ? 8 : 0 }}>
-                <MiniStat label="Paid"       value={formatPrice(card.price_paid)} />
-                {card.market_at_buy != null && <MiniStat label="Mkt at Buy" value={formatPrice(card.market_at_buy)} />}
-                {card.bought_from   && <MiniStat label="From"       value={card.bought_from} />}
-                {card.date_added    && <MiniStat label="Date"        value={formatDate(card.date_added)} />}
+                <MiniStat label="Paid"       value={card.price_paid != null ? formatPrice(card.price_paid) : '—'} />
+                <MiniStat label="Mkt at Buy" value={card.market_at_buy != null ? formatPrice(card.market_at_buy) : '—'} />
+                <MiniStat label="From"       value={card.bought_from || '—'} />
+                <MiniStat label="Date"       value={card.date_added ? formatDate(card.date_added) : '—'} />
               </div>
               {profit != null && (
                 <div style={{
@@ -321,15 +328,15 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
             </div>
           )}
 
-          {/* ── WHEN ADDED (wishlist) ── */}
-          {view === 'wishlist' && (card.market_at_buy != null || card.date_added) && (
+          {/* ── WHEN ADDED (wishlist) — always shown ── */}
+          {view === 'wishlist' && (
             <div style={{ marginBottom: 14 }}>
               <p style={{ margin: '0 0 6px', fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>
                 When Added
               </p>
               <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: wlDelta != null ? 8 : 0 }}>
-                {card.market_at_buy != null && <MiniStat label="Market at Add" value={formatPrice(card.market_at_buy)} />}
-                {card.date_added && <MiniStat label="Date Added" value={formatDate(card.date_added)} />}
+                <MiniStat label="Market at Add" value={card.market_at_buy != null ? formatPrice(card.market_at_buy) : '—'} />
+                <MiniStat label="Date Added"    value={card.date_added ? formatDate(card.date_added) : '—'} />
               </div>
               {wlDelta != null && (
                 <div style={{

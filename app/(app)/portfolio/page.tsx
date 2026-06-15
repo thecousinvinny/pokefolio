@@ -98,7 +98,7 @@ export default function PortfolioPage() {
 
   const filtered = useMemo(() => {
     let arr = sorted
-    if (favOnly) arr = arr.filter(c => c.is_favorite)
+    if (favOnly) arr = arr.filter(c => c.is_favorite || c.is_showcase)
     if (rarityGroup !== 'all') arr = arr.filter(c => rarityGroupMatch(c.rarity, rarityGroup))
     if (search.trim()) {
       const q = search.toLowerCase()

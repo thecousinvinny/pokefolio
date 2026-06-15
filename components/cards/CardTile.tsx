@@ -47,6 +47,7 @@ function FavShowcaseStar({ card, onFavorite, onShowcase }: {
       onPointerLeave={() => {
         if (timerRef.current) clearTimeout(timerRef.current)
       }}
+      onClick={e => e.stopPropagation()}
       style={{
         fontSize: 13, lineHeight: 1, cursor: 'pointer', userSelect: 'none', flexShrink: 0,
         color: isFav ? 'var(--gold)' : isShow ? '#fff' : 'rgba(255,255,255,0.25)',
