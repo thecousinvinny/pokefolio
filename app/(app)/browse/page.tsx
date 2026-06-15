@@ -390,7 +390,7 @@ export default function BrowsePage() {
       {/* Grid */}
       {loading && rawResults.length === 0 ? (
         <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
-          {[...Array(12)].map((_, i) => (
+          {[...Array(15)].map((_, i) => (
             <div key={`sk-${i}`} className="rounded-2xl img-skeleton" style={{ height: 280 }} />
           ))}
         </div>
@@ -526,32 +526,39 @@ function BrowseDetailModal({ card, onClose, onAddToPortfolio, onAddToWishlist, i
             </span>
             <span style={{ fontSize: 11, color: 'var(--text3)' }}>NM</span>
           </div>
-          {tiers && (tiers.low != null || tiers.mid != null || tiers.high != null || tiers.directLow != null) && (
-            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-              {([
-                { label: 'NM Low', val: tiers.low },
-                { label: 'Mid', val: tiers.mid },
-                { label: 'High', val: tiers.high },
-                { label: 'Direct', val: tiers.directLow },
-              ] as { label: string; val: number | undefined }[]).filter(x => x.val != null).map(({ label, val }) => (
-                <div key={label}>
-                  <p style={{ margin: 0, fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text3)' }}>{label}</p>
-                  <p style={{ margin: '1px 0 0', fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>{formatPrice(val!)}</p>
-                </div>
-              ))}
-            </div>
-          )}
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 8 }}>
+            {([
+              { label: 'NM Low', val: tiers?.low },
+              { label: 'Mid',    val: tiers?.mid },
+              { label: 'High',   val: tiers?.high },
+            ] as { label: string; val: number | undefined }[]).map(({ label, val }) => (
+              <div key={label}>
+                <p style={{ margin: 0, fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text3)' }}>{label}</p>
+                <p style={{ margin: '1px 0 0', fontSize: 12, fontWeight: 700, color: val != null ? 'var(--text)' : 'var(--text3)' }}>{val != null ? formatPrice(val) : '—'}</p>
+              </div>
+            ))}
+            {tiers?.directLow != null && (
+              <div>
+                <p style={{ margin: 0, fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text3)' }}>Direct</p>
+                <p style={{ margin: '1px 0 0', fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>{formatPrice(tiers.directLow)}</p>
+              </div>
+            )}
+          </div>
         </div>
 
-        {priceHistory.length > 1 && (
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-              <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>30-Day Price</span>
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)' }}>30-Day Price</span>
+            {priceHistory.length > 1 && (
               <span style={{ fontSize: 9, color: 'var(--text3)' }}>{formatPrice(Math.min(...priceHistory))} – {formatPrice(Math.max(...priceHistory))}</span>
-            </div>
-            <Sparkline points={priceHistory} color="var(--emerald)" height={80} />
+            )}
           </div>
-        )}
+          {priceHistory.length > 1 ? (
+            <Sparkline points={priceHistory} color="var(--emerald)" height={80} />
+          ) : (
+            <div style={{ height: 100, borderRadius: 8, background: 'var(--s2)', opacity: 0.4 }} />
+          )}
+        </div>
 
         {card.flavorText && (
           <p style={{ margin: '0 0 16px', fontSize: 11.5, lineHeight: 1.65, color: 'var(--text3)', fontStyle: 'italic', borderLeft: '2px solid var(--border2)', paddingLeft: 10 }}>
@@ -565,21 +572,21 @@ function BrowseDetailModal({ card, onClose, onAddToPortfolio, onAddToWishlist, i
             <button onClick={onAddToWishlist} disabled={inWishlist}
               style={{
                 flex: 1, padding: '9px 0', borderRadius: 9, fontSize: 12, fontWeight: 700,
-                background: inWishlist ? 'rgba(156,114,250,0.06)' : 'linear-gradient(135deg, #C084FC, #7C3AED)',
-                color: inWishlist ? 'rgba(156,114,250,0.40)' : '#fff',
-                border: inWishlist ? '1px solid rgba(156,114,250,0.22)' : 'none',
+                background: inWishlist ? 'linear-gradient(135deg, #C084FC, #7C3AED)' : 'transparent',
+                color: inWishlist ? '#fff' : 'var(--text3)',
+                border: inWishlist ? 'none' : '1px solid rgba(255,255,255,0.10)',
                 cursor: inWishlist ? 'default' : 'pointer',
               }}>
-              {inWishlist ? '♥ In Watchlist' : '♥ Watchlist'}
+              {inWishlist ? '♥ In Wishlist' : '♥ Wishlist'}
             </button>
-            <button onClick={onAddToPortfolio} disabled={inCollection}
+            <button onClick={onAddToPortfolio}
               style={{
                 flex: 1, padding: '9px 0', borderRadius: 9, fontSize: 12, fontWeight: 700,
-                background: inCollection ? 'rgba(255,200,69,0.08)' : 'linear-gradient(135deg, #FFE066, #FF9500)',
-                color: inCollection ? 'rgba(255,200,69,0.40)' : '#fff',
-                border: 'none', cursor: inCollection ? 'default' : 'pointer',
+                background: 'linear-gradient(135deg, #FFE066, #FF9500)',
+                color: '#fff',
+                border: 'none', cursor: 'pointer',
               }}>
-              {inCollection ? '✓ In CATCHM' : '+ Add to CATCHM'}
+              {inCollection ? '+ Add Another' : '+ Add to CATCHM'}
             </button>
           </div>
           {/* Secondary: TCG link, full width, subdued */}

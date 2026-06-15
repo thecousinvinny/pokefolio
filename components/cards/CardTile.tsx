@@ -447,9 +447,9 @@ function BrowseTileInner({ card, onClick, onAddToPortfolio, onAddToWishlist, inC
           disabled={inWishlist}
           style={{
             width: 30, height: 30, borderRadius: 7, flexShrink: 0,
-            background: inWishlist ? 'rgba(156,114,250,0.14)' : 'linear-gradient(135deg, #C084FC, #7C3AED)',
-            color: '#fff',
-            border: inWishlist ? '1px solid rgba(156,114,250,0.30)' : 'none',
+            background: inWishlist ? 'linear-gradient(135deg, #C084FC, #7C3AED)' : 'transparent',
+            color: inWishlist ? '#fff' : 'rgba(255,255,255,0.30)',
+            border: inWishlist ? 'none' : '1px solid rgba(255,255,255,0.14)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: inWishlist ? 'default' : 'pointer',
           }}>
@@ -480,15 +480,14 @@ function BrowseTileInner({ card, onClick, onAddToPortfolio, onAddToWishlist, inC
         {/* + CATCHM (fills remaining space) */}
         <button
           onClick={e => { e.stopPropagation(); onAddToPortfolio?.(card) }}
-          disabled={inCollection}
           style={{
             flex: 1, height: 30, borderRadius: 7,
             fontSize: 10, fontWeight: 800, letterSpacing: '0.03em',
-            background: inCollection ? 'rgba(255,200,69,0.08)' : 'linear-gradient(135deg, #FFE066, #FF9500)',
-            color: inCollection ? 'rgba(255,200,69,0.35)' : '#fff',
-            border: 'none', cursor: inCollection ? 'default' : 'pointer',
+            background: 'linear-gradient(135deg, #FFE066, #FF9500)',
+            color: '#fff',
+            border: 'none', cursor: 'pointer',
           }}>
-          {inCollection ? '✓ CATCHM' : '+ CATCHM'}
+          {inCollection ? '+ More' : '+ CATCHM'}
         </button>
       </div>
     </div>

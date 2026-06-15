@@ -81,20 +81,6 @@ export function AddToPortfolioModal({ card, onClose, defaultStatus = 'owned' }: 
             </div>
           </div>
 
-          {/* Portfolio / Wishlist toggle */}
-          <div className="flex gap-2">
-            {(['owned', 'wishlist'] as const).map(s => (
-              <button key={s} onClick={() => setStatus(s)}
-                className="flex-1 py-2.5 rounded-xl text-sm font-bold capitalize transition-all"
-                style={{
-                  background: status === s ? (s === 'owned' ? 'var(--emerald)' : 'var(--violet)') : 'var(--s2)',
-                  color: status === s ? (s === 'owned' ? '#0D0F1A' : '#fff') : 'var(--text2)',
-                }}>
-                {s === 'owned' ? 'Portfolio' : 'Watchlist'}
-              </button>
-            ))}
-          </div>
-
           {/* Language */}
           <div>
             <label className="section-label block mb-2">Language</label>
