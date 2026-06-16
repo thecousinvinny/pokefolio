@@ -94,7 +94,8 @@ function FloatingTabBar() {
               alignItems: 'center',
               justifyContent: 'center',
               textDecoration: 'none',
-              color: active ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.40)',
+              color: active ? '#ffffff' : 'rgba(255, 255, 255, 0.68)',
+              textShadow: '0 1px 4px rgba(0, 0, 0, 0.45)',
               transition: 'color 0.20s ease',
               WebkitTapHighlightColor: 'transparent',
               position: 'relative',
@@ -109,6 +110,7 @@ function FloatingTabBar() {
                 alignItems: 'center',
                 gap: 3,
                 padding: '8px 16px',
+                filter: 'drop-shadow(0 1px 4px rgba(0, 0, 0, 0.45))',
               }}>
               <Icon active={active} />
               <span style={{
