@@ -204,8 +204,8 @@ export function AddToPortfolioModal({ card, onClose, defaultStatus = 'owned' }: 
             className="w-full py-3.5 rounded-xl font-bold text-sm transition-opacity"
             style={{
               background: status === 'owned'
-                ? 'linear-gradient(135deg, #45DB8D, #00B4D8)'
-                : 'linear-gradient(135deg, #C084FC, #7C3AED)',
+                ? 'linear-gradient(135deg, #3DC888, #00A8CC)'
+                : 'linear-gradient(135deg, #B070E8, #6E30CC)',
               color: '#fff',
               opacity: saving ? 0.7 : 1,
             }}>

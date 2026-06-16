@@ -192,8 +192,8 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                         flex: 1, padding: '5px 0', borderRadius: 6,
                         fontSize: 10, fontWeight: 700,
                         border: `1px solid ${i === condition ? 'rgba(255,200,69,0.50)' : 'var(--border)'}`,
-                        background: i === condition ? 'linear-gradient(135deg, #FFF9E0, #FFC845)' : 'transparent',
-                        color: i === condition ? '#0D0F1A' : 'var(--text3)',
+                        background: i === condition ? 'linear-gradient(135deg, #F0B820, #C07808)' : 'transparent',
+                        color: i === condition ? '#fff' : 'var(--text3)',
                         cursor: 'pointer', transition: 'all 0.12s ease',
                       }}>
                         {c}
@@ -410,7 +410,7 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                 {/* Primary: move to portfolio */}
                 <button onClick={() => setShowMove(true)} style={{
                   width: '100%', padding: '10px 0', borderRadius: 9, fontSize: 13, fontWeight: 700,
-                  background: 'linear-gradient(135deg, #45DB8D, #00B4D8)', color: '#fff',
+                  background: 'linear-gradient(135deg, #3DC888, #00A8CC)', color: '#fff',
                   border: 'none', cursor: 'pointer',
                 }}>
                   + CATCHM
@@ -419,7 +419,7 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                 {showRemoveConfirm ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 8, background: 'rgba(242,69,96,0.08)', border: '1px solid rgba(242,69,96,0.22)' }}>
                     <span style={{ flex: 1, fontSize: 11, color: 'var(--text3)' }}>Remove from wishlist?</span>
-                    <button onClick={handleRemove} style={{ padding: '5px 12px', borderRadius: 7, fontSize: 11, fontWeight: 700, background: 'linear-gradient(135deg, #F87171, #DC143C)', color: '#fff', border: 'none', cursor: 'pointer' }}>Remove</button>
+                    <button onClick={handleRemove} style={{ padding: '5px 12px', borderRadius: 7, fontSize: 11, fontWeight: 700, background: 'linear-gradient(135deg, #E06060, #C01028)', color: '#fff', border: 'none', cursor: 'pointer' }}>Remove</button>
                     <button onClick={() => setShowRemoveConfirm(false)} style={{ padding: '5px 10px', borderRadius: 7, fontSize: 11, background: 'transparent', color: 'var(--text3)', border: '1px solid var(--border)', cursor: 'pointer' }}>Cancel</button>
                   </div>
                 ) : (
@@ -434,8 +434,8 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                       onClick={() => updateCard(card.id, { alerts_enabled: !card.alerts_enabled })}
                       style={{
                         flex: 1, padding: '7px 0', borderRadius: 8, fontSize: 11, fontWeight: 700,
-                        background: card.alerts_enabled ? 'linear-gradient(135deg, #FFFFFF, #FFC845)' : 'transparent',
-                        color: card.alerts_enabled ? '#0D0F1A' : 'rgba(255,200,69,0.45)',
+                        background: card.alerts_enabled ? 'linear-gradient(135deg, #F0B820, #C07808)' : 'transparent',
+                        color: card.alerts_enabled ? '#fff' : 'rgba(255,200,69,0.45)',
                         border: card.alerts_enabled ? 'none' : '1px solid rgba(255,200,69,0.20)',
                         cursor: 'pointer',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -446,7 +446,7 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                     </button>
                     <button onClick={() => setShowRemoveConfirm(true)} style={{
                       width: 36, borderRadius: 8, fontSize: 14, fontWeight: 700,
-                      background: 'linear-gradient(135deg, #F87171, #DC143C)', color: '#fff',
+                      background: 'linear-gradient(135deg, #E06060, #C01028)', color: '#fff',
                       border: 'none', cursor: 'pointer',
                     }}>✕</button>
                   </div>
@@ -459,12 +459,12 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={() => setShowSell(true)} style={{
                       flex: 1, padding: '9px 0', borderRadius: 9, fontSize: 12, fontWeight: 700,
-                      background: 'linear-gradient(135deg, #FFF9E0, #FFC845)', color: '#0D0F1A',
+                      background: 'linear-gradient(135deg, #F0B820, #C07808)', color: '#fff',
                       border: 'none', cursor: 'pointer',
                     }}>SELL</button>
                     <button onClick={() => setShowGift(true)} style={{
                       flex: 1, padding: '9px 0', borderRadius: 9, fontSize: 12, fontWeight: 700,
-                      background: 'linear-gradient(135deg, #C084FC, #7C3AED)', color: '#fff',
+                      background: 'linear-gradient(135deg, #B070E8, #6E30CC)', color: '#fff',
                       border: 'none', cursor: 'pointer',
                     }}>GIFT</button>
                   </div>
@@ -473,7 +473,7 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                 {showRemoveConfirm ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 9, background: 'rgba(242,69,96,0.08)', border: '1px solid rgba(242,69,96,0.22)' }}>
                     <span style={{ flex: 1, fontSize: 11, color: 'var(--text3)' }}>Remove this card?</span>
-                    <button onClick={handleRemove} style={{ padding: '5px 12px', borderRadius: 7, fontSize: 11, fontWeight: 700, background: 'linear-gradient(135deg, #F87171, #DC143C)', color: '#fff', border: 'none', cursor: 'pointer' }}>Remove</button>
+                    <button onClick={handleRemove} style={{ padding: '5px 12px', borderRadius: 7, fontSize: 11, fontWeight: 700, background: 'linear-gradient(135deg, #E06060, #C01028)', color: '#fff', border: 'none', cursor: 'pointer' }}>Remove</button>
                     <button onClick={() => setShowRemoveConfirm(false)} style={{ padding: '5px 10px', borderRadius: 7, fontSize: 11, background: 'transparent', color: 'var(--text3)', border: '1px solid var(--border)', cursor: 'pointer' }}>Cancel</button>
                   </div>
                 ) : (
@@ -484,7 +484,7 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                     </div>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <Btn label="↩ WISH" onClick={handleToWatch} />
-                      <Btn label="✕" gradient="linear-gradient(135deg, #F87171, #DC143C)" onClick={() => setShowRemoveConfirm(true)} />
+                      <Btn label="✕" gradient="linear-gradient(135deg, #E06060, #C01028)" onClick={() => setShowRemoveConfirm(true)} />
                     </div>
                   </div>
                 )}

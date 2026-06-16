@@ -342,20 +342,20 @@ export function PortfolioTile({ card, onClick, onLongPress, onSell, onGift, onAd
         <div style={{ display: 'flex', gap: 5, padding: '8px 10px 10px' }}>
           <TileBtn
             label={inCollection ? '✓ In CATCHM' : '+ CATCHM'}
-            color="#fff" bg="linear-gradient(135deg, #45DB8D, #00B4D8)"
+            color="#fff" bg="linear-gradient(135deg, #3DC888, #00A8CC)"
             onClick={e => { e.stopPropagation(); onAddToPortfolio?.() }}
             disabled={inCollection}
           />
           <TileBtn
             label="✕ Remove"
-            color="#fff" bg="linear-gradient(135deg, #F87171, #DC143C)"
+            color="#fff" bg="linear-gradient(135deg, #E06060, #C01028)"
             onClick={e => { e.stopPropagation(); onRemove?.() }}
           />
         </div>
       ) : showSellGift ? (
         <div style={{ display: 'flex', gap: 5, padding: '8px 10px 10px' }}>
-          <TileBtn label="SELL" color="#0D0F1A" bg="linear-gradient(135deg, #FFF9E0, #FFC845)" onClick={e => { e.stopPropagation(); onSell?.(e) }} />
-          <TileBtn label="GIFT" color="#fff" bg="linear-gradient(135deg, #C084FC, #7C3AED)" onClick={e => { e.stopPropagation(); onGift?.(e) }} />
+          <TileBtn label="SELL" color="#fff" bg="linear-gradient(135deg, #F0B820, #C07808)" onClick={e => { e.stopPropagation(); onSell?.(e) }} />
+          <TileBtn label="GIFT" color="#fff" bg="linear-gradient(135deg, #B070E8, #6E30CC)" onClick={e => { e.stopPropagation(); onGift?.(e) }} />
         </div>
       ) : (
         <div style={{ height: 10 }} />
@@ -446,7 +446,7 @@ function BrowseTileInner({ card, onClick, onAddToPortfolio, onAddToWishlist, inC
           onClick={e => { e.stopPropagation(); onAddToWishlist?.(card) }}
           style={{
             width: 30, height: 30, borderRadius: 7, flexShrink: 0,
-            background: inWishlist ? 'linear-gradient(135deg, #C084FC, #7C3AED)' : 'transparent',
+            background: inWishlist ? 'linear-gradient(135deg, #B070E8, #6E30CC)' : 'transparent',
             color: inWishlist ? '#fff' : 'rgba(255,255,255,0.30)',
             border: inWishlist ? 'none' : '1px solid rgba(255,255,255,0.14)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -482,7 +482,7 @@ function BrowseTileInner({ card, onClick, onAddToPortfolio, onAddToWishlist, inC
           style={{
             flex: 1, height: 30, borderRadius: 7,
             fontSize: 10, fontWeight: 800, letterSpacing: '0.03em',
-            background: 'linear-gradient(135deg, #45DB8D, #00B4D8)',
+            background: 'linear-gradient(135deg, #3DC888, #00A8CC)',
             color: '#fff',
             border: 'none', cursor: 'pointer',
           }}>

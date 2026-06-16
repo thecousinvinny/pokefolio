@@ -623,7 +623,7 @@ function BrowseDetailModal({ card, onClose, onAddToPortfolio, onAddToWishlist, i
             <button onClick={onAddToWishlist}
               style={{
                 flex: 1, padding: '9px 0', borderRadius: 9, fontSize: 12, fontWeight: 700,
-                background: inWishlist ? 'linear-gradient(135deg, #C084FC, #7C3AED)' : 'transparent',
+                background: inWishlist ? 'linear-gradient(135deg, #B070E8, #6E30CC)' : 'transparent',
                 color: inWishlist ? '#fff' : 'var(--text3)',
                 border: inWishlist ? 'none' : '1px solid rgba(255,255,255,0.10)',
                 cursor: 'pointer',
@@ -633,7 +633,7 @@ function BrowseDetailModal({ card, onClose, onAddToPortfolio, onAddToWishlist, i
             <button onClick={onAddToPortfolio}
               style={{
                 flex: 1, padding: '9px 0', borderRadius: 9, fontSize: 12, fontWeight: 700,
-                background: 'linear-gradient(135deg, #45DB8D, #00B4D8)',
+                background: 'linear-gradient(135deg, #3DC888, #00A8CC)',
                 color: '#fff',
                 border: 'none', cursor: 'pointer',
               }}>
