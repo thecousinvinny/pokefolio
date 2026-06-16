@@ -15,7 +15,7 @@ No test framework is configured. Type-check with `tsc --noEmit` after changes.
 
 ## What this app is
 
-CATCHM is a Pokémon TCG portfolio tracker. Five tabs: **Dashboard** (stats + favorite + top performers), **Browse** (search TCG API), **Portfolio** (owned cards), **Wishlist** (target prices + alerts), **Sold** (ledger + monthly chart). Primary targets are PC and iPad.
+CATCHM is a Pokémon TCG portfolio tracker. Five tabs: **DASH** (stats + favorite + top performers), **FIND** (search TCG API), **CATCHM** (owned cards), **WISH** (target prices + alerts), **LEDGER** (ledger + monthly chart). Primary targets are PC and iPad.
 
 ## Architecture
 
@@ -33,7 +33,7 @@ All TCG API calls go through internal Next.js routes to hide the optional API ke
 - `GET /api/tcg/search?q=&set=&type=&rarity=&page=&pageSize=` → `lib/tcg.ts:searchCardsFlexible`
 - `GET /api/tcg/card/[id]` → `lib/tcg.ts:getCard`
 
-`lib/tcg.ts` builds Lucene-style queries for `api.pokemontcg.io/v2`. Server-side revalidate is dynamic: 3600s for the default full-art browse (no query/set params), 300s for user searches. The `POKEMONTCG_API_KEY` env var is optional but raises rate limits.
+`lib/tcg.ts` builds Lucene-style queries for `api.pokemontcg.io/v2`. Server-side revalidate is dynamic: 3600s for the default full-art browse (no query/set params), 300s for user searches. The route handler adds matching `Cache-Control: public, s-maxage=…, stale-while-revalidate=…` response headers so the Vercel edge cache and browser cache responses directly. The `POKEMONTCG_API_KEY` env var is optional but raises rate limits.
 
 ### Route structure
 
@@ -73,7 +73,7 @@ CSS custom properties in `globals.css` and Tailwind colors in `tailwind.config.t
 
 `components/cards/CardTile.tsx` exports `PortfolioTile` (owned cards with condition, profit/loss, sparkles for holo) and `BrowseTile` (TCG search results with quick-add buttons). Both use `CardArtwork` internally and implement VAULT's 0.72 aspect-ratio artwork + info section layout. BrowseTile action row order: heart → TCG → +CATCHM.
 
-`components/layout/AppShell.tsx` renders a floating liquid-glass pill tab bar (not full-width, `left/right: 14px`). The active tab gets a frosted-glass capsule (`rgba(255,255,255,0.15)` + `blur(10px)` + `border-radius: 9999px`) that wraps both the icon and label together. The pill position is measured via `getBoundingClientRect()` on wrapper `div` refs and animated with a spring transition. Nav order: Dashboard → Browse → Wishlist → Portfolio → Sold.
+`components/layout/AppShell.tsx` renders a floating liquid-glass pill tab bar (not full-width, `left/right: 14px`). The active tab gets a frosted-glass capsule (`rgba(255,255,255,0.15)` + `blur(10px)` + `border-radius: 9999px`) that wraps both the icon and label together. The pill position is measured via `getBoundingClientRect()` on wrapper `div` refs and animated with a spring transition. Nav order: DASH → FIND → WISH → CATCHM → LEDGER.
 
 ### TCG links
 
@@ -85,9 +85,13 @@ TCGPlayer blocks iframes via `frame-ancestors` CSP — never try to embed it in 
 
 ### Browse page client cache
 
-`browse/page.tsx` keeps two module-level variables that survive tab navigation:
-- `_browseCache: Map<string, CacheEntry>` — keyed by `"query|set"`, TTL 10 min. Prevents API calls when returning to a cached state. Cache key is blank for the default full-art browse, so searching doesn't poison the default view.
-- `_browseScrollY: number` — saves scroll position on unmount, restored on remount via `requestAnimationFrame`.
+`browse/page.tsx` keeps a three-tier cache for the default full-art browse:
+
+1. **Module-level `_browseCache`** (`Map<string, CacheEntry>`, 10-min TTL) — survives tab navigation within the same session. Keyed by `"query|set"`. Blank key (`"|"`) is the default browse; searching never pollutes it.
+2. **`localStorage` key `catchm_browse_default_v2`** (30-min TTL) — survives page refreshes and new tabs. On mount, `initState` reads from LS if the module cache is cold, warms the module cache from it, and skips the initial API call entirely.
+3. **HTTP edge cache** — the route handler emits `Cache-Control: s-maxage=3600, stale-while-revalidate=86400` so Vercel's edge serves repeat requests without hitting Next.js.
+
+`_browseScrollY: number` — saves scroll position on unmount, restored on remount via `requestAnimationFrame`.
 
 Default sort (`premium`): SET date descending → full art (rarityWeight ≥ 80) → Pokémon → Trainer → price descending.
 
@@ -110,13 +114,13 @@ Single source of truth for data shapes:
 - `rarityWeight(rarity?)` — 0–100; ≥80 = full art (SIR=100, HyperRare=90, IllustrationRare=80)
 - `generatePriceHistory(currentPrice, points?)` — synthetic 30-day sparkline data
 
+### Filter-state persistence
+
+Portfolio, Wishlist, and Browse pages persist their filter/sort state to `localStorage` using a module-level `lsGet<T>(key, def)` helper (SSR-safe). Keys: `catchm_p_sort`, `catchm_p_rarity`, `catchm_p_group`, `catchm_p_favonly` (portfolio); `catchm_w_sort`, `catchm_w_rarity` (wishlist); `catchm_b_sort`, `catchm_b_rarity` (browse). Each is written in a dedicated `useEffect` and read via a `useState` lazy initializer.
+
 ### Images
 
-`next.config.ts` whitelists two remote image hosts: `images.pokemontcg.io` (TCG API card art) and `ydbcfvernfothrukmyty.supabase.co` (future user-uploaded images). Any other image domain requires adding a `remotePatterns` entry there.
-
-### Dead code
-
-`components/ui/WebSheet.tsx` — a full-screen iframe overlay component that was built to embed TCGPlayer in-app. Abandoned because TCGPlayer's CSP blocks all iframe embeds. The file still exists but nothing imports it.
+`next.config.ts` whitelists three remote image hosts: `images.pokemontcg.io` (TCG API card art), `ydbcfvernfothrukmyty.supabase.co` (future user-uploaded images), and `images.scrydex.com`. Any other image domain requires adding a `remotePatterns` entry there.
 
 ## Environment variables
 

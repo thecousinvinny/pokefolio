@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useCollection } from '@/components/CollectionContext'
@@ -9,18 +9,16 @@ import { formatPrice, formatPercent } from '@/lib/utils'
 export default function DashboardPage() {
   const { cards, sales, loading } = useCollection()
 
-  const owned = cards.filter(c => c.status === 'owned' || c.status === 'for_sale')
-  const totalValue = owned.reduce((s, c) => s + conditionAdjustedValue(c), 0)
-  const totalCost = owned.reduce((s, c) => s + (c.price_paid ?? 0), 0)
+  const owned = useMemo(() => cards.filter(c => c.status === 'owned' || c.status === 'for_sale'), [cards])
+  const totalValue = useMemo(() => owned.reduce((s, c) => s + conditionAdjustedValue(c), 0), [owned])
+  const totalCost = useMemo(() => owned.reduce((s, c) => s + (c.price_paid ?? 0), 0), [owned])
   const unrealized = totalValue - totalCost
-  const lifetimeEarned = sales.reduce((s, sale) => s + sale.net_profit, 0)
-  const showcaseCard = cards.find(c => c.is_showcase) ?? cards.find(c => c.is_favorite)
-
-  // Top performers by unrealized profit
-  const topPerformers = owned
+  const lifetimeEarned = useMemo(() => sales.reduce((s, sale) => s + sale.net_profit, 0), [sales])
+  const showcaseCard = useMemo(() => cards.find(c => c.is_showcase) ?? cards.find(c => c.is_favorite), [cards])
+  const topPerformers = useMemo(() => owned
     .filter(c => c.price_paid != null)
     .sort((a, b) => unrealizedProfit(b) - unrealizedProfit(a))
-    .slice(0, 3)
+    .slice(0, 3), [owned])
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6 animate-fade-in">

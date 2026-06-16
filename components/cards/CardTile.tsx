@@ -342,7 +342,7 @@ export function PortfolioTile({ card, onClick, onLongPress, onSell, onGift, onAd
         <div style={{ display: 'flex', gap: 5, padding: '8px 10px 10px' }}>
           <TileBtn
             label={inCollection ? '✓ In CATCHM' : '+ CATCHM'}
-            color="#fff" bg="linear-gradient(135deg, #FFE066, #FF9500)"
+            color="#fff" bg="linear-gradient(135deg, #45DB8D, #00B4D8)"
             onClick={e => { e.stopPropagation(); onAddToPortfolio?.() }}
             disabled={inCollection}
           />

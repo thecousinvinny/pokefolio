@@ -29,15 +29,12 @@ interface CollectionContextType {
   cards: PokemonCard[]
   sales: SaleRecord[]
   loading: boolean
-  refresh: () => void
   addCard: (card: Omit<PokemonCard, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => void
   updateCard: (id: string, updates: Partial<PokemonCard>) => void
   removeCard: (id: string) => void
   sellCard: (card: PokemonCard, payload: SellPayload) => void
-  giftCard: (card: PokemonCard) => void
   setFavorite: (id: string) => void
   setShowcase: (id: string) => void
-  toggleAlert: (id: string) => void
 }
 
 const CollectionContext = createContext<CollectionContextType | null>(null)
@@ -206,10 +203,6 @@ export function CollectionProvider({ children }: { children: ReactNode }) {
     })
   }, [supabase, userId, useLocalStorage])
 
-  const giftCard = useCallback((card: PokemonCard) => {
-    sellCard(card, { sold_price: 0, fees: 0, shipping: 0, sale_type: 'gift' })
-  }, [sellCard])
-
   const setFavorite = useCallback((id: string) => {
     const isFav = !!cardsRef.current.find(c => c.id === id)?.is_favorite
     updateCard(id, { is_favorite: !isFav })
@@ -220,22 +213,10 @@ export function CollectionProvider({ children }: { children: ReactNode }) {
     updateCard(id, { is_showcase: !isShow })
   }, [updateCard])
 
-  const toggleAlert = useCallback((id: string) => {
-    const card = cardsRef.current.find(c => c.id === id)
-    if (!card) return
-    const newVal = !card.alerts_enabled
-    setCards(prev => prev.map(c => c.id === id ? { ...c, alerts_enabled: newVal } : c))
-    if (!useLocalStorage && userId) {
-      supabase.from('pokemon_cards').update({ alerts_enabled: newVal }).eq('id', id)
-    }
-  }, [supabase, userId, useLocalStorage])
-
-  const refresh = useCallback(() => { load() }, [load])
-
   const value = useMemo(() => ({
-    cards, sales, loading, refresh,
-    addCard, updateCard, removeCard, sellCard, giftCard, setFavorite, setShowcase, toggleAlert,
-  }), [cards, sales, loading, refresh, addCard, updateCard, removeCard, sellCard, giftCard, setFavorite, setShowcase, toggleAlert])
+    cards, sales, loading,
+    addCard, updateCard, removeCard, sellCard, setFavorite, setShowcase,
+  }), [cards, sales, loading, addCard, updateCard, removeCard, sellCard, setFavorite, setShowcase])
 
   return (
     <CollectionContext.Provider value={value}>

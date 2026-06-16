@@ -47,7 +47,7 @@ export function MoveToPortfolioModal({ card, onClose, onBack }: MoveToPortfolioM
   const cond = CONDITION_ORDER[condition]
 
   return (
-    <Modal open title="Move to Portfolio" onClose={onClose} maxWidth={400}>
+    <Modal open title="Move to CATCHM" onClose={onClose} maxWidth={400}>
       <div className="space-y-4">
         {onBack && (
           <button onClick={onBack}
@@ -179,7 +179,7 @@ export function MoveToPortfolioModal({ card, onClose, onBack }: MoveToPortfolioM
             opacity: saving ? 0.7 : 1,
             cursor: saving ? 'default' : 'pointer',
           }}>
-          {saving ? 'Saving…' : 'Move to Portfolio'}
+          {saving ? 'Saving…' : 'Move to CATCHM'}
         </button>
       </div>
     </Modal>
