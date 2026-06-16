@@ -354,7 +354,7 @@ export function PortfolioTile({ card, onClick, onLongPress, onSell, onGift, onAd
         </div>
       ) : showSellGift ? (
         <div style={{ display: 'flex', gap: 5, padding: '8px 10px 10px' }}>
-          <TileBtn label="SELL" color="#fff" bg="linear-gradient(135deg, #F87171, #DC143C)" onClick={e => { e.stopPropagation(); onSell?.(e) }} />
+          <TileBtn label="SELL" color="#0D0F1A" bg="linear-gradient(135deg, #FFF9E0, #FFC845)" onClick={e => { e.stopPropagation(); onSell?.(e) }} />
           <TileBtn label="GIFT" color="#fff" bg="linear-gradient(135deg, #C084FC, #7C3AED)" onClick={e => { e.stopPropagation(); onGift?.(e) }} />
         </div>
       ) : (

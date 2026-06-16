@@ -459,7 +459,7 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={() => setShowSell(true)} style={{
                       flex: 1, padding: '9px 0', borderRadius: 9, fontSize: 12, fontWeight: 700,
-                      background: 'linear-gradient(135deg, #F87171, #45DB8D)', color: '#fff',
+                      background: 'linear-gradient(135deg, #FFF9E0, #FFC845)', color: '#0D0F1A',
                       border: 'none', cursor: 'pointer',
                     }}>SELL</button>
                     <button onClick={() => setShowGift(true)} style={{
