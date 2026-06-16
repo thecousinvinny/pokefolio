@@ -622,8 +622,8 @@ function BrowseDetailModal({ card, onClose, onAddToPortfolio, onAddToWishlist, i
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={onAddToWishlist}
               style={{
-                flex: 1, padding: '9px 0', borderRadius: 9, fontSize: 12, fontWeight: 700,
-                background: inWishlist ? 'linear-gradient(135deg, #B070E8, #6E30CC)' : 'transparent',
+                flex: 1, padding: '9px 0', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                background: inWishlist ? 'var(--btn-wishlist)' : 'transparent',
                 color: inWishlist ? '#fff' : 'var(--text3)',
                 border: inWishlist ? 'none' : '1px solid rgba(255,255,255,0.10)',
                 cursor: 'pointer',
@@ -632,20 +632,20 @@ function BrowseDetailModal({ card, onClose, onAddToPortfolio, onAddToWishlist, i
             </button>
             <button onClick={onAddToPortfolio}
               style={{
-                flex: 1, padding: '9px 0', borderRadius: 9, fontSize: 12, fontWeight: 700,
-                background: 'linear-gradient(135deg, #3DC888, #00A8CC)',
+                flex: 1, padding: '9px 0', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                background: 'var(--btn-catchm)',
                 color: '#fff',
                 border: 'none', cursor: 'pointer',
               }}>
               {inCollection ? '+ Add Another' : '+ Add to CATCHM'}
             </button>
           </div>
-          {/* Secondary: TCG link, full width, subdued */}
+          {/* Secondary: TCG link, full width */}
           <TcgLink url={tcgSearchUrl(card.name, card.set.name)} style={{
             display: 'block', textAlign: 'center',
             padding: '7px 0', borderRadius: 8, fontSize: 11, fontWeight: 700,
-            color: 'var(--text3)', background: 'transparent',
-            border: '1px solid rgba(255,255,255,0.08)', textDecoration: 'none',
+            color: '#fff', background: 'var(--btn-info)',
+            border: 'none', textDecoration: 'none',
           }}>↗ View on TCGPlayer</TcgLink>
         </div>
       </div>

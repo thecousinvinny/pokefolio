@@ -173,7 +173,7 @@ export function MoveToPortfolioModal({ card, onClose, onBack }: MoveToPortfolioM
           onClick={confirm} disabled={saving}
           className="w-full py-3.5 rounded-xl font-bold text-sm transition-opacity"
           style={{
-            background: 'linear-gradient(135deg, #3DC888, #00A8CC)',
+            background: 'var(--btn-catchm)',
             color: '#fff',
             border: 'none',
             opacity: saving ? 0.7 : 1,

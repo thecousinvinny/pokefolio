@@ -19,7 +19,43 @@
   --border: rgba(255, 255, 255, 0.08);
   --border2: rgba(255, 255, 255, 0.14);
   --sidebar-width: 220px;
+
+  /* CATCHM button gradient system */
+  --btn-catchm:   linear-gradient(135deg, #fb923c, #eab308);
+  --btn-wishlist: linear-gradient(135deg, #ec4899, #6D28D9);
+  --btn-sell:     linear-gradient(135deg, #10b981, #06b6d4);
+  --btn-info:     linear-gradient(135deg, #60a5fa, #a78bfa);
+  --btn-remove:   linear-gradient(135deg, #f43f5e, #7f1d1d);
+  --btn-disabled: linear-gradient(135deg, #4b5563, #374151);
 }
+
+.btn {
+  background: var(--btn-catchm);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 18px;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.btn:hover  { opacity: 0.88; }
+.btn:active { opacity: 0.75; transform: scale(0.98); }
+.btn:disabled {
+  background: var(--btn-disabled);
+  color: #9ca3af;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.btn-catchm   { background: var(--btn-catchm);   color: #fff; }
+.btn-wishlist { background: var(--btn-wishlist); color: #fff; }
+.btn-sell     { background: var(--btn-sell);     color: #fff; }
+.btn-info     { background: var(--btn-info);     color: #fff; }
+.btn-remove   { background: var(--btn-remove);   color: #fff; }
+.btn-disabled { background: var(--btn-disabled); color: #9ca3af; }
 
 * {
   box-sizing: border-box;

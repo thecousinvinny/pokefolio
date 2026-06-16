@@ -132,7 +132,7 @@ export default function PortfolioPage() {
         </p>
         <Link href="/browse"
           className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm"
-          style={{ background: 'linear-gradient(135deg, #F0B820, #C07808)', color: '#fff' }}>
+          style={{ background: 'var(--btn-catchm)', color: '#fff' }}>
           Go to FIND →
         </Link>
       </div>

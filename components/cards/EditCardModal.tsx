@@ -174,7 +174,7 @@ export function EditCardModal({ card, onClose, onBack }: EditCardModalProps) {
           onClick={save} disabled={saving}
           className="w-full py-3.5 rounded-xl font-bold text-sm transition-opacity"
           style={{
-            background: 'linear-gradient(135deg, #54A0F0, #9068E8)',
+            background: 'var(--btn-info)',
             color: '#fff',
             border: 'none',
             opacity: saving ? 0.7 : 1,

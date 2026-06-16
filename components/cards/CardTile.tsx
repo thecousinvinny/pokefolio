@@ -171,10 +171,10 @@ function TileBtn({ label, color, bg, onClick, disabled }: {
       onClick={onClick}
       disabled={disabled}
       style={{
-        flex: 1, padding: '5px 0', borderRadius: 7,
+        flex: 1, padding: '5px 0', borderRadius: 8,
         fontSize: 10, fontWeight: 800, letterSpacing: '0.04em',
-        background: disabled ? 'rgba(255,255,255,0.04)' : bg,
-        color: disabled ? 'rgba(255,255,255,0.18)' : color,
+        background: disabled ? 'var(--btn-disabled)' : bg,
+        color: disabled ? '#9ca3af' : color,
         border: 'none', cursor: disabled ? 'default' : 'pointer',
       }}>
       {label}
@@ -342,20 +342,20 @@ export function PortfolioTile({ card, onClick, onLongPress, onSell, onGift, onAd
         <div style={{ display: 'flex', gap: 5, padding: '8px 10px 10px' }}>
           <TileBtn
             label={inCollection ? '✓ In CATCHM' : '+ CATCHM'}
-            color="#fff" bg="linear-gradient(135deg, #3DC888, #00A8CC)"
+            color="#fff" bg="var(--btn-catchm)"
             onClick={e => { e.stopPropagation(); onAddToPortfolio?.() }}
             disabled={inCollection}
           />
           <TileBtn
             label="✕ Remove"
-            color="#fff" bg="linear-gradient(135deg, #E06060, #C01028)"
+            color="#fff" bg="var(--btn-remove)"
             onClick={e => { e.stopPropagation(); onRemove?.() }}
           />
         </div>
       ) : showSellGift ? (
         <div style={{ display: 'flex', gap: 5, padding: '8px 10px 10px' }}>
-          <TileBtn label="SELL" color="#fff" bg="linear-gradient(135deg, #F0B820, #C07808)" onClick={e => { e.stopPropagation(); onSell?.(e) }} />
-          <TileBtn label="GIFT" color="#fff" bg="linear-gradient(135deg, #B070E8, #6E30CC)" onClick={e => { e.stopPropagation(); onGift?.(e) }} />
+          <TileBtn label="SELL" color="#fff" bg="var(--btn-sell)" onClick={e => { e.stopPropagation(); onSell?.(e) }} />
+          <TileBtn label="GIFT" color="#fff" bg="var(--btn-wishlist)" onClick={e => { e.stopPropagation(); onGift?.(e) }} />
         </div>
       ) : (
         <div style={{ height: 10 }} />
@@ -445,8 +445,8 @@ function BrowseTileInner({ card, onClick, onAddToPortfolio, onAddToWishlist, inC
         <button
           onClick={e => { e.stopPropagation(); onAddToWishlist?.(card) }}
           style={{
-            width: 30, height: 30, borderRadius: 7, flexShrink: 0,
-            background: inWishlist ? 'linear-gradient(135deg, #B070E8, #6E30CC)' : 'transparent',
+            width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+            background: inWishlist ? 'var(--btn-wishlist)' : 'transparent',
             color: inWishlist ? '#fff' : 'rgba(255,255,255,0.30)',
             border: inWishlist ? 'none' : '1px solid rgba(255,255,255,0.14)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -464,10 +464,10 @@ function BrowseTileInner({ card, onClick, onAddToPortfolio, onAddToWishlist, inC
         <TcgLink
           url={tcgSearchUrl(card.name, card.set?.name)}
           style={{
-            width: 30, height: 30, borderRadius: 7, flexShrink: 0,
-            background: 'transparent',
-            border: '1px solid rgba(255,255,255,0.10)',
-            color: 'var(--text3)',
+            width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+            background: 'var(--btn-info)',
+            border: 'none',
+            color: '#fff',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             textDecoration: 'none',
           }}>
@@ -480,9 +480,9 @@ function BrowseTileInner({ card, onClick, onAddToPortfolio, onAddToWishlist, inC
         <button
           onClick={e => { e.stopPropagation(); onAddToPortfolio?.(card) }}
           style={{
-            flex: 1, height: 30, borderRadius: 7,
+            flex: 1, height: 30, borderRadius: 8,
             fontSize: 10, fontWeight: 800, letterSpacing: '0.03em',
-            background: 'linear-gradient(135deg, #3DC888, #00A8CC)',
+            background: 'var(--btn-catchm)',
             color: '#fff',
             border: 'none', cursor: 'pointer',
           }}>

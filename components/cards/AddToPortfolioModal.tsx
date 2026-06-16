@@ -203,9 +203,7 @@ export function AddToPortfolioModal({ card, onClose, defaultStatus = 'owned' }: 
             onClick={save} disabled={saving}
             className="w-full py-3.5 rounded-xl font-bold text-sm transition-opacity"
             style={{
-              background: status === 'owned'
-                ? 'linear-gradient(135deg, #3DC888, #00A8CC)'
-                : 'linear-gradient(135deg, #B070E8, #6E30CC)',
+              background: status === 'owned' ? 'var(--btn-catchm)' : 'var(--btn-wishlist)',
               color: '#fff',
               opacity: saving ? 0.7 : 1,
             }}>

@@ -409,8 +409,8 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {/* Primary: move to portfolio */}
                 <button onClick={() => setShowMove(true)} style={{
-                  width: '100%', padding: '10px 0', borderRadius: 9, fontSize: 13, fontWeight: 700,
-                  background: 'linear-gradient(135deg, #3DC888, #00A8CC)', color: '#fff',
+                  width: '100%', padding: '10px 0', borderRadius: 8, fontSize: 13, fontWeight: 700,
+                  background: 'var(--btn-catchm)', color: '#fff',
                   border: 'none', cursor: 'pointer',
                 }}>
                   + CATCHM
@@ -419,15 +419,15 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                 {showRemoveConfirm ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 8, background: 'rgba(242,69,96,0.08)', border: '1px solid rgba(242,69,96,0.22)' }}>
                     <span style={{ flex: 1, fontSize: 11, color: 'var(--text3)' }}>Remove from wishlist?</span>
-                    <button onClick={handleRemove} style={{ padding: '5px 12px', borderRadius: 7, fontSize: 11, fontWeight: 700, background: 'linear-gradient(135deg, #E06060, #C01028)', color: '#fff', border: 'none', cursor: 'pointer' }}>Remove</button>
+                    <button onClick={handleRemove} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: 'var(--btn-remove)', color: '#fff', border: 'none', cursor: 'pointer' }}>Remove</button>
                     <button onClick={() => setShowRemoveConfirm(false)} style={{ padding: '5px 10px', borderRadius: 7, fontSize: 11, background: 'transparent', color: 'var(--text3)', border: '1px solid var(--border)', cursor: 'pointer' }}>Cancel</button>
                   </div>
                 ) : (
                   <div style={{ display: 'flex', gap: 8 }}>
                     <TcgLink url={tcgSearchUrl(card.name, card.set_name)} style={{
                       flex: 1, padding: '7px 0', borderRadius: 8, fontSize: 11, fontWeight: 700,
-                      color: 'var(--text3)', background: 'transparent',
-                      border: '1px solid rgba(255,255,255,0.10)', textDecoration: 'none',
+                      color: '#fff', background: 'var(--btn-info)',
+                      border: 'none', textDecoration: 'none',
                       textAlign: 'center', display: 'block',
                     }}>↗ TCGPlayer</TcgLink>
                     <button
@@ -446,7 +446,7 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                     </button>
                     <button onClick={() => setShowRemoveConfirm(true)} style={{
                       width: 36, borderRadius: 8, fontSize: 14, fontWeight: 700,
-                      background: 'linear-gradient(135deg, #E06060, #C01028)', color: '#fff',
+                      background: 'var(--btn-remove)', color: '#fff',
                       border: 'none', cursor: 'pointer',
                     }}>✕</button>
                   </div>
@@ -458,13 +458,13 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                 {!locked && (
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={() => setShowSell(true)} style={{
-                      flex: 1, padding: '9px 0', borderRadius: 9, fontSize: 12, fontWeight: 700,
-                      background: 'linear-gradient(135deg, #F0B820, #C07808)', color: '#fff',
+                      flex: 1, padding: '9px 0', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                      background: 'var(--btn-sell)', color: '#fff',
                       border: 'none', cursor: 'pointer',
                     }}>SELL</button>
                     <button onClick={() => setShowGift(true)} style={{
-                      flex: 1, padding: '9px 0', borderRadius: 9, fontSize: 12, fontWeight: 700,
-                      background: 'linear-gradient(135deg, #B070E8, #6E30CC)', color: '#fff',
+                      flex: 1, padding: '9px 0', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                      background: 'var(--btn-wishlist)', color: '#fff',
                       border: 'none', cursor: 'pointer',
                     }}>GIFT</button>
                   </div>
@@ -473,18 +473,18 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                 {showRemoveConfirm ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 9, background: 'rgba(242,69,96,0.08)', border: '1px solid rgba(242,69,96,0.22)' }}>
                     <span style={{ flex: 1, fontSize: 11, color: 'var(--text3)' }}>Remove this card?</span>
-                    <button onClick={handleRemove} style={{ padding: '5px 12px', borderRadius: 7, fontSize: 11, fontWeight: 700, background: 'linear-gradient(135deg, #E06060, #C01028)', color: '#fff', border: 'none', cursor: 'pointer' }}>Remove</button>
+                    <button onClick={handleRemove} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: 'var(--btn-remove)', color: '#fff', border: 'none', cursor: 'pointer' }}>Remove</button>
                     <button onClick={() => setShowRemoveConfirm(false)} style={{ padding: '5px 10px', borderRadius: 7, fontSize: 11, background: 'transparent', color: 'var(--text3)', border: '1px solid var(--border)', cursor: 'pointer' }}>Cancel</button>
                   </div>
                 ) : (
                   <div style={{ display: 'flex', gap: 6, justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <Btn label="Edit" onClick={() => setShowEdit(true)} />
-                      <Btn label="↗ TCG" href={tcgSearchUrl(card.name, card.set_name ?? '')} />
+                      <Btn label="Edit" gradient="var(--btn-info)" onClick={() => setShowEdit(true)} />
+                      <Btn label="↗ TCG" gradient="var(--btn-info)" href={tcgSearchUrl(card.name, card.set_name ?? '')} />
                     </div>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <Btn label="↩ WISH" onClick={handleToWatch} />
-                      <Btn label="✕" gradient="linear-gradient(135deg, #E06060, #C01028)" onClick={() => setShowRemoveConfirm(true)} />
+                      <Btn label="↩ WISH" gradient="var(--btn-info)" onClick={handleToWatch} />
+                      <Btn label="✕" gradient="var(--btn-remove)" onClick={() => setShowRemoveConfirm(true)} />
                     </div>
                   </div>
                 )}
@@ -539,7 +539,7 @@ function Btn({ label, color = 'var(--text2)', accentBg, gradient, onClick, href,
 }) {
   const style: React.CSSProperties = {
     padding: wide ? '6px 18px' : '6px 10px',
-    borderRadius: 7, fontSize: 11, fontWeight: 800, letterSpacing: '0.03em',
+    borderRadius: 8, fontSize: 11, fontWeight: 800, letterSpacing: '0.03em',
     color: active ? '#0D0F1A' : (gradient ? '#fff' : color),
     background: active ? color : (gradient ?? accentBg ?? 'transparent'),
     border: (active || gradient) ? 'none' : '1px solid rgba(255,255,255,0.10)',
@@ -627,10 +627,8 @@ function SellModal({ card, giftMode, onClose, onBack }: {
         </div>
 
         <button onClick={confirm} disabled={saving || (!giftMode && !sp)} style={{
-          width: '100%', padding: '12px', borderRadius: 10, fontSize: 13, fontWeight: 700,
-          background: giftMode
-            ? 'linear-gradient(135deg, var(--violet), var(--sky))'
-            : 'linear-gradient(135deg, var(--amber), var(--crimson))',
+          width: '100%', padding: '12px', borderRadius: 8, fontSize: 13, fontWeight: 700,
+          background: giftMode ? 'var(--btn-wishlist)' : 'var(--btn-sell)',
           color: '#fff', border: 'none', cursor: saving ? 'default' : 'pointer',
           opacity: saving || (!giftMode && !sp) ? 0.55 : 1,
           transition: 'opacity 0.12s',
