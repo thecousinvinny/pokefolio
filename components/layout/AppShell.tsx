@@ -109,7 +109,7 @@ function FloatingTabBar() {
                 flexDirection: 'column',
                 alignItems: 'center',
                 gap: 3,
-                width: 62,
+                width: 72,
                 padding: '8px 0',
                 filter: 'drop-shadow(0 1px 4px rgba(0, 0, 0, 0.45))',
               }}>
