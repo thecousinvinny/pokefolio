@@ -19,6 +19,23 @@ export function Modal({ open, onClose, title, children, maxWidth = 480 }: ModalP
   const dragYRef = useRef(0)
   const draggingRef = useRef(false)
 
+  // Animate-out state: visible = whether the portal is rendered, animOut = whether closing anim is playing
+  const [visible, setVisible] = useState(open)
+  const [animOut, setAnimOut] = useState(false)
+
+  useEffect(() => {
+    if (open) {
+      setVisible(true)
+      setAnimOut(false)
+    } else if (visible) {
+      setAnimOut(true)
+    }
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handleAnimEnd() {
+    if (animOut) setVisible(false)
+  }
+
   // Keyboard + body scroll lock
   useEffect(() => {
     if (!open) return
@@ -44,7 +61,6 @@ export function Modal({ open, onClose, title, children, maxWidth = 480 }: ModalP
 
     function onTouchMove(e: TouchEvent) {
       const delta = e.touches[0].clientY - startYRef.current
-      // Only intercept downward swipe when content is at the top
       if (delta > 0 && (el?.scrollTop ?? 0) <= 0) {
         e.preventDefault()
         draggingRef.current = true
@@ -72,7 +88,7 @@ export function Modal({ open, onClose, title, children, maxWidth = 480 }: ModalP
     }
   }, [open, onClose])
 
-  if (!open) return null
+  if (!visible) return null
 
   const isDragging = dragY > 0
   const backdropAlpha = isDragging
@@ -81,15 +97,15 @@ export function Modal({ open, onClose, title, children, maxWidth = 480 }: ModalP
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4 modal-backdrop"
+      className={`fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4 modal-backdrop ${animOut ? 'animate-backdrop-out' : 'animate-backdrop-in'}`}
       style={{
         background: `rgba(0,0,0,${backdropAlpha})`,
-        transition: isDragging ? 'none' : 'background 0.2s',
       }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div
         ref={ref}
-        className="w-full rounded-2xl animate-slide-up"
+        className={`w-full rounded-2xl ${animOut ? 'animate-slide-down' : 'animate-slide-up'}`}
+        onAnimationEnd={handleAnimEnd}
         style={{
           maxWidth,
           background: 'var(--elevated)',
@@ -97,12 +113,12 @@ export function Modal({ open, onClose, title, children, maxWidth = 480 }: ModalP
           maxHeight: 'calc(100dvh - 2rem)',
           overflowY: 'auto',
           overscrollBehavior: 'contain',
-          transform: `translateY(${dragY}px)`,
-          transition: isDragging ? 'none' : 'transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1)',
+          transform: isDragging ? `translateY(${dragY}px)` : undefined,
+          transition: isDragging ? 'none' : undefined,
           willChange: 'transform',
         }}>
 
-        {/* Drag handle — visual indicator + touch target */}
+        {/* Drag handle */}
         <div style={{
           display: 'flex', justifyContent: 'center',
           padding: '10px 0 0',

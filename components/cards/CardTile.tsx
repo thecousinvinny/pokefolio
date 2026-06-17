@@ -247,7 +247,7 @@ export function PortfolioTile({ card, onClick, onLongPress, onSell, onGift, onAd
 
   return (
     <div
-      onClick={onClick}
+      onClick={() => { setHovered(false); setPressed(false); onClick?.() }}
       onPointerDown={down}
       onPointerUp={up}
       onPointerLeave={() => { up(); setHovered(false) }}
@@ -402,7 +402,7 @@ function BrowseTileInner({ card, onClick, onAddToPortfolio, onAddToWishlist, inC
       {/* Artwork */}
       <div
         style={{ position: 'relative', width: '100%', paddingTop: '139%', cursor: 'pointer' }}
-        onClick={() => onClick?.(card)}
+        onClick={() => { setHovered(false); setPressed(false); onClick?.(card) }}
         onPointerDown={() => setPressed(true)}
         onPointerUp={() => setPressed(false)}
         onPointerLeave={() => setPressed(false)}>
