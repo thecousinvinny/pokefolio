@@ -67,13 +67,26 @@ The `VAULT/` and `FOLIO/` folders contain Swift source files from companion iOS 
 
 CSS custom properties in `globals.css` and Tailwind colors in `tailwind.config.ts` both map to VAULT design tokens (`--bg #0D0F1A`, `--surface #1E2033`, `--gold #FFC845`, `--emerald #45DB8D`, `--violet #9C72FA`, etc.). Always use CSS vars or Tailwind token names — never hardcode hex values that exist as tokens.
 
+**Button gradient system** — six CSS variables and matching utility classes are defined in `globals.css`:
+
+| Variable / class | Gradient | Used for |
+|---|---|---|
+| `--btn-catchm` / `.btn-catchm` | `#fb923c → #eab308` | ADD TO CATCHM, Move to CATCHM, Add to CATCHM |
+| `--btn-wishlist` / `.btn-wishlist` | `#ec4899 → #6D28D9` | WISH, GIFT, Add to WISH |
+| `--btn-sell` / `.btn-sell` | `#10b981 → #06b6d4` | SELL, Confirm Sale |
+| `--btn-info` / `.btn-info` | `#60a5fa → #a78bfa` | ↗ TCG, Edit, ↩ WISH, Save Changes |
+| `--btn-remove` / `.btn-remove` | `#f43f5e → #7f1d1d` | ✕ Remove, confirm Remove |
+| `--btn-disabled` / `.btn-disabled` | `#4b5563 → #374151` | disabled/inactive states |
+
+All action buttons use `background: var(--btn-x)`, `color: #fff`, `border: none`. Reference the CSS var in inline styles (the dominant pattern) or add `className="btn btn-x"` for the hover/active opacity transitions from the `.btn` base class. Never hardcode the gradient hex values — always use the vars.
+
 ### Card component architecture
 
 `components/cards/CardArtwork.tsx` renders the type-based gradient background (colors from VAULT `Theme.swift` `CardType.artColors`). It is used inside every card tile and the detail modal. It also exports `TypeBadge` (small colored dot for info rows) and `getArtColors` (for direct gradient access).
 
 `components/cards/CardTile.tsx` exports `PortfolioTile` (owned cards with condition, profit/loss, sparkles for holo) and `BrowseTile` (TCG search results with quick-add buttons). Both use `CardArtwork` internally and implement VAULT's 0.72 aspect-ratio artwork + info section layout. BrowseTile action row order: heart → TCG → +CATCHM.
 
-`components/layout/AppShell.tsx` renders a floating liquid-glass pill tab bar (not full-width, `left/right: 14px`). The active tab gets a frosted-glass capsule (`rgba(255,255,255,0.15)` + `blur(10px)` + `border-radius: 9999px`) that wraps both the icon and label together. The pill position is measured via `getBoundingClientRect()` on wrapper `div` refs and animated with a spring transition. Nav order: DASH → FIND → WISH → CATCHM → LEDGER.
+`components/layout/AppShell.tsx` renders a floating liquid-glass pill tab bar (not full-width, `left/right: 14px`). The active tab gets a frosted-glass capsule (`rgba(255,255,255,0.15)` + `blur(10px)` + `border-radius: 9999px`) that wraps both the icon and label together. The pill position is measured via `getBoundingClientRect()` on wrapper `div` refs and animated with a spring transition. Nav order: DASH → FIND → WISH → CATCHM → LEDGER. Each tab's inner wrapper is fixed at `width: 62px` so the pill stays a uniform oval regardless of label text length.
 
 ### TCG links
 
