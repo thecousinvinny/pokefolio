@@ -1,6 +1,7 @@
 'use client'
 import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
+import { XIcon } from '@/components/ui/Icons'
 import { Modal } from '@/components/ui/Modal'
 import { PortfolioTile } from '@/components/cards/CardTile'
 import { CardDetailModal } from '@/components/cards/CardDetailModal'
@@ -153,7 +154,7 @@ export default function WishlistPage() {
             style={{ color: 'var(--text)' }}
           />
           {search && (
-            <button onClick={() => setSearch('')} style={{ color: 'var(--text3)', fontSize: 14, lineHeight: 1 }}>✕</button>
+            <button onClick={() => setSearch('')} style={{ color: 'var(--text3)', display: 'flex' }}><XIcon size={16} /></button>
           )}
         </div>
         <button

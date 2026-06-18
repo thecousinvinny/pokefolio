@@ -1,6 +1,7 @@
 'use client'
 import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
+import { StarIcon, XIcon } from '@/components/ui/Icons'
 import { PortfolioTile } from '@/components/cards/CardTile'
 import { CardDetailModal } from '@/components/cards/CardDetailModal'
 import { useCollection } from '@/components/CollectionContext'
@@ -166,7 +167,7 @@ export default function PortfolioPage() {
             style={{ color: 'var(--text)' }}
           />
           {search && (
-            <button onClick={() => setSearch('')} style={{ color: 'var(--text3)', fontSize: 14, lineHeight: 1 }}>✕</button>
+            <button onClick={() => setSearch('')} style={{ color: 'var(--text3)', display: 'flex' }}><XIcon size={16} /></button>
           )}
         </div>
         <button
@@ -277,7 +278,7 @@ export default function PortfolioPage() {
         </div>
       ) : filtered.length === 0 && favOnly ? (
         <div className="text-center py-16">
-          <p style={{ fontSize: 36, marginBottom: 12, opacity: 0.25 }}>★</p>
+          <div style={{ marginBottom: 12, opacity: 0.25, display: 'flex', justifyContent: 'center' }}><StarIcon size={36} /></div>
           <p className="font-bold mb-1">No favorites yet</p>
           <p className="text-sm mb-4" style={{ color: 'var(--text3)' }}>
             Long-press the star on any card to mark it as a favorite.

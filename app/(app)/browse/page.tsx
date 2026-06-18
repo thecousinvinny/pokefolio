@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { SearchIcon, HeartIcon, XIcon } from '@/components/ui/Icons'
 import { BrowseTile } from '@/components/cards/CardTile'
 import { CardArtwork } from '@/components/cards/CardArtwork'
 import { AddToPortfolioModal } from '@/components/cards/AddToPortfolioModal'
@@ -332,7 +333,7 @@ export default function BrowsePage() {
             style={{ color: 'var(--text)' }}
           />
           {query && (
-            <button onClick={() => setQuery('')} style={{ color: 'var(--text3)', fontSize: 14, lineHeight: 1 }}>✕</button>
+            <button onClick={() => setQuery('')} style={{ color: 'var(--text3)', display: 'flex' }}><XIcon size={16} /></button>
           )}
         </div>
 
@@ -532,7 +533,7 @@ function BrowseDetailModal({ card, onClose, onAddToPortfolio, onAddToWishlist, i
           background: 'rgba(255,255,255,0.07)', border: 'none',
           color: 'var(--text3)', fontSize: 14, cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2,
-        }}>✕</button>
+        }}><XIcon size={14} /></button>
 
         <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', marginBottom: 16 }}>
           <div style={{
@@ -628,7 +629,8 @@ function BrowseDetailModal({ card, onClose, onAddToPortfolio, onAddToWishlist, i
                 border: inWishlist ? 'none' : '1px solid rgba(255,255,255,0.10)',
                 cursor: 'pointer',
               }}>
-              {inWishlist ? '♥ In WISH' : '♥ WISH'}
+              <HeartIcon size={12} filled={inWishlist} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />
+              {inWishlist ? 'In WISH' : 'WISH'}
             </button>
             <button onClick={onAddToPortfolio}
               style={{
@@ -679,7 +681,7 @@ function rarityColorBrowse(rarity?: string | null): string {
 function EmptyBrowse({ hasQuery }: { hasQuery: boolean }) {
   return (
     <div className="text-center py-20">
-      <div className="text-5xl mb-4 opacity-30">🔍</div>
+      <div className="mb-4 opacity-30 flex justify-center"><SearchIcon size={48} /></div>
       <p className="font-bold text-lg mb-2">{hasQuery ? 'No cards found' : 'Loading cards…'}</p>
       <p className="text-sm" style={{ color: 'var(--text3)' }}>
         {hasQuery ? 'Try a different name, set, or remove filters.' : ''}

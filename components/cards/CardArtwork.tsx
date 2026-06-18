@@ -19,13 +19,6 @@ const ART_COLORS: Record<string, readonly [string, string]> = {
   energy:    ['#73D9D9', '#29738C'],
 } as const
 
-// Large decorative icon shown when no card image is available
-const TYPE_EMOJI: Record<string, string> = {
-  fire: '🔥', water: '💧', grass: '🍃', lightning: '⚡',
-  psychic: '🔮', fighting: '🥊', darkness: '🌑',
-  metal: '⚙️', dragon: '🐲', colorless: '⭕',
-  fairy: '✨', trainer: '👤', energy: '⚡',
-}
 
 export function getArtColors(types?: string[]): readonly [string, string] {
   const t = types?.[0]?.toLowerCase() ?? 'colorless'
@@ -59,19 +52,6 @@ export function CardArtwork({ types, imageUrl, imageAlt, isHolo }: CardArtworkPr
         pointerEvents: 'none',
       }} />
 
-      {/* Large type icon shown when no card image */}
-      {!showImage && (
-        <div style={{
-          position: 'absolute', inset: 0,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 72, lineHeight: 1,
-          opacity: 0.28,
-          userSelect: 'none', pointerEvents: 'none',
-          filter: 'drop-shadow(0 4px 20px rgba(0,0,0,0.5))',
-        }}>
-          {TYPE_EMOJI[primaryType] ?? '●'}
-        </div>
-      )}
 
       {/* Card image */}
       {showImage && (

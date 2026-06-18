@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { WarningIcon } from '@/components/ui/Icons'
 
 export const dynamic = 'force-dynamic'
 
@@ -70,7 +71,7 @@ export default function ImportPage() {
           disabled={clearing || loading}
           className="text-sm text-red-400 border border-red-400/30 hover:border-red-400 rounded-xl py-2 px-4 transition-colors disabled:opacity-40"
         >
-          {clearing ? 'Clearing…' : '⚠ Clear all existing data first'}
+          {clearing ? 'Clearing…' : <><WarningIcon size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 5 }} />Clear all existing data first</>}
         </button>
 
         <label className={`

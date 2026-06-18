@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import Image from 'next/image'
+import { ChartBarIcon, TrophyIcon } from '@/components/ui/Icons'
 import { Modal } from '@/components/ui/Modal'
 import { useCollection } from '@/components/CollectionContext'
 import { formatPrice, formatDate } from '@/lib/utils'
@@ -21,7 +22,7 @@ export default function SoldPage() {
   if (sales.length === 0) {
     return (
       <div className="max-w-lg mx-auto px-4 py-20 text-center animate-fade-in">
-        <div className="text-6xl mb-5 opacity-30">📊</div>
+        <div className="mb-5 opacity-30 flex justify-center"><ChartBarIcon size={56} /></div>
         <h2 className="text-2xl font-extrabold mb-2">No sales yet</h2>
         <p className="text-sm" style={{ color: 'var(--text3)' }}>
           When you sell a card from CATCHM, your profit ledger appears here.
@@ -45,7 +46,7 @@ export default function SoldPage() {
         {bestSale && (
           <div className="flex items-center gap-3 mt-4 p-3 rounded-xl"
             style={{ background: 'var(--elevated)', border: '1px solid var(--border)' }}>
-            <span className="text-xl">🏆</span>
+            <TrophyIcon size={20} style={{ color: 'var(--gold)', flexShrink: 0 }} />
             <div className="flex-1 min-w-0">
               <p className="section-label">BEST SALE EVER</p>
               <p className="font-bold text-sm truncate">{bestSale.card_name}</p>

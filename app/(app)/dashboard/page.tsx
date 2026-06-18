@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { TrendingUpIcon, CardIcon, SparkleIcon } from '@/components/ui/Icons'
 import { useCollection } from '@/components/CollectionContext'
 import { conditionAdjustedValue, unrealizedProfit } from '@/types'
 import { formatPrice, formatPercent } from '@/lib/utils'
@@ -36,13 +37,13 @@ export default function DashboardPage() {
             <StatCard
               label="Lifetime Earned"
               value={formatPrice(lifetimeEarned)}
-              icon="💵"
+              icon={<TrendingUpIcon size={24} />}
               color={lifetimeEarned >= 0 ? 'var(--emerald)' : 'var(--crimson)'}
             />
             <StatCard
               label="Cards Owned"
               value={String(owned.length)}
-              icon="🃏"
+              icon={<CardIcon size={24} />}
               color="var(--sky)"
             />
           </div>
@@ -115,10 +116,10 @@ function PortfolioHero({ totalValue, unrealized }: { totalValue: number; unreali
   )
 }
 
-function StatCard({ label, value, icon, color }: { label: string; value: string; icon: string; color: string }) {
+function StatCard({ label, value, icon, color }: { label: string; value: string; icon: React.ReactNode; color: string }) {
   return (
     <div className="stat-card">
-      <div className="text-2xl mb-2">{icon}</div>
+      <div className="mb-2" style={{ color }}>{icon}</div>
       <p className="text-2xl font-extrabold" style={{ color }}>{value}</p>
       <p className="section-label mt-1">{label.toUpperCase()}</p>
     </div>
@@ -131,7 +132,7 @@ function ShowcaseSection({ card }: { card: import('@/types').PokemonCard }) {
     <section>
       <div className="flex items-center gap-2 mb-3">
         <span className="text-base font-bold">Showcase</span>
-        <span style={{ color: '#fff', textShadow: '0 0 8px rgba(255,255,255,0.9)' }}>◈</span>
+        <SparkleIcon size={16} style={{ color: '#fff', filter: 'drop-shadow(0 0 8px rgba(255,255,255,0.9))' }} />
       </div>
       <div className="surface-card overflow-hidden"
         style={{ border: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 10px 40px rgba(255,255,255,0.06)' }}>

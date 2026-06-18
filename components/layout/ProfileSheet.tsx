@@ -1,6 +1,7 @@
 'use client'
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { Modal } from '@/components/ui/Modal'
+import { LinkIcon, UploadIcon, LogOutIcon } from '@/components/ui/Icons'
 import { useCollection } from '@/components/CollectionContext'
 import { createClient } from '@/lib/supabase/client'
 import { conditionAdjustedValue } from '@/types'
@@ -398,8 +399,8 @@ function MainView({
 
       {/* Actions */}
       <SectionLabel>Collection</SectionLabel>
-      <SettingsRow icon="🔗" title="Share Collection" subtitle="Create a public link for friends" onClick={onOpenShare} />
-      <SettingsRow icon="📤" title="Export Collection" subtitle="Download your cards & sales as JSON" onClick={onExport} />
+      <SettingsRow icon={<LinkIcon size={18} />} title="Share Collection" subtitle="Create a public link for friends" onClick={onOpenShare} />
+      <SettingsRow icon={<UploadIcon size={18} />} title="Export Collection" subtitle="Download your cards & sales as JSON" onClick={onExport} />
 
       {/* Account */}
       <SectionLabel>Account</SectionLabel>
@@ -411,7 +412,7 @@ function MainView({
           borderRadius: 12, padding: '12px 14px', cursor: 'pointer',
           marginBottom: 8, textAlign: 'left', color: 'var(--crimson)',
         }}>
-        <span style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>🚪</span>
+        <LogOutIcon size={18} style={{ flexShrink: 0 }} />
         <div>
           <div style={{ fontSize: 14, fontWeight: 600 }}>Sign Out</div>
           <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>Disconnect this device</div>
@@ -555,7 +556,7 @@ function ShareView({
 function LogoutView({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
   return (
     <div style={{ textAlign: 'center', padding: '8px 0 4px' }}>
-      <div style={{ fontSize: 40, marginBottom: 12 }}>🚪</div>
+      <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center', opacity: 0.7 }}><LogOutIcon size={44} /></div>
       <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 8 }}>Sign Out?</div>
       <div style={{ fontSize: 13, color: 'var(--text3)', lineHeight: 1.6, marginBottom: 24 }}>
         This disconnects your collection from this device.
@@ -627,7 +628,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 function SettingsRow({ icon, title, subtitle, onClick }: {
-  icon: string; title: string; subtitle: string; onClick?: () => void
+  icon: React.ReactNode; title: string; subtitle: string; onClick?: () => void
 }) {
   return (
     <button
@@ -638,7 +639,7 @@ function SettingsRow({ icon, title, subtitle, onClick }: {
         borderRadius: 12, padding: '12px 14px', color: 'var(--text)',
         cursor: onClick ? 'pointer' : 'default', marginBottom: 8, textAlign: 'left',
       }}>
-      <span style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{icon}</span>
+      <span style={{ flexShrink: 0, display: 'flex', color: 'var(--text2)' }}>{icon}</span>
       <div>
         <div style={{ fontSize: 14, fontWeight: 600 }}>{title}</div>
         <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>{subtitle}</div>

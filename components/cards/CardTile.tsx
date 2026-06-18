@@ -1,5 +1,6 @@
 'use client'
 import { useState, useRef, memo } from 'react'
+import { StarIcon, SparkleIcon, CheckIcon } from '@/components/ui/Icons'
 import { formatPrice, tcgSearchUrl } from '@/lib/utils'
 import { CONDITION_MULTIPLIERS } from '@/types'
 import type { PokemonCard, TCGCard } from '@/types'
@@ -53,7 +54,7 @@ function FavShowcaseStar({ card, onFavorite, onShowcase }: {
         color: isFav ? 'var(--gold)' : isShow ? '#fff' : 'rgba(255,255,255,0.25)',
         textShadow: isShow ? '0 0 8px rgba(255,255,255,0.9), 0 0 16px rgba(255,255,255,0.5)' : undefined,
       }}>
-      {isFav ? '★' : isShow ? '◈' : '☆'}
+      {isFav ? <StarIcon size={13} filled /> : isShow ? <SparkleIcon size={13} /> : <StarIcon size={13} />}
     </span>
   )
 }
@@ -267,7 +268,7 @@ export function PortfolioTile({ card, onClick, onLongPress, onSell, onGift, onAd
         {/* TL: selected checkmark only */}
         {selected && (
           <div style={{ position: 'absolute', top: 7, left: 7, zIndex: 2 }}>
-            <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#0D0F1A', fontWeight: 900 }}>✓</div>
+            <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0D0F1A' }}><CheckIcon size={12} /></div>
           </div>
         )}
 
