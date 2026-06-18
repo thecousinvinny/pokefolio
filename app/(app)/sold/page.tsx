@@ -65,8 +65,10 @@ export default function SoldPage() {
       <section>
         <h2 className="font-bold text-base mb-3">History</h2>
         <div className="space-y-3">
-          {sales.map(sale => (
-            <SaleRow key={sale.id} sale={sale} onClick={() => setSelectedSaleId(sale.id)} />
+          {sales.map((sale, i) => (
+            <div key={sale.id} className="card-enter" style={{ animationDelay: `${Math.min(i, 10) * 0.03}s` }}>
+              <SaleRow sale={sale} onClick={() => setSelectedSaleId(sale.id)} />
+            </div>
           ))}
         </div>
       </section>
@@ -142,10 +144,7 @@ function SaleRow({ sale, onClick }: { sale: SaleRecord; onClick: () => void }) {
   return (
     <div
       onClick={onClick}
-      className="surface-card p-3 flex items-center gap-3"
-      style={{ cursor: 'pointer', transition: 'opacity 0.12s' }}
-      onMouseEnter={e => (e.currentTarget.style.opacity = '0.8')}
-      onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>
+      className="surface-card surface-card-interactive p-3 flex items-center gap-3">
       {/* Thumbnail */}
       <div className="relative flex-shrink-0 rounded-lg overflow-hidden"
         style={{ width: 44, height: 62, background: 'var(--bg)' }}>

@@ -22,18 +22,20 @@ export default function DashboardPage() {
     .slice(0, 3), [owned])
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6 animate-fade-in">
-      <h1 className="text-2xl font-extrabold tracking-tight">DASH</h1>
+    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+      <h1 className="text-2xl font-extrabold tracking-tight section-enter" style={{ animationDelay: '0ms' }}>DASH</h1>
 
       {loading ? (
         <LoadingSkeleton />
       ) : (
         <>
           {/* ── Portfolio value hero ── */}
-          <PortfolioHero totalValue={totalValue} unrealized={unrealized} />
+          <div className="section-enter" style={{ animationDelay: '40ms' }}>
+            <PortfolioHero totalValue={totalValue} unrealized={unrealized} />
+          </div>
 
           {/* ── Stat row ── */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 section-enter" style={{ animationDelay: '100ms' }}>
             <StatCard
               label="Lifetime Earned"
               value={formatPrice(lifetimeEarned)}
@@ -49,14 +51,16 @@ export default function DashboardPage() {
           </div>
 
           {/* ── Showcase card ── */}
-          {showcaseCard ? (
-            <ShowcaseSection card={showcaseCard} />
-          ) : (
-            <ShowcaseEmpty />
-          )}
+          <div className="section-enter" style={{ animationDelay: '160ms' }}>
+            {showcaseCard ? (
+              <ShowcaseSection card={showcaseCard} />
+            ) : (
+              <ShowcaseEmpty />
+            )}
+          </div>
 
           {/* ── Market movers ── */}
-          <section>
+          <section className="section-enter" style={{ animationDelay: '220ms' }}>
             <div className="flex items-center gap-2 mb-3">
               <span className="text-base font-bold">Top Performers</span>
               <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
@@ -70,8 +74,10 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="space-y-2">
-                {topPerformers.map(card => (
-                  <MoverRow key={card.id} card={card} />
+                {topPerformers.map((card, i) => (
+                  <div key={card.id} className="card-enter" style={{ animationDelay: `${280 + i * 50}ms` }}>
+                    <MoverRow card={card} />
+                  </div>
                 ))}
               </div>
             )}

@@ -50,30 +50,38 @@ export function CollectionProvider({ children }: { children: ReactNode }) {
   const cardsRef = useRef<PokemonCard[]>([])
   useEffect(() => { cardsRef.current = cards }, [cards])
 
-  // localStorage sync — only when Supabase is unavailable
-  const lsInitialized = useRef(false)
+  // localStorage as write-through cache — always stays fresh, skips initial empty state
+  const cardsHydrated = useRef(false)
   useEffect(() => {
-    if (!useLocalStorage) return
-    if (!lsInitialized.current) { lsInitialized.current = true; return }
+    if (!cardsHydrated.current) { cardsHydrated.current = true; return }
     lsWrite(LS_CARDS, cards)
-  }, [cards, useLocalStorage])
+  }, [cards])
+
+  const salesHydrated = useRef(false)
   useEffect(() => {
-    if (!useLocalStorage) return
+    if (!salesHydrated.current) { salesHydrated.current = true; return }
     lsWrite(LS_SALES, sales)
-  }, [sales, useLocalStorage])
+  }, [sales])
 
   const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      // Get existing session
-      let { data: { user } } = await supabase.auth.getUser()
+    // Pre-hydrate from cache — returning users see their collection instantly, no skeleton
+    const cachedCards = lsRead<PokemonCard>(LS_CARDS)
+    const cachedSales = lsRead<SaleRecord>(LS_SALES)
+    const hasCached = cachedCards.length > 0 || cachedSales.length > 0
+    if (hasCached) {
+      setCards(cachedCards)
+      setSales(cachedSales)
+      setLoading(false)
+    } else {
+      setLoading(true)
+    }
 
-      // No session → try anonymous sign-in so app works without registration
+    try {
+      let { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         const { data, error } = await supabase.auth.signInAnonymously()
         if (!error) user = data.user
       }
-
       if (user) {
         setUserId(user.id)
         const [cardsRes, salesRes] = await Promise.all([
@@ -87,13 +95,15 @@ export function CollectionProvider({ children }: { children: ReactNode }) {
           return
         }
       }
-    } catch { /* network error or invalid key — fall through to localStorage */ }
+    } catch { /* network error — keep showing cached data */ }
 
-    // Supabase unavailable: use localStorage
+    // Supabase unavailable
     setUseLocalStorage(true)
-    setCards(lsRead<PokemonCard>(LS_CARDS))
-    setSales(lsRead<SaleRecord>(LS_SALES))
-    setLoading(false)
+    if (!hasCached) {
+      setCards(lsRead<PokemonCard>(LS_CARDS))
+      setSales(lsRead<SaleRecord>(LS_SALES))
+      setLoading(false)
+    }
   }, [supabase])
 
   useEffect(() => { load() }, [load])

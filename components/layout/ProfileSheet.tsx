@@ -70,7 +70,7 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
       if (!uid) return
       supabase
         .from('user_profiles')
-        .select('display_name, avatar_data')
+        .select('display_name, avatar_data, prefs')
         .eq('user_id', uid)
         .maybeSingle()
         .then(({ data: profile }) => {
@@ -87,6 +87,19 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
             setAvatarImg(null)
             localStorage.removeItem(LS_AVATAR)
             onAvatarChange(null)
+          }
+          // Sync preferences from Supabase (cross-device)
+          const prefs = (profile as Record<string, unknown>).prefs as Record<string, unknown> | null
+          if (prefs) {
+            if (typeof prefs.privacy_mode === 'boolean' && prefs.privacy_mode !== (localStorage.getItem(LS_PRIVACY) === 'true')) {
+              setPrivacyMode(prefs.privacy_mode)
+              localStorage.setItem(LS_PRIVACY, String(prefs.privacy_mode))
+              document.documentElement.dataset.privacy = prefs.privacy_mode ? 'true' : ''
+            }
+            if (typeof prefs.default_condition === 'string' && prefs.default_condition !== localStorage.getItem(LS_DEFAULT_CONDITION)) {
+              setDefaultCondition(prefs.default_condition)
+              localStorage.setItem(LS_DEFAULT_CONDITION, prefs.default_condition)
+            }
           }
         })
 
@@ -109,11 +122,13 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
     setPrivacyMode(next)
     localStorage.setItem(LS_PRIVACY, String(next))
     document.documentElement.dataset.privacy = next ? 'true' : ''
+    upsertProfile({ prefs: { privacy_mode: next, default_condition: defaultCondition } })
   }
 
   function handleConditionChange(c: string) {
     setDefaultCondition(c)
     localStorage.setItem(LS_DEFAULT_CONDITION, c)
+    upsertProfile({ prefs: { privacy_mode: privacyMode, default_condition: c } })
   }
 
   function clearBrowseCache() {
@@ -125,7 +140,7 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
   }
 
   // ── Profile helpers ──
-  const upsertProfile = useCallback(async (patch: { display_name?: string; avatar_data?: string | null }) => {
+  const upsertProfile = useCallback(async (patch: { display_name?: string; avatar_data?: string | null; prefs?: Record<string, unknown> }) => {
     const { data } = await supabase.auth.getSession()
     const uid = data.session?.user.id
     if (!uid) return
