@@ -5,6 +5,7 @@ import { Modal } from '@/components/ui/Modal'
 import { useCollection } from '@/components/CollectionContext'
 import { formatPrice } from '@/lib/utils'
 import { getBestTCGPrice, tcgCardToPortfolioCard, CONDITION_ORDER, CONDITION_LABELS } from '@/types'
+import { LS_DEFAULT_CONDITION } from '@/components/layout/ProfileSheet'
 import type { TCGCard } from '@/types'
 
 interface AddToPortfolioModalProps {
@@ -19,7 +20,11 @@ export function AddToPortfolioModal({ card, onClose, defaultStatus = 'owned' }: 
 
   const [status, setStatus] = useState<'owned' | 'wishlist'>(defaultStatus)
   const [language, setLanguage] = useState<'EN' | 'JP' | 'CN'>('EN')
-  const [condition, setCondition] = useState<number>(0)
+  const [condition, setCondition] = useState<number>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem(LS_DEFAULT_CONDITION) : null
+    const idx = saved ? CONDITION_ORDER.indexOf(saved as never) : -1
+    return idx >= 0 ? idx : 0
+  })
   const [pricePaid, setPricePaid] = useState('')
   const [boughtFrom, setBoughtFrom] = useState('')
   const [dateBought, setDateBought] = useState(today)

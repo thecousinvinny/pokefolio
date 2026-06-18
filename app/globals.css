@@ -332,3 +332,13 @@ input[type="time"] {
 .animate-spin-gold {
   animation: spin 0.8s linear infinite;
 }
+
+/* Privacy mode — blur prominent value displays */
+.pv { transition: filter 0.2s ease; }
+[data-privacy="true"] .pv {
+  filter: blur(8px);
+  user-select: none;
+}
+[data-privacy="true"] .pv:hover {
+  filter: blur(3px);
+}

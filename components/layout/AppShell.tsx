@@ -2,7 +2,7 @@
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
-import { ProfileSheet, UserSvg, LS_DISPLAY_NAME, LS_AVATAR } from '@/components/layout/ProfileSheet'
+import { ProfileSheet, UserSvg, LS_DISPLAY_NAME, LS_AVATAR, LS_PRIVACY } from '@/components/layout/ProfileSheet'
 
 const NAV = [
   { href: '/dashboard', label: 'DASH',   icon: DashIcon },
@@ -18,6 +18,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setAvatarImg(localStorage.getItem(LS_AVATAR))
+    // Apply privacy mode before first paint
+    if (localStorage.getItem(LS_PRIVACY) === 'true')
+      document.documentElement.dataset.privacy = 'true'
   }, [])
 
   return (

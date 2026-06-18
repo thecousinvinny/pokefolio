@@ -103,7 +103,7 @@ function PortfolioHero({ totalValue, unrealized }: { totalValue: number; unreali
     <div className="surface-card p-6 text-center"
       style={{ border: '1px solid rgba(255,200,69,0.2)', boxShadow: '0 0 40px rgba(255,200,69,0.05)' }}>
       <p className="section-label mb-2">TOTAL PORTFOLIO VALUE</p>
-      <p className="text-5xl font-black tracking-tight"
+      <p className="text-5xl font-black tracking-tight pv"
         style={{ background: 'linear-gradient(135deg, var(--gold), var(--amber))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
         {formatPrice(displayed)}
       </p>
@@ -120,7 +120,7 @@ function StatCard({ label, value, icon, color }: { label: string; value: string;
   return (
     <div className="stat-card">
       <div className="mb-2" style={{ color }}>{icon}</div>
-      <p className="text-2xl font-extrabold" style={{ color }}>{value}</p>
+      <p className="text-2xl font-extrabold pv" style={{ color }}>{value}</p>
       <p className="section-label mt-1">{label.toUpperCase()}</p>
     </div>
   )

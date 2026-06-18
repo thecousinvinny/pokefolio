@@ -1,7 +1,8 @@
 'use client'
 import { useRef, useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { Modal } from '@/components/ui/Modal'
-import { LinkIcon, UploadIcon, LogOutIcon } from '@/components/ui/Icons'
+import { LinkIcon, UploadIcon, LogOutIcon, DownloadIcon, ArrowPathIcon, EyeSlashIcon, EyeIcon } from '@/components/ui/Icons'
 import { useCollection } from '@/components/CollectionContext'
 import { createClient } from '@/lib/supabase/client'
 import { conditionAdjustedValue } from '@/types'
@@ -9,6 +10,10 @@ import { formatPrice } from '@/lib/utils'
 
 export const LS_DISPLAY_NAME = 'catchm_display_name'
 export const LS_AVATAR = 'catchm_avatar_img'
+export const LS_PRIVACY = 'catchm_privacy_mode'
+export const LS_DEFAULT_CONDITION = 'catchm_default_condition'
+
+const CONDITIONS = ['NM', 'LP', 'MP', 'HP', 'DMG'] as const
 
 interface Props {
   open: boolean
@@ -34,6 +39,12 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
   // ── Navigation ──
   const [view, setView] = useState<View>('main')
 
+  // ── Display / preferences state ──
+  const [privacyMode, setPrivacyMode] = useState(false)
+  const [defaultCondition, setDefaultCondition] = useState('NM')
+  const [cacheCleared, setCacheCleared] = useState(false)
+  const router = useRouter()
+
   // ── Share state ──
   const [shareIncludeCollection, setShareIncludeCollection] = useState(true)
   const [shareIncludeWishlist, setShareIncludeWishlist] = useState(false)
@@ -51,6 +62,8 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
     const lsAvatar = localStorage.getItem(LS_AVATAR)
     setDisplayName(lsName)
     setAvatarImg(lsAvatar)
+    setPrivacyMode(localStorage.getItem(LS_PRIVACY) === 'true')
+    setDefaultCondition(localStorage.getItem(LS_DEFAULT_CONDITION) ?? 'NM')
 
     supabase.auth.getSession().then(({ data }) => {
       const uid = data.session?.user.id
@@ -89,6 +102,27 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // ── Display / preferences handlers ──
+  function togglePrivacy() {
+    const next = !privacyMode
+    setPrivacyMode(next)
+    localStorage.setItem(LS_PRIVACY, String(next))
+    document.documentElement.dataset.privacy = next ? 'true' : ''
+  }
+
+  function handleConditionChange(c: string) {
+    setDefaultCondition(c)
+    localStorage.setItem(LS_DEFAULT_CONDITION, c)
+  }
+
+  function clearBrowseCache() {
+    localStorage.removeItem('catchm_browse_default_v2')
+    localStorage.removeItem('catchm_b_sort')
+    localStorage.removeItem('catchm_b_rarity')
+    setCacheCleared(true)
+    setTimeout(() => setCacheCleared(false), 2200)
+  }
 
   // ── Profile helpers ──
   const upsertProfile = useCallback(async (patch: { display_name?: string; avatar_data?: string | null }) => {
@@ -249,6 +283,13 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
             a.click()
             URL.revokeObjectURL(url)
           }}
+          privacyMode={privacyMode}
+          onPrivacyToggle={togglePrivacy}
+          defaultCondition={defaultCondition}
+          onConditionChange={handleConditionChange}
+          cacheCleared={cacheCleared}
+          onClearCache={clearBrowseCache}
+          onImport={() => { onClose(); router.push('/import') }}
         />
       )}
 
@@ -288,6 +329,8 @@ function MainView({
   onAvatarClick, onRemoveAvatar, onStartEdit, onNameChange, onSaveName, onCancelEdit,
   owned, totalValue, sales, cards,
   onOpenShare, onOpenLogout, onExport,
+  privacyMode, onPrivacyToggle, defaultCondition, onConditionChange,
+  cacheCleared, onClearCache, onImport,
 }: {
   avatarImg: string | null; initials: string | null; uploading: boolean
   displayName: string; editing: boolean; nameInput: string
@@ -297,6 +340,9 @@ function MainView({
   onSaveName: () => void; onCancelEdit: () => void
   owned: unknown[]; totalValue: number; sales: unknown[]; cards: unknown[]
   onOpenShare: () => void; onOpenLogout: () => void; onExport: () => void
+  privacyMode: boolean; onPrivacyToggle: () => void
+  defaultCondition: string; onConditionChange: (c: string) => void
+  cacheCleared: boolean; onClearCache: () => void; onImport: () => void
 }) {
   return (
     <>
@@ -397,10 +443,86 @@ function MainView({
         ))}
       </div>
 
-      {/* Actions */}
+      {/* ── Display ── */}
+      <SectionLabel>Display</SectionLabel>
+      <button
+        onClick={onPrivacyToggle}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+          background: 'var(--surface)', border: `1px solid ${privacyMode ? 'var(--violet)' : 'var(--border)'}`,
+          borderRadius: 12, padding: '12px 14px', cursor: 'pointer',
+          marginBottom: 8, textAlign: 'left', transition: 'border-color 0.15s',
+        }}>
+        <span style={{ flexShrink: 0, display: 'flex', color: 'var(--text2)' }}>
+          {privacyMode ? <EyeSlashIcon size={18} /> : <EyeIcon size={18} />}
+        </span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Privacy Mode</div>
+          <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>Blur portfolio totals</div>
+        </div>
+        <div style={{
+          width: 44, height: 26, borderRadius: 13, flexShrink: 0, position: 'relative',
+          background: privacyMode ? 'var(--violet)' : 'rgba(255,255,255,0.12)',
+          transition: 'background 0.2s',
+        }}>
+          <div style={{
+            position: 'absolute', top: 3, left: privacyMode ? 21 : 3,
+            width: 20, height: 20, borderRadius: '50%', background: '#fff',
+            transition: 'left 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+          }} />
+        </div>
+      </button>
+
+      {/* ── Preferences ── */}
+      <SectionLabel>Preferences</SectionLabel>
+      <div style={{
+        background: 'var(--surface)', border: '1px solid var(--border)',
+        borderRadius: 12, padding: '12px 14px', marginBottom: 8,
+      }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 10 }}>
+          Default Condition
+        </div>
+        <div style={{ display: 'flex', background: 'var(--elevated)', borderRadius: 9, padding: 3, gap: 2 }}>
+          {CONDITIONS.map(c => (
+            <button key={c} onClick={() => onConditionChange(c)} style={{
+              flex: 1, padding: '6px 0', borderRadius: 7, border: 'none', cursor: 'pointer',
+              background: defaultCondition === c ? 'var(--violet)' : 'transparent',
+              color: defaultCondition === c ? '#fff' : 'var(--text3)',
+              fontSize: 11, fontWeight: 700, letterSpacing: '0.02em',
+              transition: 'background 0.15s, color 0.15s',
+            }}>{c}</button>
+          ))}
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 8 }}>
+          Applied when adding new cards to CATCHM
+        </div>
+      </div>
+
+      {/* ── Collection actions ── */}
       <SectionLabel>Collection</SectionLabel>
       <SettingsRow icon={<LinkIcon size={18} />} title="Share Collection" subtitle="Create a public link for friends" onClick={onOpenShare} />
       <SettingsRow icon={<UploadIcon size={18} />} title="Export Collection" subtitle="Download your cards & sales as JSON" onClick={onExport} />
+      <SettingsRow icon={<DownloadIcon size={18} />} title="Import Collection" subtitle="Restore from a JSON backup" onClick={onImport} />
+      <button
+        onClick={onClearCache}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+          background: 'var(--surface)', border: '1px solid var(--border)',
+          borderRadius: 12, padding: '12px 14px', cursor: 'pointer',
+          marginBottom: 8, textAlign: 'left',
+          color: cacheCleared ? 'var(--emerald)' : 'var(--text)',
+          transition: 'color 0.2s',
+        }}>
+        <span style={{ flexShrink: 0, display: 'flex', color: cacheCleared ? 'var(--emerald)' : 'var(--text2)' }}>
+          <ArrowPathIcon size={18} />
+        </span>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 600 }}>
+            {cacheCleared ? 'Cache cleared!' : 'Clear Browse Cache'}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>Force-refresh card search results</div>
+        </div>
+      </button>
 
       {/* Account */}
       <SectionLabel>Account</SectionLabel>

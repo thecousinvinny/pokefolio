@@ -38,7 +38,7 @@ export default function SoldPage() {
       {/* Summary card */}
       <div className="surface-card p-6">
         <p className="section-label mb-2">LIFETIME NET PROFIT</p>
-        <p className="text-5xl font-black"
+        <p className="text-5xl font-black pv"
           style={{ color: totalEarned >= 0 ? 'var(--emerald)' : 'var(--crimson)' }}>
           {formatPrice(totalEarned)}
         </p>

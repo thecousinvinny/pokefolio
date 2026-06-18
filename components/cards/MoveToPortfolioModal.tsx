@@ -4,6 +4,7 @@ import { Modal } from '@/components/ui/Modal'
 import { useCollection } from '@/components/CollectionContext'
 import { formatPrice } from '@/lib/utils'
 import { CONDITION_ORDER, CONDITION_LABELS } from '@/types'
+import { LS_DEFAULT_CONDITION } from '@/components/layout/ProfileSheet'
 import type { PokemonCard } from '@/types'
 
 interface MoveToPortfolioModalProps {
@@ -15,7 +16,11 @@ interface MoveToPortfolioModalProps {
 export function MoveToPortfolioModal({ card, onClose, onBack }: MoveToPortfolioModalProps) {
   const { updateCard } = useCollection()
   const today = new Date().toISOString().slice(0, 10)
-  const [condition, setCondition] = useState(0)
+  const [condition, setCondition] = useState(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem(LS_DEFAULT_CONDITION) : null
+    const idx = saved ? CONDITION_ORDER.indexOf(saved as never) : -1
+    return idx >= 0 ? idx : 0
+  })
   const [pricePaid, setPricePaid] = useState('')
   const [boughtFrom, setBoughtFrom] = useState('')
   const [dateBought, setDateBought] = useState(today)
