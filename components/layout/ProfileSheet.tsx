@@ -15,8 +15,13 @@ interface Props {
   onAvatarChange: (img: string | null) => void
 }
 
+type View = 'main' | 'share' | 'logout'
+
 export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
   const { cards, sales } = useCollection()
+  const supabase = createClient()
+
+  // ── Profile state ──
   const [displayName, setDisplayName] = useState('')
   const [editing, setEditing] = useState(false)
   const [nameInput, setNameInput] = useState('')
@@ -24,9 +29,21 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
   const [uploading, setUploading] = useState(false)
   const nameInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const supabase = createClient()
 
-  // Load from localStorage immediately, then sync from Supabase in background
+  // ── Navigation ──
+  const [view, setView] = useState<View>('main')
+
+  // ── Share state ──
+  const [shareIncludeCollection, setShareIncludeCollection] = useState(true)
+  const [shareIncludeWishlist, setShareIncludeWishlist] = useState(false)
+  const [shareUrl, setShareUrl] = useState<string | null>(null)
+  const [sharing, setSharing] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  // Reset view when modal closes
+  useEffect(() => { if (!open) setTimeout(() => setView('main'), 350) }, [open])
+
+  // Load profile: localStorage first, then Supabase sync
   useEffect(() => {
     if (typeof window === 'undefined') return
     const lsName = localStorage.getItem(LS_DISPLAY_NAME) ?? ''
@@ -53,25 +70,26 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
             localStorage.setItem(LS_AVATAR, profile.avatar_data)
             onAvatarChange(profile.avatar_data)
           } else if (!profile.avatar_data && lsAvatar) {
-            // Remote has no avatar — treat remote as source of truth
             setAvatarImg(null)
             localStorage.removeItem(LS_AVATAR)
             onAvatarChange(null)
           }
         })
+
+      // Load existing share URL if any
+      supabase
+        .from('public_shares')
+        .select('id')
+        .eq('user_id', uid)
+        .maybeSingle()
+        .then(({ data: share }) => {
+          if (share) setShareUrl(`${window.location.origin}/share/${share.id}`)
+        })
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const owned = cards.filter(c => c.status === 'owned' || c.status === 'for_sale')
-  const totalValue = owned.reduce((s, c) => s + conditionAdjustedValue(c), 0)
-
-  function startEdit() {
-    setNameInput(displayName)
-    setEditing(true)
-    setTimeout(() => nameInputRef.current?.focus(), 60)
-  }
-
+  // ── Profile helpers ──
   const upsertProfile = useCallback(async (patch: { display_name?: string; avatar_data?: string | null }) => {
     const { data } = await supabase.auth.getSession()
     const uid = data.session?.user.id
@@ -79,6 +97,12 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
     await supabase.from('user_profiles').upsert({ user_id: uid, ...patch }, { onConflict: 'user_id' })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  function startEdit() {
+    setNameInput(displayName)
+    setEditing(true)
+    setTimeout(() => nameInputRef.current?.focus(), 60)
+  }
 
   function saveName() {
     const v = nameInput.trim()
@@ -112,26 +136,77 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
     upsertProfile({ avatar_data: null })
   }
 
-  function exportData() {
-    const blob = new Blob(
-      [JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), cards, sales }, null, 2)],
-      { type: 'application/json' }
-    )
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `catchm-${new Date().toISOString().slice(0, 10)}.json`
-    a.click()
-    URL.revokeObjectURL(url)
+  // ── Share helpers ──
+  async function generateShare() {
+    setSharing(true)
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const uid = sessionData.session?.user.id
+      if (!uid) return
+
+      const owned = cards.filter(c => c.status === 'owned' || c.status === 'for_sale')
+      const wishlist = cards.filter(c => c.status === 'wishlist')
+
+      const payload = {
+        user_id: uid,
+        display_name: displayName || null,
+        avatar_data: avatarImg,
+        cards_data: shareIncludeCollection ? owned : null,
+        wishlist_data: shareIncludeWishlist ? wishlist : null,
+        include_collection: shareIncludeCollection,
+        include_wishlist: shareIncludeWishlist,
+      }
+
+      const { data: existing } = await supabase
+        .from('public_shares')
+        .select('id')
+        .eq('user_id', uid)
+        .maybeSingle()
+
+      let id: string
+      if (existing) {
+        await supabase.from('public_shares').update(payload).eq('id', existing.id)
+        id = existing.id
+      } else {
+        const { data: created } = await supabase
+          .from('public_shares').insert(payload).select('id').single()
+        id = created!.id
+      }
+
+      setShareUrl(`${window.location.origin}/share/${id}`)
+    } finally {
+      setSharing(false)
+    }
   }
 
+  async function copyShareUrl() {
+    if (!shareUrl) return
+    await navigator.clipboard.writeText(shareUrl)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  // ── Logout ──
+  async function handleLogout() {
+    localStorage.removeItem(LS_DISPLAY_NAME)
+    localStorage.removeItem(LS_AVATAR)
+    localStorage.removeItem('catchm_cards_v1')
+    localStorage.removeItem('catchm_sales_v1')
+    await supabase.auth.signOut()
+    window.location.reload()
+  }
+
+  // ── Computed ──
+  const owned = cards.filter(c => c.status === 'owned' || c.status === 'for_sale')
+  const totalValue = owned.reduce((s, c) => s + conditionAdjustedValue(c), 0)
   const initials = displayName
     ? displayName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
     : null
 
+  // ─────────────────────────────────────────────
   return (
-    <Modal open={open} onClose={onClose} title="Profile & Settings">
-      {/* Hidden file input — must be in DOM for iOS to work */}
+    <Modal open={open} onClose={onClose} title={view === 'share' ? undefined : 'Profile & Settings'}>
+      {/* Hidden file input — must be in DOM for iOS */}
       <input
         ref={fileInputRef}
         type="file"
@@ -140,46 +215,119 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
         onChange={handleFileChange}
       />
 
-      {/* ── Avatar + name ── */}
+      {view === 'main' && (
+        <MainView
+          avatarImg={avatarImg}
+          initials={initials}
+          uploading={uploading}
+          displayName={displayName}
+          editing={editing}
+          nameInput={nameInput}
+          nameInputRef={nameInputRef}
+          onAvatarClick={() => fileInputRef.current?.click()}
+          onRemoveAvatar={removeAvatar}
+          onStartEdit={startEdit}
+          onNameChange={setNameInput}
+          onSaveName={saveName}
+          onCancelEdit={() => setEditing(false)}
+          owned={owned}
+          totalValue={totalValue}
+          sales={sales}
+          cards={cards}
+          onOpenShare={() => { setView('share') }}
+          onOpenLogout={() => setView('logout')}
+          onExport={() => {
+            const blob = new Blob(
+              [JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), cards, sales }, null, 2)],
+              { type: 'application/json' }
+            )
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = `catchm-${new Date().toISOString().slice(0, 10)}.json`
+            a.click()
+            URL.revokeObjectURL(url)
+          }}
+        />
+      )}
+
+      {view === 'share' && (
+        <ShareView
+          includeCollection={shareIncludeCollection}
+          includeWishlist={shareIncludeWishlist}
+          onToggleCollection={() => setShareIncludeCollection(v => !v)}
+          onToggleWishlist={() => setShareIncludeWishlist(v => !v)}
+          shareUrl={shareUrl}
+          sharing={sharing}
+          copied={copied}
+          ownedCount={owned.length}
+          wishlistCount={cards.filter(c => c.status === 'wishlist').length}
+          onGenerate={generateShare}
+          onCopy={copyShareUrl}
+          onBack={() => setView('main')}
+        />
+      )}
+
+      {view === 'logout' && (
+        <LogoutView
+          onConfirm={handleLogout}
+          onCancel={() => setView('main')}
+        />
+      )}
+
+      <div style={{ height: 4 }} />
+    </Modal>
+  )
+}
+
+// ── Main view ──────────────────────────────────────────────────────────────────
+
+function MainView({
+  avatarImg, initials, uploading, displayName, editing, nameInput, nameInputRef,
+  onAvatarClick, onRemoveAvatar, onStartEdit, onNameChange, onSaveName, onCancelEdit,
+  owned, totalValue, sales, cards,
+  onOpenShare, onOpenLogout, onExport,
+}: {
+  avatarImg: string | null; initials: string | null; uploading: boolean
+  displayName: string; editing: boolean; nameInput: string
+  nameInputRef: React.RefObject<HTMLInputElement | null>
+  onAvatarClick: () => void; onRemoveAvatar: () => void
+  onStartEdit: () => void; onNameChange: (v: string) => void
+  onSaveName: () => void; onCancelEdit: () => void
+  owned: unknown[]; totalValue: number; sales: unknown[]; cards: unknown[]
+  onOpenShare: () => void; onOpenLogout: () => void; onExport: () => void
+}) {
+  return (
+    <>
+      {/* Avatar + name */}
       <div style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center',
         gap: 12, paddingBottom: 20, marginBottom: 16,
         borderBottom: '1px solid var(--border)',
       }}>
-        {/* Tappable avatar */}
         <button
-          onClick={() => fileInputRef.current?.click()}
+          onClick={onAvatarClick}
           aria-label="Change profile photo"
           style={{
             position: 'relative', width: 80, height: 80, borderRadius: '50%',
-            border: 'none', padding: 0, cursor: 'pointer',
-            background: 'transparent', flexShrink: 0,
+            border: 'none', padding: 0, cursor: 'pointer', background: 'transparent', flexShrink: 0,
           }}>
-          {/* Circle */}
           <div style={{
-            width: 80, height: 80, borderRadius: '50%',
-            overflow: 'hidden',
+            width: 80, height: 80, borderRadius: '50%', overflow: 'hidden',
             background: avatarImg ? 'transparent' : 'linear-gradient(135deg, var(--violet) 0%, var(--gold) 100%)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: initials && !avatarImg ? 26 : 20, fontWeight: 700, color: '#fff',
-            boxShadow: '0 4px 24px rgba(156, 114, 250, 0.45)',
+            boxShadow: '0 4px 24px rgba(156,114,250,0.45)',
           }}>
-            {uploading ? (
-              <SpinnerSvg />
-            ) : avatarImg ? (
+            {uploading ? <SpinnerSvg /> : avatarImg
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={avatarImg} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            ) : (
-              initials ?? <UserSvg />
-            )}
+              ? <img src={avatarImg} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : (initials ?? <UserSvg />)}
           </div>
-
-          {/* Camera badge */}
           {!uploading && (
             <div style={{
-              position: 'absolute', bottom: 0, right: 0,
-              width: 26, height: 26, borderRadius: '50%',
-              background: 'var(--surface)',
+              position: 'absolute', bottom: 0, right: 0, width: 26, height: 26,
+              borderRadius: '50%', background: 'var(--surface)',
               border: '2px solid var(--border2)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
@@ -188,48 +336,39 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
           )}
         </button>
 
-        {/* Remove photo link */}
         {avatarImg && !uploading && (
-          <button
-            onClick={removeAvatar}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              fontSize: 12, color: 'var(--crimson)', padding: '0 4px',
-            }}>
+          <button onClick={onRemoveAvatar} style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 12, color: 'var(--crimson)', padding: '0 4px',
+          }}>
             Remove photo
           </button>
         )}
 
-        {/* Name */}
         {editing ? (
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input
               ref={nameInputRef}
               value={nameInput}
-              onChange={e => setNameInput(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter') saveName()
-                if (e.key === 'Escape') setEditing(false)
-              }}
+              onChange={e => onNameChange(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') onSaveName(); if (e.key === 'Escape') onCancelEdit() }}
               maxLength={30}
               placeholder="Your name"
               style={{
                 background: 'var(--surface)', border: '1px solid var(--border2)',
-                borderRadius: 8, padding: '7px 12px',
-                color: 'var(--text)', fontSize: 15, outline: 'none', minWidth: 0, width: 160,
+                borderRadius: 8, padding: '7px 12px', color: 'var(--text)',
+                fontSize: 15, outline: 'none', minWidth: 0, width: 160,
               }}
             />
-            <button
-              onClick={saveName}
-              style={{
-                background: 'var(--btn-info)', color: '#fff', border: 'none',
-                borderRadius: 8, padding: '7px 14px', fontWeight: 600, fontSize: 13, cursor: 'pointer',
-              }}>
-              Save
-            </button>
+            <button onClick={onSaveName} style={{
+              background: 'var(--btn-info)', color: '#fff', border: 'none',
+              borderRadius: 8, padding: '7px 14px', fontWeight: 600, fontSize: 13, cursor: 'pointer',
+            }}>Save</button>
           </div>
         ) : (
-          <button onClick={startEdit} style={{ background: 'none', border: 'none', cursor: 'pointer', textAlign: 'center', padding: 4 }}>
+          <button onClick={onStartEdit} style={{
+            background: 'none', border: 'none', cursor: 'pointer', textAlign: 'center', padding: 4,
+          }}>
             <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', lineHeight: 1.2 }}>
               {displayName || <span style={{ color: 'var(--text3)' }}>Set your name</span>}
             </div>
@@ -240,17 +379,16 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
         )}
       </div>
 
-      {/* ── Quick stats ── */}
+      {/* Quick stats */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 20 }}>
         {[
-          { label: 'Cards', value: owned.length },
+          { label: 'Cards', value: (owned as unknown[]).length },
           { label: 'Value', value: formatPrice(totalValue) },
-          { label: 'Sold', value: sales.length },
+          { label: 'Sold', value: (sales as unknown[]).length },
         ].map(s => (
           <div key={s.label} style={{
             textAlign: 'center', background: 'var(--surface)',
-            borderRadius: 10, padding: '10px 6px',
-            border: '1px solid var(--border)',
+            borderRadius: 10, padding: '10px 6px', border: '1px solid var(--border)',
           }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{s.value}</div>
             <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{s.label}</div>
@@ -258,16 +396,29 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
         ))}
       </div>
 
-      {/* ── Data section ── */}
-      <SectionLabel>Data</SectionLabel>
-      <SettingsRow
-        icon="📤"
-        title="Export Collection"
-        subtitle="Download your cards & sales as JSON"
-        onClick={exportData}
-      />
+      {/* Actions */}
+      <SectionLabel>Collection</SectionLabel>
+      <SettingsRow icon="🔗" title="Share Collection" subtitle="Create a public link for friends" onClick={onOpenShare} />
+      <SettingsRow icon="📤" title="Export Collection" subtitle="Download your cards & sales as JSON" onClick={onExport} />
 
-      {/* ── About section ── */}
+      {/* Account */}
+      <SectionLabel>Account</SectionLabel>
+      <button
+        onClick={onOpenLogout}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+          background: 'var(--surface)', border: '1px solid var(--border)',
+          borderRadius: 12, padding: '12px 14px', cursor: 'pointer',
+          marginBottom: 8, textAlign: 'left', color: 'var(--crimson)',
+        }}>
+        <span style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>🚪</span>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 600 }}>Sign Out</div>
+          <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>Disconnect this device</div>
+        </div>
+      </button>
+
+      {/* About */}
       <SectionLabel>About</SectionLabel>
       <div style={{
         background: 'var(--surface)', border: '1px solid var(--border)',
@@ -281,13 +432,228 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
           Pokémon TCG Portfolio Tracker
         </div>
       </div>
-
-      <div style={{ height: 8 }} />
-    </Modal>
+    </>
   )
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Share sub-view ─────────────────────────────────────────────────────────────
+
+function ShareView({
+  includeCollection, includeWishlist, onToggleCollection, onToggleWishlist,
+  shareUrl, sharing, copied, ownedCount, wishlistCount, onGenerate, onCopy, onBack,
+}: {
+  includeCollection: boolean; includeWishlist: boolean
+  onToggleCollection: () => void; onToggleWishlist: () => void
+  shareUrl: string | null; sharing: boolean; copied: boolean
+  ownedCount: number; wishlistCount: number
+  onGenerate: () => void; onCopy: () => void; onBack: () => void
+}) {
+  const canGenerate = includeCollection || includeWishlist
+
+  return (
+    <>
+      {/* Back header */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid var(--border)',
+      }}>
+        <button onClick={onBack} style={{
+          background: 'var(--surface)', border: '1px solid var(--border)',
+          borderRadius: 8, width: 32, height: 32, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          color: 'var(--text)',
+        }}>
+          <svg width={16} height={16} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
+        </button>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 700 }}>Share Collection</div>
+          <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 1 }}>Anyone with the link can view</div>
+        </div>
+      </div>
+
+      {/* What to include */}
+      <SectionLabel>Include</SectionLabel>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+        <Toggle
+          label="Collection"
+          subtitle={`${ownedCount} card${ownedCount !== 1 ? 's' : ''}`}
+          checked={includeCollection}
+          onToggle={onToggleCollection}
+        />
+        <Toggle
+          label="Wish List"
+          subtitle={`${wishlistCount} card${wishlistCount !== 1 ? 's' : ''}`}
+          checked={includeWishlist}
+          onToggle={onToggleWishlist}
+        />
+      </div>
+
+      {/* Generate */}
+      <button
+        onClick={onGenerate}
+        disabled={!canGenerate || sharing}
+        style={{
+          width: '100%', padding: '13px', borderRadius: 12, border: 'none',
+          background: canGenerate ? 'var(--btn-info)' : 'var(--btn-disabled)',
+          color: '#fff', fontWeight: 700, fontSize: 15, cursor: canGenerate ? 'pointer' : 'default',
+          marginBottom: 16, opacity: sharing ? 0.7 : 1,
+          transition: 'opacity 0.15s',
+        }}>
+        {sharing ? 'Generating…' : shareUrl ? 'Update Link' : 'Generate Link'}
+      </button>
+
+      {/* Share URL */}
+      {shareUrl && (
+        <div style={{
+          background: 'var(--surface)', border: '1px solid var(--border)',
+          borderRadius: 12, padding: '12px 14px',
+        }}>
+          <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 8, fontWeight: 600, letterSpacing: '0.06em' }}>
+            YOUR SHARE LINK
+          </div>
+          <div style={{
+            fontSize: 12, color: 'var(--text2)', wordBreak: 'break-all',
+            lineHeight: 1.5, marginBottom: 12,
+          }}>
+            {shareUrl}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={onCopy}
+              style={{
+                flex: 1, padding: '10px', borderRadius: 10, border: 'none',
+                background: copied ? 'var(--emerald)' : 'var(--btn-info)',
+                color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer',
+                transition: 'background 0.2s',
+              }}>
+              {copied ? '✓ Copied!' : 'Copy Link'}
+            </button>
+            <a
+              href={shareUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                flex: 1, padding: '10px', borderRadius: 10,
+                background: 'var(--surface)', border: '1px solid var(--border2)',
+                color: 'var(--text)', fontWeight: 600, fontSize: 13,
+                textDecoration: 'none', display: 'flex', alignItems: 'center',
+                justifyContent: 'center', textAlign: 'center',
+              }}>
+              Preview ↗
+            </a>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+// ── Logout confirmation ────────────────────────────────────────────────────────
+
+function LogoutView({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div style={{ textAlign: 'center', padding: '8px 0 4px' }}>
+      <div style={{ fontSize: 40, marginBottom: 12 }}>🚪</div>
+      <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 8 }}>Sign Out?</div>
+      <div style={{ fontSize: 13, color: 'var(--text3)', lineHeight: 1.6, marginBottom: 24 }}>
+        This disconnects your collection from this device.
+        Since you&apos;re using anonymous sign-in, you won&apos;t be
+        able to log back into this account.
+      </div>
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button onClick={onCancel} style={{
+          flex: 1, padding: '12px', borderRadius: 12, border: '1px solid var(--border)',
+          background: 'var(--surface)', color: 'var(--text)', fontWeight: 600, fontSize: 14, cursor: 'pointer',
+        }}>
+          Cancel
+        </button>
+        <button onClick={onConfirm} style={{
+          flex: 1, padding: '12px', borderRadius: 12, border: 'none',
+          background: 'var(--btn-remove)', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer',
+        }}>
+          Sign Out
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Shared sub-components ──────────────────────────────────────────────────────
+
+function Toggle({ label, subtitle, checked, onToggle }: {
+  label: string; subtitle: string; checked: boolean; onToggle: () => void
+}) {
+  return (
+    <button
+      onClick={onToggle}
+      style={{
+        width: '100%', display: 'flex', alignItems: 'center',
+        background: 'var(--surface)', border: `1px solid ${checked ? 'var(--violet)' : 'var(--border)'}`,
+        borderRadius: 12, padding: '12px 14px', cursor: 'pointer', textAlign: 'left',
+        transition: 'border-color 0.15s',
+      }}>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{label}</div>
+        <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>{subtitle}</div>
+      </div>
+      {/* Pill toggle */}
+      <div style={{
+        width: 44, height: 26, borderRadius: 13, flexShrink: 0, position: 'relative',
+        background: checked ? 'var(--violet)' : 'rgba(255,255,255,0.12)',
+        transition: 'background 0.2s',
+      }}>
+        <div style={{
+          position: 'absolute', top: 3, left: checked ? 21 : 3,
+          width: 20, height: 20, borderRadius: '50%', background: '#fff',
+          transition: 'left 0.2s',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+        }} />
+      </div>
+    </button>
+  )
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{
+      fontSize: 11, fontWeight: 600, letterSpacing: '0.08em',
+      color: 'var(--text3)', marginBottom: 8, marginTop: 4,
+    }}>
+      {String(children ?? '').toUpperCase()}
+    </div>
+  )
+}
+
+function SettingsRow({ icon, title, subtitle, onClick }: {
+  icon: string; title: string; subtitle: string; onClick?: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+        background: 'var(--surface)', border: '1px solid var(--border)',
+        borderRadius: 12, padding: '12px 14px', color: 'var(--text)',
+        cursor: onClick ? 'pointer' : 'default', marginBottom: 8, textAlign: 'left',
+      }}>
+      <span style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{icon}</span>
+      <div>
+        <div style={{ fontSize: 14, fontWeight: 600 }}>{title}</div>
+        <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>{subtitle}</div>
+      </div>
+      {onClick && (
+        <svg style={{ marginLeft: 'auto', flexShrink: 0, color: 'var(--text3)' }}
+          width={16} height={16} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+        </svg>
+      )}
+    </button>
+  )
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
 
 function resizeToSquare(file: File, size: number): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -299,7 +665,6 @@ function resizeToSquare(file: File, size: number): Promise<string> {
         canvas.width = size
         canvas.height = size
         const ctx = canvas.getContext('2d')!
-        // Center-crop to square
         const s = Math.min(img.naturalWidth, img.naturalHeight)
         const sx = (img.naturalWidth - s) / 2
         const sy = (img.naturalHeight - s) / 2
@@ -314,50 +679,6 @@ function resizeToSquare(file: File, size: number): Promise<string> {
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image load failed')) }
     img.src = url
   })
-}
-
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{
-      fontSize: 11, fontWeight: 600, letterSpacing: '0.08em',
-      color: 'var(--text3)', marginBottom: 8, marginTop: 4,
-    }}>
-      {String(children ?? '').toUpperCase()}
-    </div>
-  )
-}
-
-function SettingsRow({
-  icon, title, subtitle, onClick,
-}: {
-  icon: string; title: string; subtitle: string; onClick?: () => void
-}) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-        background: 'var(--surface)', border: '1px solid var(--border)',
-        borderRadius: 12, padding: '12px 14px',
-        color: 'var(--text)', cursor: onClick ? 'pointer' : 'default',
-        marginBottom: 8, textAlign: 'left',
-      }}>
-      <span style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{icon}</span>
-      <div>
-        <div style={{ fontSize: 14, fontWeight: 600 }}>{title}</div>
-        <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>{subtitle}</div>
-      </div>
-      {onClick && (
-        <svg style={{ marginLeft: 'auto', flexShrink: 0, color: 'var(--text3)' }}
-          width={16} height={16} fill="none" viewBox="0 0 24 24"
-          stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-        </svg>
-      )}
-    </button>
-  )
 }
 
 export function UserSvg({ size = 28 }: { size?: number }) {
