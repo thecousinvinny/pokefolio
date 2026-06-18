@@ -2,6 +2,7 @@
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
+import { ProfileSheet, UserSvg, LS_DISPLAY_NAME, LS_AVATAR } from '@/components/layout/ProfileSheet'
 
 const NAV = [
   { href: '/dashboard', label: 'DASH',   icon: DashIcon },
@@ -12,6 +13,13 @@ const NAV = [
 ]
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const [showProfile, setShowProfile] = useState(false)
+  const [avatarImg, setAvatarImg] = useState<string | null>(null)
+
+  useEffect(() => {
+    setAvatarImg(localStorage.getItem(LS_AVATAR))
+  }, [])
+
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--bg)' }}>
       <main style={{
@@ -21,7 +29,66 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {children}
       </main>
       <FloatingTabBar />
+      <ProfileAvatarButton onClick={() => setShowProfile(true)} avatarImg={avatarImg} />
+      <ProfileSheet
+        open={showProfile}
+        onClose={() => setShowProfile(false)}
+        onAvatarChange={setAvatarImg}
+      />
     </div>
+  )
+}
+
+function ProfileAvatarButton({ onClick, avatarImg }: { onClick: () => void; avatarImg: string | null }) {
+  const [initials, setInitials] = useState<string | null>(null)
+
+  useEffect(() => {
+    const name = localStorage.getItem(LS_DISPLAY_NAME) ?? ''
+    if (name) setInitials(name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2))
+  }, [])
+
+  return (
+    <button
+      onClick={onClick}
+      aria-label="Profile & Settings"
+      style={{
+        position: 'fixed',
+        top: 'calc(env(safe-area-inset-top) + 10px)',
+        right: 16,
+        zIndex: 90,
+        width: 40,
+        height: 40,
+        borderRadius: '50%',
+        overflow: 'hidden',
+        background: avatarImg ? 'transparent' : 'linear-gradient(135deg, var(--violet) 0%, var(--gold) 100%)',
+        border: '2px solid rgba(255,255,255,0.18)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#fff',
+        fontSize: initials && !avatarImg ? 14 : 0,
+        fontWeight: 700,
+        cursor: 'pointer',
+        boxShadow: '0 2px 12px rgba(156,114,250,0.5)',
+        WebkitTapHighlightColor: 'transparent',
+        transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+        padding: 0,
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.transform = 'scale(1.08)'
+        e.currentTarget.style.boxShadow = '0 4px 18px rgba(156,114,250,0.7)'
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.transform = 'scale(1)'
+        e.currentTarget.style.boxShadow = '0 2px 12px rgba(156,114,250,0.5)'
+      }}>
+      {avatarImg ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={avatarImg} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      ) : (
+        initials ?? <UserSvg size={22} />
+      )}
+    </button>
   )
 }
 
