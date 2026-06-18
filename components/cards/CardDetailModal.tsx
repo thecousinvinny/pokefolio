@@ -43,6 +43,7 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
   )
   const [showSell, setShowSell] = useState(initialView === 'sell')
   const [showGift, setShowGift] = useState(initialView === 'gift')
+  const [showTrade, setShowTrade] = useState(false)
   const [showMove, setShowMove] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
@@ -101,7 +102,7 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
 
   return (
     <>
-      <Modal open={!!card && !showSell && !showGift && !showMove && !showEdit} onClose={onClose} maxWidth={520}>
+      <Modal open={!!card && !showSell && !showGift && !showTrade && !showMove && !showEdit} onClose={onClose} maxWidth={520}>
         <div style={{ position: 'relative' }}>
 
           {/* Close button */}
@@ -454,9 +455,9 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {/* Row 1: Sell + Gift (locked cards skip this) */}
+                {/* Row 1: Sell + Gift + Trade (locked cards skip this) */}
                 {!locked && (
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ display: 'flex', gap: 6 }}>
                     <button onClick={() => setShowSell(true)} style={{
                       flex: 1, padding: '9px 0', borderRadius: 8, fontSize: 12, fontWeight: 700,
                       background: 'var(--btn-sell)', color: '#fff',
@@ -467,6 +468,11 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
                       background: 'var(--btn-wishlist)', color: '#fff',
                       border: 'none', cursor: 'pointer',
                     }}>GIFT</button>
+                    <button onClick={() => setShowTrade(true)} style={{
+                      flex: 1, padding: '9px 0', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                      background: 'var(--btn-info)', color: '#fff',
+                      border: 'none', cursor: 'pointer',
+                    }}>TRADE</button>
                   </div>
                 )}
                 {/* Row 2 */}
@@ -505,14 +511,19 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
           onBack={() => setShowEdit(false)} />
       )}
       {showSell && (
-        <SellModal card={card} giftMode={false}
+        <SellModal card={card} mode="sell"
           onClose={() => { setShowSell(false); onClose() }}
           onBack={() => setShowSell(false)} />
       )}
       {showGift && (
-        <SellModal card={card} giftMode
+        <SellModal card={card} mode="gift"
           onClose={() => { setShowGift(false); onClose() }}
           onBack={() => setShowGift(false)} />
+      )}
+      {showTrade && (
+        <SellModal card={card} mode="trade"
+          onClose={() => { setShowTrade(false); onClose() }}
+          onBack={() => setShowTrade(false)} />
       )}
     </>
   )
@@ -550,47 +561,55 @@ function Btn({ label, color = 'var(--text2)', accentBg, gradient, onClick, href,
   return <button onClick={onClick} style={{ ...style, outline: 'none' }}>{label}</button>
 }
 
-// ─── Sell / Gift modal ────────────────────────────────────────────────────────
+// ─── Sell / Gift / Trade modal ───────────────────────────────────────────────
 
-function SellModal({ card, giftMode, onClose, onBack }: {
-  card: PokemonCard; giftMode: boolean; onClose: () => void; onBack: () => void
+function SellModal({ card, mode, onClose, onBack }: {
+  card: PokemonCard; mode: 'sell' | 'gift' | 'trade'; onClose: () => void; onBack: () => void
 }) {
   const { sellCard } = useCollection()
-  const defaultPrice = giftMode ? '' : formatPrice(conditionAdjustedValue(card)).replace('$', '')
+  const isSell = mode === 'sell'
+  const isGift = mode === 'gift'
+  const isTrade = mode === 'trade'
+  const defaultPrice = isSell ? formatPrice(conditionAdjustedValue(card)).replace('$', '') : ''
   const [soldPrice, setSoldPrice] = useState(defaultPrice)
   const [fees, setFees] = useState('')
   const [shipping, setShipping] = useState('')
   const [saving, setSaving] = useState(false)
 
-  const sp = giftMode ? 0 : (parseFloat(soldPrice) || 0)
+  const sp = isSell ? (parseFloat(soldPrice) || 0) : 0
   const f = parseFloat(fees) || 0
   const s = parseFloat(shipping) || 0
   const netProfit = sp - f - s - (card.price_paid ?? 0)
 
+  const title = isSell ? 'Log Sale' : isGift ? 'Log Gift' : 'Log Trade'
+  const btnLabel = isSell ? 'Confirm Sale' : isGift ? 'Confirm Gift' : 'Confirm Trade'
+  const btnGradient = isSell ? 'var(--btn-sell)' : isGift ? 'var(--btn-wishlist)' : 'var(--btn-info)'
+  const saleType = isSell ? 'sale' : isGift ? 'gift' : 'trade'
+
   async function confirm() {
-    if (!giftMode && !sp) return
+    if (isSell && !sp) return
     setSaving(true)
-    await sellCard(card, { sold_price: sp, fees: f, shipping: s, sale_type: giftMode ? 'gift' : 'sale' })
+    await sellCard(card, { sold_price: sp, fees: f, shipping: s, sale_type: saleType })
     setSaving(false)
     onClose()
   }
 
   return (
-    <Modal open title={giftMode ? 'Log Gift' : 'Log Sale'} onClose={onClose} maxWidth={420}>
+    <Modal open title={title} onClose={onClose} maxWidth={420}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--text3)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
           ← {card.name}
         </button>
 
-        {giftMode && (
-          <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(156,114,250,0.08)', border: '1px solid rgba(156,114,250,0.20)' }}>
-            <p style={{ margin: 0, fontSize: 12, color: 'var(--violet)' }}>
-              Card will be removed from your portfolio and logged as gifted.
+        {(isGift || isTrade) && (
+          <div style={{ padding: '8px 12px', borderRadius: 8, background: isGift ? 'rgba(156,114,250,0.08)' : 'rgba(93,169,255,0.08)', border: `1px solid ${isGift ? 'rgba(156,114,250,0.20)' : 'rgba(93,169,255,0.20)'}` }}>
+            <p style={{ margin: 0, fontSize: 12, color: isGift ? 'var(--violet)' : 'var(--sky)' }}>
+              {isGift ? 'Card will be removed from your portfolio and logged as gifted.' : 'Card will be removed and logged as a trade. Add the card you received separately.'}
             </p>
           </div>
         )}
 
-        {!giftMode && (
+        {isSell && (
           <div>
             <label style={{ display: 'block', marginBottom: 5, fontSize: 9, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text3)' }}>
               Sale price *
@@ -612,28 +631,28 @@ function SellModal({ card, giftMode, onClose, onBack }: {
 
         <div style={{ padding: '12px 14px', borderRadius: 10, textAlign: 'center', background: 'var(--s2)', border: '1px solid var(--border)' }}>
           <p style={{ margin: '0 0 4px', fontSize: 9, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text3)' }}>
-            {giftMode ? 'Total Cost' : 'Net Profit'}
+            {isSell ? 'Net Profit' : 'Total Cost'}
           </p>
-          <p style={{ margin: 0, fontSize: 26, fontWeight: 900, color: netProfit >= 0 && !giftMode ? 'var(--emerald)' : 'var(--crimson)' }}>
-            {giftMode
-              ? `-${formatPrice(f + s + (card.price_paid ?? 0))}`
-              : `${netProfit >= 0 ? '+' : ''}${formatPrice(netProfit)}`}
+          <p style={{ margin: 0, fontSize: 26, fontWeight: 900, color: netProfit >= 0 && isSell ? 'var(--emerald)' : 'var(--crimson)' }}>
+            {isSell
+              ? `${netProfit >= 0 ? '+' : ''}${formatPrice(netProfit)}`
+              : `-${formatPrice(f + s + (card.price_paid ?? 0))}`}
           </p>
           {card.price_paid != null && (
             <p style={{ margin: '3px 0 0', fontSize: 11, color: 'var(--text3)' }}>
-              Paid {formatPrice(card.price_paid)}{!giftMode ? ` · Sold ${formatPrice(sp)}` : ''}
+              Paid {formatPrice(card.price_paid)}{isSell ? ` · Sold ${formatPrice(sp)}` : ''}
             </p>
           )}
         </div>
 
-        <button onClick={confirm} disabled={saving || (!giftMode && !sp)} style={{
+        <button onClick={confirm} disabled={saving || (isSell && !sp)} style={{
           width: '100%', padding: '12px', borderRadius: 8, fontSize: 13, fontWeight: 700,
-          background: giftMode ? 'var(--btn-wishlist)' : 'var(--btn-sell)',
+          background: btnGradient,
           color: '#fff', border: 'none', cursor: saving ? 'default' : 'pointer',
-          opacity: saving || (!giftMode && !sp) ? 0.55 : 1,
+          opacity: saving || (isSell && !sp) ? 0.55 : 1,
           transition: 'opacity 0.12s',
         }}>
-          {saving ? 'Saving…' : giftMode ? 'Confirm Gift' : 'Confirm Sale'}
+          {saving ? 'Saving…' : btnLabel}
         </button>
       </div>
     </Modal>

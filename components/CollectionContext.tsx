@@ -22,7 +22,7 @@ interface SellPayload {
   sold_price: number
   fees: number
   shipping: number
-  sale_type?: 'sale' | 'gift'
+  sale_type?: 'sale' | 'gift' | 'trade'
 }
 
 interface CollectionContextType {

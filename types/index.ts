@@ -70,7 +70,7 @@ export interface SaleRecord {
   set_name?: string
   image_sm?: string
   card_snapshot?: Record<string, unknown>
-  sale_type?: 'sale' | 'gift'
+  sale_type?: 'sale' | 'gift' | 'trade'
   date_sold: string
   sold_price: number
   fees: number
