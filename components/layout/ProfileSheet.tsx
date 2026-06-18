@@ -1,7 +1,8 @@
 'use client'
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, useCallback } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { useCollection } from '@/components/CollectionContext'
+import { createClient } from '@/lib/supabase/client'
 import { conditionAdjustedValue } from '@/types'
 import { formatPrice } from '@/lib/utils'
 
@@ -23,11 +24,43 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
   const [uploading, setUploading] = useState(false)
   const nameInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const supabase = createClient()
 
+  // Load from localStorage immediately, then sync from Supabase in background
   useEffect(() => {
     if (typeof window === 'undefined') return
-    setDisplayName(localStorage.getItem(LS_DISPLAY_NAME) ?? '')
-    setAvatarImg(localStorage.getItem(LS_AVATAR))
+    const lsName = localStorage.getItem(LS_DISPLAY_NAME) ?? ''
+    const lsAvatar = localStorage.getItem(LS_AVATAR)
+    setDisplayName(lsName)
+    setAvatarImg(lsAvatar)
+
+    supabase.auth.getSession().then(({ data }) => {
+      const uid = data.session?.user.id
+      if (!uid) return
+      supabase
+        .from('user_profiles')
+        .select('display_name, avatar_data')
+        .eq('user_id', uid)
+        .maybeSingle()
+        .then(({ data: profile }) => {
+          if (!profile) return
+          if (profile.display_name && profile.display_name !== lsName) {
+            setDisplayName(profile.display_name)
+            localStorage.setItem(LS_DISPLAY_NAME, profile.display_name)
+          }
+          if (profile.avatar_data && profile.avatar_data !== lsAvatar) {
+            setAvatarImg(profile.avatar_data)
+            localStorage.setItem(LS_AVATAR, profile.avatar_data)
+            onAvatarChange(profile.avatar_data)
+          } else if (!profile.avatar_data && lsAvatar) {
+            // Remote has no avatar — treat remote as source of truth
+            setAvatarImg(null)
+            localStorage.removeItem(LS_AVATAR)
+            onAvatarChange(null)
+          }
+        })
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const owned = cards.filter(c => c.status === 'owned' || c.status === 'for_sale')
@@ -39,12 +72,21 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
     setTimeout(() => nameInputRef.current?.focus(), 60)
   }
 
+  const upsertProfile = useCallback(async (patch: { display_name?: string; avatar_data?: string | null }) => {
+    const { data } = await supabase.auth.getSession()
+    const uid = data.session?.user.id
+    if (!uid) return
+    await supabase.from('user_profiles').upsert({ user_id: uid, ...patch }, { onConflict: 'user_id' })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   function saveName() {
     const v = nameInput.trim()
     setDisplayName(v)
     if (v) localStorage.setItem(LS_DISPLAY_NAME, v)
     else localStorage.removeItem(LS_DISPLAY_NAME)
     setEditing(false)
+    upsertProfile({ display_name: v || undefined })
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -57,6 +99,7 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
       setAvatarImg(base64)
       localStorage.setItem(LS_AVATAR, base64)
       onAvatarChange(base64)
+      upsertProfile({ avatar_data: base64 })
     } finally {
       setUploading(false)
     }
@@ -66,6 +109,7 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
     setAvatarImg(null)
     localStorage.removeItem(LS_AVATAR)
     onAvatarChange(null)
+    upsertProfile({ avatar_data: null })
   }
 
   function exportData() {
