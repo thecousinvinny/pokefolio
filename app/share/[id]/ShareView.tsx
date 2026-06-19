@@ -115,14 +115,10 @@ export function ShareView({ share }: { share: ShareRow }) {
       )}
 
       {/* ── Card grid ── */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(2, 1fr)',
-        gap: 12,
-        padding: '0 14px 40px',
-        maxWidth: 600,
-        margin: '0 auto',
-      }}>
+      <div
+        className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5"
+        style={{ gap: 12, padding: '0 14px 40px', maxWidth: 1400, margin: '0 auto' }}
+      >
         {cards.length === 0 ? (
           <div style={{
             gridColumn: '1 / -1', textAlign: 'center',
@@ -182,7 +178,7 @@ function ShareCardTile({ card, isWishlist }: { card: PokemonCard; isWishlist: bo
             src={card.image_sm!}
             alt={card.name}
             fill
-            sizes="(max-width: 600px) 45vw, 280px"
+            sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 18vw"
             style={{ objectFit: 'contain' }}
           />
         )}
