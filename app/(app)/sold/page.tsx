@@ -34,7 +34,15 @@ const TRADE_SORTS: { key: TradeSort; label: string }[] = [
   { key: 'alpha',  label: 'A–Z'    },
 ]
 
-const REVEAL_W = 152
+const REVEAL_W = 160
+const SNAP_THRESHOLD = REVEAL_W * 0.4
+const RESISTANCE = 0.85
+
+function haptic(style: 'medium' | 'light') {
+  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+    navigator.vibrate(style === 'medium' ? 12 : 6)
+  }
+}
 
 export default function LedgerPage() {
   const { cards, sales, loading } = useCollection()
@@ -51,8 +59,8 @@ export default function LedgerPage() {
 
   // Swipe + modal state
   const [swipedId, setSwipedId] = useState<string | null>(null)
-  const [actionCard, setActionCard] = useState<{ card: PokemonCard; mode: 'sell' | 'trade' } | null>(null)
-  const [confirmFav, setConfirmFav] = useState<{ card: PokemonCard; mode: 'sell' | 'trade' } | null>(null)
+  const [actionCard, setActionCard] = useState<{ card: PokemonCard; mode: 'sell' | 'gift' } | null>(null)
+  const [confirmFav, setConfirmFav] = useState<{ card: PokemonCard; mode: 'sell' | 'gift' } | null>(null)
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null)
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
 
@@ -157,10 +165,10 @@ export default function LedgerPage() {
     else setActionCard({ card, mode: 'sell' })
   }, [])
 
-  const handleTrade = useCallback((card: PokemonCard) => {
+  const handleGift = useCallback((card: PokemonCard) => {
     setSwipedId(null)
-    if (card.is_favorite) setConfirmFav({ card, mode: 'trade' })
-    else setActionCard({ card, mode: 'trade' })
+    if (card.is_favorite) setConfirmFav({ card, mode: 'gift' })
+    else setActionCard({ card, mode: 'gift' })
   }, [])
 
   const selectedSale = selectedSaleId ? (sales.find(s => s.id === selectedSaleId) ?? null) : null
@@ -317,7 +325,7 @@ export default function LedgerPage() {
                   onOpen={() => setSwipedId(card.id)}
                   onClose={() => setSwipedId(null)}
                   onSell={() => handleSell(card)}
-                  onTrade={() => handleTrade(card)}
+                  onGift={() => handleGift(card)}
                   onView={() => setSelectedCardId(card.id)}
                 />
               </div>
@@ -379,10 +387,10 @@ export default function LedgerPage() {
                 }}
                 style={{
                   flex: 1, padding: '11px', borderRadius: 10, fontSize: 13, fontWeight: 700,
-                  background: confirmFav.mode === 'sell' ? 'var(--btn-sell)' : 'var(--btn-info)',
+                  background: confirmFav.mode === 'sell' ? 'var(--btn-sell)' : 'var(--btn-wishlist)',
                   color: '#fff', border: 'none', cursor: 'pointer',
                 }}>
-                {confirmFav.mode === 'sell' ? 'Yes, Sell' : 'Yes, Trade'}
+                {confirmFav.mode === 'sell' ? 'Yes, Sell' : 'Yes, Gift'}
               </button>
             </div>
           </div>
@@ -398,6 +406,15 @@ export default function LedgerPage() {
         />
       )}
 
+      {/* Tap-anywhere-to-close backdrop when a row is swiped open */}
+      {swipedId && (
+        <div
+          aria-hidden="true"
+          style={{ position: 'fixed', inset: 0, zIndex: 5 }}
+          onClick={() => setSwipedId(null)}
+        />
+      )}
+
       {selectedSale && <SaleDetailModal sale={selectedSale} onClose={() => setSelectedSaleId(null)} />}
       {selectedCard && <BuyDetailModal card={selectedCard} onClose={() => setSelectedCardId(null)} />}
     </div>
@@ -407,14 +424,14 @@ export default function LedgerPage() {
 // ─── Swipe-to-reveal BUY row ──────────────────────────────────────────────────
 
 function SwipeRow({
-  card, isOpen, onOpen, onClose, onSell, onTrade, onView,
+  card, isOpen, onOpen, onClose, onSell, onGift, onView,
 }: {
   card: PokemonCard
   isOpen: boolean
   onOpen: () => void
   onClose: () => void
   onSell: () => void
-  onTrade: () => void
+  onGift: () => void
   onView: () => void
 }) {
   const rowRef = useRef<HTMLDivElement>(null)
@@ -422,7 +439,6 @@ function SwipeRow({
   const [dragX, setDragX] = useState(0)
   const [hovered, setHovered] = useState(false)
 
-  // stable refs so the native event listener effect doesn't need re-registration
   const isOpenRef = useRef(isOpen)
   const cbRef = useRef({ onOpen, onClose })
   useEffect(() => { isOpenRef.current = isOpen }, [isOpen])
@@ -455,7 +471,7 @@ function SwipeRow({
       if (!isHoriz) return
       e.preventDefault()
       const base = isOpenRef.current ? -REVEAL_W : 0
-      setDragX(Math.max(-REVEAL_W, Math.min(0, base + dx)))
+      setDragX(Math.max(-REVEAL_W, Math.min(0, base + dx * RESISTANCE)))
       setDragging(true)
     }
 
@@ -465,9 +481,9 @@ function SwipeRow({
       if (!decided || !isHoriz) { setDragging(false); return }
       const dx = e.changedTouches[0].clientX - startX
       if (isOpenRef.current) {
-        if (dx > 50) cbRef.current.onClose()
+        if (dx > SNAP_THRESHOLD) { haptic('light'); cbRef.current.onClose() }
       } else {
-        if (dx < -60) cbRef.current.onOpen()
+        if (dx < -SNAP_THRESHOLD) { haptic('medium'); cbRef.current.onOpen() }
       }
       setDragging(false)
       setDragX(0)
@@ -484,39 +500,60 @@ function SwipeRow({
   }, [])
 
   const translateX = dragging ? dragX : isOpen ? -REVEAL_W : 0
-  const transition = dragging ? 'none' : 'transform 0.35s cubic-bezier(0.34, 1.2, 0.64, 1)'
+  const transition = dragging ? 'none' : 'transform 0.3s cubic-bezier(0.34, 1.2, 0.64, 1)'
   const gain = card.price_paid != null && card.market_price != null ? unrealizedProfit(card) : null
 
   return (
-    <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 16 }}>
+    <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 16, zIndex: isOpen ? 6 : 'auto' }}>
 
-      {/* Action buttons — behind the sliding row, revealed on swipe */}
+      {/* Action buttons — revealed on swipe left, hidden completely in default state */}
       <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, display: 'flex', width: REVEAL_W, zIndex: 0 }}>
         <button
+          aria-label={`Sell ${card.name}`}
           onPointerDown={e => e.stopPropagation()}
           onClick={e => { e.stopPropagation(); onSell() }}
           style={{
             flex: 1, background: 'var(--btn-sell)', color: '#fff', border: 'none', cursor: 'pointer',
-            fontSize: 11, fontWeight: 900, letterSpacing: '0.06em',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5,
           }}>
-          SELL
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <line x1="12" y1="1" x2="12" y2="23"/>
+            <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+          </svg>
+          <span style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.06em' }}>SELL</span>
         </button>
         <button
+          aria-label={`Gift ${card.name}`}
           onPointerDown={e => e.stopPropagation()}
-          onClick={e => { e.stopPropagation(); onTrade() }}
+          onClick={e => { e.stopPropagation(); onGift() }}
           style={{
-            flex: 1, background: 'var(--btn-info)', color: '#fff', border: 'none', cursor: 'pointer',
-            fontSize: 11, fontWeight: 900, letterSpacing: '0.06em', borderRadius: '0 16px 16px 0',
+            flex: 1, background: 'var(--btn-wishlist)', color: '#fff', border: 'none', cursor: 'pointer',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5,
+            borderRadius: '0 16px 16px 0',
           }}>
-          TRADE
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polyline points="20 12 20 22 4 22 4 12"/>
+            <rect x="2" y="7" width="20" height="5"/>
+            <line x1="12" y1="22" x2="12" y2="7"/>
+            <path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z"/>
+            <path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/>
+          </svg>
+          <span style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.06em' }}>GIFT</span>
         </button>
       </div>
 
-      {/* Card row — slides left on swipe */}
+      {/* Card row — slides left on swipe, fully covers action buttons at rest */}
       <div
         ref={rowRef}
+        role="button"
+        tabIndex={0}
+        aria-label={`${card.name}, ${card.set_name}${card.price_paid != null ? `, paid ${formatPrice(card.price_paid)}` : ''}`}
         style={{ transform: `translateX(${translateX}px)`, transition, position: 'relative', zIndex: 1 }}
         onClick={() => isOpen ? onClose() : onView()}
+        onKeyDown={e => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); isOpen ? onClose() : onView() }
+          if (e.key === 'Escape') onClose()
+        }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
@@ -560,7 +597,7 @@ function SwipeRow({
             )}
           </div>
 
-          {/* Desktop: hover to reveal action buttons */}
+          {/* Desktop: hover reveals SELL / GIFT action buttons */}
           <div style={{
             position: 'absolute', right: 0, top: 0, bottom: 0,
             display: 'flex', alignItems: 'center', gap: 6, paddingRight: 10,
@@ -576,11 +613,11 @@ function SwipeRow({
             }}>
               SELL
             </button>
-            <button onClick={e => { e.stopPropagation(); onTrade() }} style={{
+            <button onClick={e => { e.stopPropagation(); onGift() }} style={{
               padding: '6px 12px', borderRadius: 8, fontSize: 10, fontWeight: 800,
-              background: 'var(--btn-info)', color: '#fff', border: 'none', cursor: 'pointer', letterSpacing: '0.04em',
+              background: 'var(--btn-wishlist)', color: '#fff', border: 'none', cursor: 'pointer', letterSpacing: '0.04em',
             }}>
-              TRADE
+              GIFT
             </button>
           </div>
         </div>
