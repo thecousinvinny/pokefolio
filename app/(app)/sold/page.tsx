@@ -440,6 +440,9 @@ function SwipeRow({
 
   const isOpenRef = useRef(isOpen)
   const cbRef = useRef({ onOpen, onClose })
+  // Tracks whether the pointer moved enough to be a real drag — suppresses the
+  // click event that always fires after mouseup/touchend on the same element.
+  const didDragRef = useRef(false)
   useEffect(() => { isOpenRef.current = isOpen }, [isOpen])
   useEffect(() => { cbRef.current = { onOpen, onClose } }, [onOpen, onClose])
   useEffect(() => { setDragX(0); setDragging(false) }, [isOpen])
@@ -448,64 +451,76 @@ function SwipeRow({
     const el = rowRef.current
     if (!el) return
 
-    let startX = 0, startY = 0
-    let isHoriz = false, decided = false, active = false
+    // ── Touch (direction-aware so vertical page scroll still works) ───────────
+    let tStartX = 0, tStartY = 0, tDecided = false, tHoriz = false
 
-    // Shared drag logic — returns true when a horizontal swipe is in progress
-    function beginDrag(clientX: number, clientY: number) {
-      startX = clientX; startY = clientY
-      isHoriz = false; decided = false; active = true
+    function onTouchStart(e: TouchEvent) {
+      tStartX = e.touches[0].clientX
+      tStartY = e.touches[0].clientY
+      tDecided = false; tHoriz = false
+      didDragRef.current = false
     }
 
-    function moveDrag(clientX: number, clientY: number): boolean {
-      if (!active) return false
-      const dx = clientX - startX
-      const dy = clientY - startY
-      if (!decided) {
-        if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return false
-        isHoriz = Math.abs(dx) > Math.abs(dy)
-        decided = true
+    function onTouchMove(e: TouchEvent) {
+      const dx = e.touches[0].clientX - tStartX
+      const dy = e.touches[0].clientY - tStartY
+      if (!tDecided) {
+        if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return
+        tHoriz = Math.abs(dx) > Math.abs(dy)
+        tDecided = true
       }
-      if (!isHoriz) return false
+      if (!tHoriz) return
+      e.preventDefault()
+      didDragRef.current = true
       const base = isOpenRef.current ? -REVEAL_W : 0
       setDragX(Math.max(-REVEAL_W, Math.min(0, base + dx * RESISTANCE)))
       setDragging(true)
-      return true
     }
 
-    function endDrag(clientX: number) {
-      if (!active) return
-      active = false
-      if (!decided || !isHoriz) { setDragging(false); return }
-      const dx = clientX - startX
+    function onTouchEnd(e: TouchEvent) {
+      setDragging(false)
+      setDragX(0)
+      if (!tDecided || !tHoriz) return
+      const dx = e.changedTouches[0].clientX - tStartX
       if (isOpenRef.current) {
         if (dx > SNAP_THRESHOLD) { haptic('light'); cbRef.current.onClose() }
       } else {
         if (dx < -SNAP_THRESHOLD) { haptic('medium'); cbRef.current.onOpen() }
       }
-      setDragging(false)
-      setDragX(0)
     }
 
-    // ── Touch ────────────────────────────────────────────────────────────────
-    function onTouchStart(e: TouchEvent) { beginDrag(e.touches[0].clientX, e.touches[0].clientY) }
-    function onTouchMove(e: TouchEvent) {
-      if (moveDrag(e.touches[0].clientX, e.touches[0].clientY)) e.preventDefault()
-    }
-    function onTouchEnd(e: TouchEvent) { endDrag(e.changedTouches[0].clientX) }
+    // ── Mouse (completely separate state — never corrupts touch in progress) ──
+    let mActive = false, mStartX = 0
 
-    // ── Mouse ────────────────────────────────────────────────────────────────
-    let mouseDown = false
     function onMouseDown(e: MouseEvent) {
       if (e.button !== 0) return
-      mouseDown = true
-      beginDrag(e.clientX, e.clientY)
+      mActive = true
+      mStartX = e.clientX
+      didDragRef.current = false
     }
-    function onMouseMove(e: MouseEvent) { if (mouseDown) moveDrag(e.clientX, e.clientY) }
+
+    function onMouseMove(e: MouseEvent) {
+      if (!mActive) return
+      const dx = e.clientX - mStartX
+      if (Math.abs(dx) < 4) return
+      didDragRef.current = true
+      const base = isOpenRef.current ? -REVEAL_W : 0
+      setDragX(Math.max(-REVEAL_W, Math.min(0, base + dx * RESISTANCE)))
+      setDragging(true)
+    }
+
     function onMouseUp(e: MouseEvent) {
-      if (!mouseDown) return
-      mouseDown = false
-      endDrag(e.clientX)
+      if (!mActive) return
+      mActive = false
+      setDragging(false)
+      setDragX(0)
+      if (!didDragRef.current) return
+      const dx = e.clientX - mStartX
+      if (isOpenRef.current) {
+        if (dx > SNAP_THRESHOLD) { haptic('light'); cbRef.current.onClose() }
+      } else {
+        if (dx < -SNAP_THRESHOLD) { haptic('medium'); cbRef.current.onOpen() }
+      }
     }
 
     el.addEventListener('touchstart', onTouchStart, { passive: true })
@@ -532,14 +547,10 @@ function SwipeRow({
   const gain = card.price_paid != null && card.market_price != null ? unrealizedProfit(card) : null
 
   return (
-    <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 16, zIndex: isOpen ? 6 : 'auto' }}>
+    // background: var(--surface) makes spring overshoot gaps seamless in both directions
+    <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 16, zIndex: isOpen ? 6 : 'auto', background: 'var(--surface)' }}>
 
-      {/*
-        Full-width button container: the surface-colored spacer on the left absorbs
-        any spring overshoot so no dark gap appears between the card and the buttons.
-        The overflow:hidden on the outer div clips the overshoot visually, creating
-        the "bounces off the wall" feel at both fully-open and fully-closed positions.
-      */}
+      {/* Full-width layer: surface spacer absorbs overshoot past -REVEAL_W on the left */}
       <div style={{ position: 'absolute', inset: 0, display: 'flex', zIndex: 0 }}>
         <div style={{ flex: 1, background: 'var(--surface)' }} />
         <button
@@ -576,7 +587,7 @@ function SwipeRow({
         </button>
       </div>
 
-      {/* Sliding card row */}
+      {/* Sliding card — sits above buttons, fully covers them at rest */}
       <div
         ref={rowRef}
         role="button"
@@ -587,7 +598,12 @@ function SwipeRow({
           position: 'relative', zIndex: 1, background: 'var(--surface)',
           cursor: dragging ? 'grabbing' : 'grab',
         }}
-        onClick={() => isOpen ? onClose() : onView()}
+        onClick={() => {
+          // Every mouseup/touchend on this element also fires a click. Swallow it
+          // after a real drag so we don't accidentally open the detail modal.
+          if (didDragRef.current) { didDragRef.current = false; return }
+          isOpen ? onClose() : onView()
+        }}
         onKeyDown={e => {
           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); isOpen ? onClose() : onView() }
           if (e.key === 'Escape') onClose()
