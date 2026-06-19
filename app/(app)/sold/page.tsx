@@ -437,7 +437,6 @@ function SwipeRow({
   const rowRef = useRef<HTMLDivElement>(null)
   const [dragging, setDragging] = useState(false)
   const [dragX, setDragX] = useState(0)
-  const [hovered, setHovered] = useState(false)
 
   const isOpenRef = useRef(isOpen)
   const cbRef = useRef({ onOpen, onClose })
@@ -548,14 +547,12 @@ function SwipeRow({
         role="button"
         tabIndex={0}
         aria-label={`${card.name}, ${card.set_name}${card.price_paid != null ? `, paid ${formatPrice(card.price_paid)}` : ''}`}
-        style={{ transform: `translateX(${translateX}px)`, transition, position: 'relative', zIndex: 1 }}
+        style={{ transform: `translateX(${translateX}px)`, transition, position: 'relative', zIndex: 1, background: 'var(--surface)' }}
         onClick={() => isOpen ? onClose() : onView()}
         onKeyDown={e => {
           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); isOpen ? onClose() : onView() }
           if (e.key === 'Escape') onClose()
         }}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
       >
         <div className="surface-card p-3 flex items-center gap-3"
           style={{ cursor: 'pointer', userSelect: 'none', position: 'relative' }}>
@@ -597,29 +594,6 @@ function SwipeRow({
             )}
           </div>
 
-          {/* Desktop: hover reveals SELL / GIFT action buttons */}
-          <div style={{
-            position: 'absolute', right: 0, top: 0, bottom: 0,
-            display: 'flex', alignItems: 'center', gap: 6, paddingRight: 10,
-            opacity: hovered && !isOpen ? 1 : 0,
-            pointerEvents: hovered && !isOpen ? 'all' : 'none',
-            transition: 'opacity 0.15s ease',
-            background: 'linear-gradient(to right, transparent, var(--surface) 28%)',
-            zIndex: 2,
-          }}>
-            <button onClick={e => { e.stopPropagation(); onSell() }} style={{
-              padding: '6px 12px', borderRadius: 8, fontSize: 10, fontWeight: 800,
-              background: 'var(--btn-sell)', color: '#fff', border: 'none', cursor: 'pointer', letterSpacing: '0.04em',
-            }}>
-              SELL
-            </button>
-            <button onClick={e => { e.stopPropagation(); onGift() }} style={{
-              padding: '6px 12px', borderRadius: 8, fontSize: 10, fontWeight: 800,
-              background: 'var(--btn-wishlist)', color: '#fff', border: 'none', cursor: 'pointer', letterSpacing: '0.04em',
-            }}>
-              GIFT
-            </button>
-          </div>
         </div>
       </div>
     </div>
