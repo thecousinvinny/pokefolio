@@ -6,7 +6,7 @@ import { LinkIcon, UploadIcon, LogOutIcon, DownloadIcon, ArrowPathIcon, EyeSlash
 import { useCollection } from '@/components/CollectionContext'
 import { createClient } from '@/lib/supabase/client'
 import { conditionAdjustedValue } from '@/types'
-import { formatPrice } from '@/lib/utils'
+import { formatPrice, rarityWeight } from '@/lib/utils'
 
 export const LS_DISPLAY_NAME = 'catchm_display_name'
 export const LS_AVATAR = 'catchm_avatar_img'
@@ -14,6 +14,13 @@ export const LS_PRIVACY = 'catchm_privacy_mode'
 export const LS_DEFAULT_CONDITION = 'catchm_default_condition'
 
 const CONDITIONS = ['NM', 'LP', 'MP', 'HP', 'DMG'] as const
+
+type ShareFilter = 'all' | 'full-art' | 'favorites'
+const SHARE_FILTERS: { key: ShareFilter; label: string }[] = [
+  { key: 'all',       label: 'All' },
+  { key: 'full-art',  label: 'Full Art' },
+  { key: 'favorites', label: 'Favs Only' },
+]
 
 interface Props {
   open: boolean
@@ -48,6 +55,7 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
   // ── Share state ──
   const [shareIncludeCollection, setShareIncludeCollection] = useState(true)
   const [shareIncludeWishlist, setShareIncludeWishlist] = useState(false)
+  const [shareFilter, setShareFilter] = useState<ShareFilter>('all')
   const [shareUrl, setShareUrl] = useState<string | null>(null)
   const [sharing, setSharing] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -196,12 +204,17 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
 
       const owned = cards.filter(c => c.status === 'owned' || c.status === 'for_sale')
       const wishlist = cards.filter(c => c.status === 'wishlist')
+      const filteredOwned = shareFilter === 'full-art'
+        ? owned.filter(c => rarityWeight(c.rarity) >= 80)
+        : shareFilter === 'favorites'
+        ? owned.filter(c => c.is_favorite)
+        : owned
 
       const payload = {
         user_id: uid,
         display_name: displayName || null,
         avatar_data: avatarImg,
-        cards_data: shareIncludeCollection ? owned : null,
+        cards_data: shareIncludeCollection ? filteredOwned : null,
         wishlist_data: shareIncludeWishlist ? wishlist : null,
         include_collection: shareIncludeCollection,
         include_wishlist: shareIncludeWishlist,
@@ -249,6 +262,11 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
   // ── Computed ──
   const owned = cards.filter(c => c.status === 'owned' || c.status === 'for_sale')
   const totalValue = owned.reduce((s, c) => s + conditionAdjustedValue(c), 0)
+  const filteredOwnedCount = shareFilter === 'full-art'
+    ? owned.filter(c => rarityWeight(c.rarity) >= 80).length
+    : shareFilter === 'favorites'
+    ? owned.filter(c => c.is_favorite).length
+    : owned.length
   const initials = displayName
     ? displayName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
     : null
@@ -314,6 +332,9 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
           includeWishlist={shareIncludeWishlist}
           onToggleCollection={() => setShareIncludeCollection(v => !v)}
           onToggleWishlist={() => setShareIncludeWishlist(v => !v)}
+          shareFilter={shareFilter}
+          onSetFilter={setShareFilter}
+          filteredOwnedCount={filteredOwnedCount}
           shareUrl={shareUrl}
           sharing={sharing}
           copied={copied}
@@ -578,10 +599,12 @@ function MainView({
 
 function ShareView({
   includeCollection, includeWishlist, onToggleCollection, onToggleWishlist,
+  shareFilter, onSetFilter, filteredOwnedCount,
   shareUrl, sharing, copied, ownedCount, wishlistCount, onGenerate, onCopy, onBack,
 }: {
   includeCollection: boolean; includeWishlist: boolean
   onToggleCollection: () => void; onToggleWishlist: () => void
+  shareFilter: ShareFilter; onSetFilter: (f: ShareFilter) => void; filteredOwnedCount: number
   shareUrl: string | null; sharing: boolean; copied: boolean
   ownedCount: number; wishlistCount: number
   onGenerate: () => void; onCopy: () => void; onBack: () => void
@@ -620,6 +643,36 @@ function ShareView({
           checked={includeCollection}
           onToggle={onToggleCollection}
         />
+
+        {/* Filter chips — only visible when collection is toggled on */}
+        {includeCollection && (
+          <div style={{ paddingLeft: 2 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', color: 'var(--text3)', marginBottom: 6, textTransform: 'uppercase' }}>
+              Show
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {SHARE_FILTERS.map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => onSetFilter(key)}
+                  style={{
+                    padding: '5px 12px', borderRadius: 9999, fontSize: 12, fontWeight: 700,
+                    border: 'none', cursor: 'pointer',
+                    background: shareFilter === key ? 'var(--violet)' : 'var(--bg)',
+                    color: shareFilter === key ? '#fff' : 'var(--text3)',
+                    transition: 'background 0.15s, color 0.15s',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+              <span style={{ fontSize: 11, color: 'var(--text3)', alignSelf: 'center', marginLeft: 2 }}>
+                {filteredOwnedCount} card{filteredOwnedCount !== 1 ? 's' : ''}
+              </span>
+            </div>
+          </div>
+        )}
+
         <Toggle
           label="Wish List"
           subtitle={`${wishlistCount} card${wishlistCount !== 1 ? 's' : ''}`}
