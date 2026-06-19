@@ -1,5 +1,5 @@
 'use client'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useLayoutEffect } from 'react'
 import Image from 'next/image'
 import { Modal } from '@/components/ui/Modal'
 import { useCollection } from '@/components/CollectionContext'
@@ -8,10 +8,25 @@ import { formatPrice, formatDate } from '@/lib/utils'
 import type { PokemonCard, SaleRecord } from '@/types'
 
 type Tab = 'buy' | 'sell' | 'trade'
+const TABS: Tab[] = ['buy', 'sell', 'trade']
+const TAB_LABELS: Record<Tab, string> = { buy: 'BUY', sell: 'SELL', trade: 'TRADE' }
 
 export default function LedgerPage() {
   const { cards, sales, loading } = useCollection()
   const [tab, setTab] = useState<Tab>('buy')
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [pill, setPill] = useState<{ left: number; w: number } | null>(null)
+
+  useLayoutEffect(() => {
+    const idx = TABS.indexOf(tab)
+    const tabEl = tabRefs.current[idx]
+    const container = containerRef.current
+    if (!tabEl || !container) return
+    const cr = container.getBoundingClientRect()
+    const tr = tabEl.getBoundingClientRect()
+    setPill({ left: tr.left - cr.left, w: tr.width })
+  }, [tab])
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null)
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
 
@@ -65,29 +80,48 @@ export default function LedgerPage() {
 
   if (loading) return <LoadingSkeleton />
 
-  const TAB_LABELS: Record<Tab, string> = { buy: 'BUY', sell: 'SELL', trade: 'TRADE' }
-
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-5">
       <h1 className="text-2xl font-extrabold tracking-tight section-enter" style={{ animationDelay: '0ms' }}>
         LEDGER
       </h1>
 
-      {/* 3-pill tab switcher */}
-      <div className="section-enter" style={{
+      {/* 3-pill tab switcher — same spring pill as nav bar */}
+      <div ref={containerRef} className="section-enter" style={{
         animationDelay: '40ms',
-        display: 'flex', gap: 4, padding: 4,
+        position: 'relative',
+        display: 'flex', padding: 4,
         borderRadius: 18, background: 'var(--surface)', border: '1px solid var(--border)',
       }}>
-        {(['buy', 'sell', 'trade'] as Tab[]).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{
-            flex: 1, padding: '10px 0', borderRadius: 13,
-            fontSize: 11, fontWeight: 900, letterSpacing: '0.1em',
-            background: tab === t ? 'var(--gold)' : 'transparent',
-            color: tab === t ? '#0D0F1A' : 'var(--text2)',
-            border: 'none', cursor: 'pointer',
-            transition: 'all 0.22s cubic-bezier(0.34,1.2,0.64,1)',
-          }}>
+        {/* Animated gold pill */}
+        {pill && (
+          <div style={{
+            position: 'absolute',
+            left: pill.left,
+            top: 4,
+            width: pill.w,
+            height: 'calc(100% - 8px)',
+            borderRadius: 13,
+            background: 'var(--gold)',
+            pointerEvents: 'none',
+            zIndex: 0,
+            transition: 'left 0.38s cubic-bezier(0.34, 1.56, 0.64, 1), width 0.38s cubic-bezier(0.34, 1.56, 0.64, 1)',
+          }} />
+        )}
+        {TABS.map((t, i) => (
+          <button
+            key={t}
+            ref={el => { tabRefs.current[i] = el }}
+            onClick={() => setTab(t)}
+            style={{
+              flex: 1, padding: '10px 0', borderRadius: 13,
+              fontSize: 11, fontWeight: 900, letterSpacing: '0.1em',
+              background: 'transparent',
+              color: tab === t ? '#0D0F1A' : 'var(--text2)',
+              border: 'none', cursor: 'pointer',
+              position: 'relative', zIndex: 1,
+              transition: 'color 0.22s ease',
+            }}>
             {TAB_LABELS[t]}
           </button>
         ))}
