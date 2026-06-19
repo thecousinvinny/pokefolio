@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { TrendingUpIcon, CardIcon, SparkleIcon } from '@/components/ui/Icons'
+import { getArtColors } from '@/components/cards/CardArtwork'
 import { useCollection } from '@/components/CollectionContext'
 import { conditionAdjustedValue, unrealizedProfit } from '@/types'
 import { formatPrice, formatPercent } from '@/lib/utils'
@@ -132,39 +133,117 @@ function StatCard({ label, value, icon, color }: { label: string; value: string;
   )
 }
 
+const SHOWCASE_COND_COLOR: Record<string, string> = {
+  NM: '#45DB8D', LP: '#a3e635', MP: '#facc15', HP: '#fb923c', DMG: '#f43f5e',
+}
+
 function ShowcaseSection({ card }: { card: import('@/types').PokemonCard }) {
   const value = conditionAdjustedValue(card)
+  const profit = unrealizedProfit(card)
+  const pct = card.price_paid ? (profit / card.price_paid) * 100 : null
+  const [c1, c2] = getArtColors(card.types ?? undefined)
+  const condColor = SHOWCASE_COND_COLOR[card.condition] ?? '#888'
+
   return (
     <section>
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-base font-bold">Showcase</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <span style={{ fontWeight: 700, fontSize: 15 }}>Showcase</span>
         <SparkleIcon size={16} style={{ color: '#fff', filter: 'drop-shadow(0 0 8px rgba(255,255,255,0.9))' }} />
       </div>
-      <div className="surface-card overflow-hidden"
-        style={{ border: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 10px 40px rgba(255,255,255,0.06)' }}>
-        <div className="relative w-full" style={{ paddingTop: '70%', background: 'var(--bg)' }}>
-          {card.image_lg || card.image_sm ? (
+
+      {/* Type-color ambient in background; no overflow:hidden so prismatic glow isn't clipped */}
+      <div style={{
+        background: `radial-gradient(ellipse at 25% 50%, ${c1}22 0%, transparent 65%), var(--surface)`,
+        borderRadius: 20,
+        border: '1px solid rgba(255,200,69,0.2)',
+        padding: 16,
+        display: 'flex',
+        gap: 16,
+        alignItems: 'center',
+      }}>
+        {/* Card — prismatic glow border via .showcase-border */}
+        <div
+          className="showcase-border"
+          style={{
+            flexShrink: 0,
+            width: 148,
+            aspectRatio: '0.72',
+            borderRadius: 12,
+            overflow: 'hidden',
+            position: 'relative',
+            background: card.image_lg || card.image_sm ? 'var(--bg)' : `linear-gradient(135deg, ${c1}, ${c2})`,
+          }}
+        >
+          {(card.image_lg || card.image_sm) && (
             <Image
               src={card.image_lg ?? card.image_sm!}
               alt={card.name}
               fill
-              className="object-contain object-top"
+              style={{ objectFit: 'contain' }}
               priority
             />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center text-5xl font-black opacity-20">
-              {card.name[0]}
-            </div>
           )}
         </div>
-        <div className="p-4 flex items-center justify-between">
+
+        {/* Info panel */}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {/* Name + set */}
           <div>
-            <p className="text-lg font-extrabold">{card.name}</p>
-            <p className="text-sm mt-0.5" style={{ color: 'var(--text3)' }}>{card.set_name}</p>
+            <p style={{ fontWeight: 800, fontSize: 17, lineHeight: 1.2 }}>{card.name}</p>
+            <p style={{ fontSize: 11, color: 'var(--text3)', marginTop: 3 }}>{card.set_name}</p>
           </div>
-          <p className="text-2xl font-extrabold" style={{ color: 'var(--gold)' }}>
-            {formatPrice(value, true)}
-          </p>
+
+          {/* Rarity + condition chips */}
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+            {card.rarity && (
+              <span style={{
+                fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 9999,
+                background: 'rgba(156,114,250,0.15)', color: 'var(--violet)',
+                letterSpacing: '0.04em', textTransform: 'uppercase',
+              }}>
+                {card.rarity}
+              </span>
+            )}
+            <span style={{
+              fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 9999,
+              background: `${condColor}22`,
+              color: condColor,
+              letterSpacing: '0.04em',
+            }}>
+              {card.condition}
+            </span>
+          </div>
+
+          {/* Market value */}
+          <div>
+            <p style={{ fontSize: 9, color: 'var(--text3)', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              Market Value
+            </p>
+            <p style={{ fontSize: 24, fontWeight: 800, color: 'var(--gold)', lineHeight: 1.1, marginTop: 1 }}>
+              {formatPrice(value)}
+            </p>
+          </div>
+
+          {/* P/L row */}
+          {card.price_paid != null && (
+            <div style={{ display: 'flex', gap: 12 }}>
+              <div>
+                <p style={{ fontSize: 9, color: 'var(--text3)', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Paid</p>
+                <p style={{ fontSize: 12, fontWeight: 600 }}>{formatPrice(card.price_paid)}</p>
+              </div>
+              <div>
+                <p style={{ fontSize: 9, color: 'var(--text3)', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Gain / Loss</p>
+                <p style={{ fontSize: 13, fontWeight: 700, color: profit >= 0 ? 'var(--emerald)' : 'var(--crimson)' }}>
+                  {profit >= 0 ? '+' : ''}{formatPrice(profit)}
+                  {pct != null && (
+                    <span style={{ fontSize: 11, marginLeft: 3 }}>
+                      ({pct >= 0 ? '+' : ''}{pct.toFixed(1)}%)
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </section>

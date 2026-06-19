@@ -318,7 +318,11 @@ export default function LedgerPage() {
               : 'No cards in your portfolio yet. Add cards from the FIND tab.'} />
           ) : (
             ownedCards.map((card, i) => (
-              <div key={card.id} className="card-enter" style={{ animationDelay: `${Math.min(i, 12) * 22}ms` }}>
+              <div key={card.id} className="card-enter" style={{
+                animationDelay: `${Math.min(i, 12) * 22}ms`,
+                position: 'relative',
+                zIndex: swipedId === card.id ? 7 : undefined,
+              }}>
                 <SwipeRow
                   card={card}
                   isOpen={swipedId === card.id}
@@ -548,7 +552,7 @@ function SwipeRow({
 
   return (
     // background: var(--surface) makes spring overshoot gaps seamless in both directions
-    <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 16, zIndex: isOpen ? 6 : 'auto', background: 'var(--surface)' }}>
+    <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 16, background: 'var(--surface)' }}>
 
       {/* Full-width layer: surface spacer absorbs overshoot past -REVEAL_W on the left */}
       <div style={{ position: 'absolute', inset: 0, display: 'flex', zIndex: 0 }}>
