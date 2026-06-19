@@ -442,7 +442,6 @@ function SwipeRow({
   const cbRef = useRef({ onOpen, onClose })
   useEffect(() => { isOpenRef.current = isOpen }, [isOpen])
   useEffect(() => { cbRef.current = { onOpen, onClose } }, [onOpen, onClose])
-
   useEffect(() => { setDragX(0); setDragging(false) }, [isOpen])
 
   useEffect(() => {
@@ -452,33 +451,33 @@ function SwipeRow({
     let startX = 0, startY = 0
     let isHoriz = false, decided = false, active = false
 
-    function onTouchStart(e: TouchEvent) {
-      startX = e.touches[0].clientX
-      startY = e.touches[0].clientY
+    // Shared drag logic — returns true when a horizontal swipe is in progress
+    function beginDrag(clientX: number, clientY: number) {
+      startX = clientX; startY = clientY
       isHoriz = false; decided = false; active = true
     }
 
-    function onTouchMove(e: TouchEvent) {
-      if (!active) return
-      const dx = e.touches[0].clientX - startX
-      const dy = e.touches[0].clientY - startY
+    function moveDrag(clientX: number, clientY: number): boolean {
+      if (!active) return false
+      const dx = clientX - startX
+      const dy = clientY - startY
       if (!decided) {
-        if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return
+        if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return false
         isHoriz = Math.abs(dx) > Math.abs(dy)
         decided = true
       }
-      if (!isHoriz) return
-      e.preventDefault()
+      if (!isHoriz) return false
       const base = isOpenRef.current ? -REVEAL_W : 0
       setDragX(Math.max(-REVEAL_W, Math.min(0, base + dx * RESISTANCE)))
       setDragging(true)
+      return true
     }
 
-    function onTouchEnd(e: TouchEvent) {
+    function endDrag(clientX: number) {
       if (!active) return
       active = false
       if (!decided || !isHoriz) { setDragging(false); return }
-      const dx = e.changedTouches[0].clientX - startX
+      const dx = clientX - startX
       if (isOpenRef.current) {
         if (dx > SNAP_THRESHOLD) { haptic('light'); cbRef.current.onClose() }
       } else {
@@ -488,31 +487,67 @@ function SwipeRow({
       setDragX(0)
     }
 
+    // ── Touch ────────────────────────────────────────────────────────────────
+    function onTouchStart(e: TouchEvent) { beginDrag(e.touches[0].clientX, e.touches[0].clientY) }
+    function onTouchMove(e: TouchEvent) {
+      if (moveDrag(e.touches[0].clientX, e.touches[0].clientY)) e.preventDefault()
+    }
+    function onTouchEnd(e: TouchEvent) { endDrag(e.changedTouches[0].clientX) }
+
+    // ── Mouse ────────────────────────────────────────────────────────────────
+    let mouseDown = false
+    function onMouseDown(e: MouseEvent) {
+      if (e.button !== 0) return
+      mouseDown = true
+      beginDrag(e.clientX, e.clientY)
+    }
+    function onMouseMove(e: MouseEvent) { if (mouseDown) moveDrag(e.clientX, e.clientY) }
+    function onMouseUp(e: MouseEvent) {
+      if (!mouseDown) return
+      mouseDown = false
+      endDrag(e.clientX)
+    }
+
     el.addEventListener('touchstart', onTouchStart, { passive: true })
     el.addEventListener('touchmove', onTouchMove, { passive: false })
     el.addEventListener('touchend', onTouchEnd, { passive: true })
+    el.addEventListener('mousedown', onMouseDown)
+    document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('mouseup', onMouseUp)
+
     return () => {
       el.removeEventListener('touchstart', onTouchStart)
       el.removeEventListener('touchmove', onTouchMove)
       el.removeEventListener('touchend', onTouchEnd)
+      el.removeEventListener('mousedown', onMouseDown)
+      document.removeEventListener('mousemove', onMouseMove)
+      document.removeEventListener('mouseup', onMouseUp)
     }
   }, [])
 
   const translateX = dragging ? dragX : isOpen ? -REVEAL_W : 0
-  const transition = dragging ? 'none' : 'transform 0.3s cubic-bezier(0.34, 1.2, 0.64, 1)'
+  // Overshoot spring — overflow:hidden clips the excess so the bounce looks like
+  // hitting a wall and springing back, not flying off-screen
+  const transition = dragging ? 'none' : 'transform 0.38s cubic-bezier(0.34, 1.56, 0.64, 1)'
   const gain = card.price_paid != null && card.market_price != null ? unrealizedProfit(card) : null
 
   return (
     <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 16, zIndex: isOpen ? 6 : 'auto' }}>
 
-      {/* Action buttons — revealed on swipe left, hidden completely in default state */}
-      <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, display: 'flex', width: REVEAL_W, zIndex: 0 }}>
+      {/*
+        Full-width button container: the surface-colored spacer on the left absorbs
+        any spring overshoot so no dark gap appears between the card and the buttons.
+        The overflow:hidden on the outer div clips the overshoot visually, creating
+        the "bounces off the wall" feel at both fully-open and fully-closed positions.
+      */}
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', zIndex: 0 }}>
+        <div style={{ flex: 1, background: 'var(--surface)' }} />
         <button
           aria-label={`Sell ${card.name}`}
           onPointerDown={e => e.stopPropagation()}
           onClick={e => { e.stopPropagation(); onSell() }}
           style={{
-            flex: 1, background: 'var(--btn-sell)', color: '#fff', border: 'none', cursor: 'pointer',
+            width: 80, background: 'var(--btn-sell)', color: '#fff', border: 'none', cursor: 'pointer',
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5,
           }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -526,7 +561,7 @@ function SwipeRow({
           onPointerDown={e => e.stopPropagation()}
           onClick={e => { e.stopPropagation(); onGift() }}
           style={{
-            flex: 1, background: 'var(--btn-wishlist)', color: '#fff', border: 'none', cursor: 'pointer',
+            width: 80, background: 'var(--btn-wishlist)', color: '#fff', border: 'none', cursor: 'pointer',
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5,
             borderRadius: '0 16px 16px 0',
           }}>
@@ -541,13 +576,17 @@ function SwipeRow({
         </button>
       </div>
 
-      {/* Card row — slides left on swipe, fully covers action buttons at rest */}
+      {/* Sliding card row */}
       <div
         ref={rowRef}
         role="button"
         tabIndex={0}
         aria-label={`${card.name}, ${card.set_name}${card.price_paid != null ? `, paid ${formatPrice(card.price_paid)}` : ''}`}
-        style={{ transform: `translateX(${translateX}px)`, transition, position: 'relative', zIndex: 1, background: 'var(--surface)' }}
+        style={{
+          transform: `translateX(${translateX}px)`, transition,
+          position: 'relative', zIndex: 1, background: 'var(--surface)',
+          cursor: dragging ? 'grabbing' : 'grab',
+        }}
         onClick={() => isOpen ? onClose() : onView()}
         onKeyDown={e => {
           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); isOpen ? onClose() : onView() }
@@ -555,7 +594,7 @@ function SwipeRow({
         }}
       >
         <div className="surface-card p-3 flex items-center gap-3"
-          style={{ cursor: 'pointer', userSelect: 'none', position: 'relative' }}>
+          style={{ userSelect: 'none', position: 'relative' }}>
 
           <div style={{ width: 44, height: 62, flexShrink: 0, borderRadius: 8, overflow: 'hidden', background: 'var(--bg)', position: 'relative' }}>
             {card.image_sm && <Image src={card.image_sm} alt={card.name} fill className="object-cover" />}
