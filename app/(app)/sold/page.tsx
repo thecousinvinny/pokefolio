@@ -1,9 +1,10 @@
 'use client'
-import { useState, useMemo, useRef, useLayoutEffect } from 'react'
+import { useState, useMemo, useRef, useLayoutEffect, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import { Modal } from '@/components/ui/Modal'
+import { CardDetailModal } from '@/components/cards/CardDetailModal'
 import { useCollection } from '@/components/CollectionContext'
-import { conditionAdjustedValue, unrealizedProfit } from '@/types'
+import { unrealizedProfit } from '@/types'
 import { formatPrice, formatDate } from '@/lib/utils'
 import type { PokemonCard, SaleRecord } from '@/types'
 
@@ -11,12 +12,51 @@ type Tab = 'buy' | 'sell' | 'trade'
 const TABS: Tab[] = ['buy', 'sell', 'trade']
 const TAB_LABELS: Record<Tab, string> = { buy: 'BUY', sell: 'SELL', trade: 'TRADE' }
 
+type BuySort = 'newest' | 'oldest' | 'value' | 'paid' | 'alpha'
+type SellSort = 'newest' | 'profit' | 'revenue' | 'alpha'
+type TradeSort = 'newest' | 'alpha'
+
+const BUY_SORTS: { key: BuySort; label: string }[] = [
+  { key: 'newest', label: 'Newest' },
+  { key: 'oldest', label: 'Oldest' },
+  { key: 'value',  label: 'Value'  },
+  { key: 'paid',   label: 'Paid'   },
+  { key: 'alpha',  label: 'A–Z'    },
+]
+const SELL_SORTS: { key: SellSort; label: string }[] = [
+  { key: 'newest',  label: 'Newest'  },
+  { key: 'profit',  label: 'Profit'  },
+  { key: 'revenue', label: 'Revenue' },
+  { key: 'alpha',   label: 'A–Z'     },
+]
+const TRADE_SORTS: { key: TradeSort; label: string }[] = [
+  { key: 'newest', label: 'Newest' },
+  { key: 'alpha',  label: 'A–Z'    },
+]
+
+const REVEAL_W = 152
+
 export default function LedgerPage() {
   const { cards, sales, loading } = useCollection()
   const [tab, setTab] = useState<Tab>('buy')
+  const [search, setSearch] = useState('')
+  const [buySort, setBuySort] = useState<BuySort>('newest')
+  const [sellSort, setSellSort] = useState<SellSort>('newest')
+  const [tradeSort, setTradeSort] = useState<TradeSort>('newest')
+
+  // Spring pill
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
   const containerRef = useRef<HTMLDivElement>(null)
   const [pill, setPill] = useState<{ left: number; w: number } | null>(null)
+
+  // Swipe + modal state
+  const [swipedId, setSwipedId] = useState<string | null>(null)
+  const [actionCard, setActionCard] = useState<{ card: PokemonCard; mode: 'sell' | 'trade' } | null>(null)
+  const [confirmFav, setConfirmFav] = useState<{ card: PokemonCard; mode: 'sell' | 'trade' } | null>(null)
+  const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null)
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
+
+  useEffect(() => { setSearch(''); setSwipedId(null) }, [tab])
 
   useLayoutEffect(() => {
     const idx = TABS.indexOf(tab)
@@ -27,53 +67,101 @@ export default function LedgerPage() {
     const tr = tabEl.getBoundingClientRect()
     setPill({ left: tr.left - cr.left, w: tr.width })
   }, [tab])
-  const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null)
-  const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
 
-  const ownedCards = useMemo(() =>
-    cards
-      .filter(c => c.status === 'owned' || c.status === 'for_sale')
-      .sort((a, b) => new Date(b.date_added).getTime() - new Date(a.date_added).getTime()),
+  // ── Full (unfiltered) data for stats ────────────────────────────────────────
+  const allOwned = useMemo(
+    () => cards.filter(c => c.status === 'owned' || c.status === 'for_sale'),
     [cards]
   )
-
-  const sellHistory = useMemo(() =>
-    sales
-      .filter(s => s.sale_type === 'sale' || !s.sale_type)
-      .sort((a, b) => new Date(b.date_sold).getTime() - new Date(a.date_sold).getTime()),
+  const allSells = useMemo(
+    () => sales.filter(s => s.sale_type === 'sale' || !s.sale_type),
+    [sales]
+  )
+  const allTrades = useMemo(
+    () => sales.filter(s => s.sale_type === 'gift' || s.sale_type === 'trade'),
     [sales]
   )
 
-  const tradeHistory = useMemo(() =>
-    sales
-      .filter(s => s.sale_type === 'gift' || s.sale_type === 'trade')
-      .sort((a, b) => new Date(b.date_sold).getTime() - new Date(a.date_sold).getTime()),
-    [sales]
-  )
-
-  const buyStats = useMemo(() => {
-    const withPrice = ownedCards.filter(c => c.price_paid != null)
-    return {
-      count: ownedCards.length,
-      tracked: withPrice.length,
-      invested: withPrice.reduce((s, c) => s + (c.price_paid ?? 0), 0),
-      avgPrice: withPrice.length > 0 ? withPrice.reduce((s, c) => s + (c.price_paid ?? 0), 0) / withPrice.length : 0,
+  // ── Filtered + sorted display lists ─────────────────────────────────────────
+  const ownedCards = useMemo(() => {
+    const q = search.toLowerCase()
+    const filtered = q
+      ? allOwned.filter(c => c.name.toLowerCase().includes(q) || c.set_name.toLowerCase().includes(q))
+      : allOwned
+    const sorters: Record<BuySort, (a: PokemonCard, b: PokemonCard) => number> = {
+      newest: (a, b) => new Date(b.date_added).getTime() - new Date(a.date_added).getTime(),
+      oldest: (a, b) => new Date(a.date_added).getTime() - new Date(b.date_added).getTime(),
+      value:  (a, b) => (b.market_price ?? 0) - (a.market_price ?? 0),
+      paid:   (a, b) => (b.price_paid ?? 0) - (a.price_paid ?? 0),
+      alpha:  (a, b) => a.name.localeCompare(b.name),
     }
-  }, [ownedCards])
+    return [...filtered].sort(sorters[buySort])
+  }, [allOwned, search, buySort])
+
+  const sellHistory = useMemo(() => {
+    const q = search.toLowerCase()
+    const filtered = q
+      ? allSells.filter(s => s.card_name.toLowerCase().includes(q) || (s.set_name ?? '').toLowerCase().includes(q))
+      : allSells
+    const sorters: Record<SellSort, (a: SaleRecord, b: SaleRecord) => number> = {
+      newest:  (a, b) => new Date(b.date_sold).getTime() - new Date(a.date_sold).getTime(),
+      profit:  (a, b) => b.net_profit - a.net_profit,
+      revenue: (a, b) => b.sold_price - a.sold_price,
+      alpha:   (a, b) => a.card_name.localeCompare(b.card_name),
+    }
+    return [...filtered].sort(sorters[sellSort])
+  }, [allSells, search, sellSort])
+
+  const tradeHistory = useMemo(() => {
+    const q = search.toLowerCase()
+    const filtered = q
+      ? allTrades.filter(s => s.card_name.toLowerCase().includes(q) || (s.set_name ?? '').toLowerCase().includes(q))
+      : allTrades
+    const sorters: Record<TradeSort, (a: SaleRecord, b: SaleRecord) => number> = {
+      newest: (a, b) => new Date(b.date_sold).getTime() - new Date(a.date_sold).getTime(),
+      alpha:  (a, b) => a.card_name.localeCompare(b.card_name),
+    }
+    return [...filtered].sort(sorters[tradeSort])
+  }, [allTrades, search, tradeSort])
+
+  // ── Stats (always full-set data) ─────────────────────────────────────────────
+  const buyStats = useMemo(() => {
+    const withPrice = allOwned.filter(c => c.price_paid != null)
+    return {
+      count: allOwned.length,
+      invested: withPrice.reduce((s, c) => s + (c.price_paid ?? 0), 0),
+      avgPrice: withPrice.length > 0
+        ? withPrice.reduce((s, c) => s + (c.price_paid ?? 0), 0) / withPrice.length
+        : 0,
+    }
+  }, [allOwned])
 
   const sellStats = useMemo(() => ({
-    count: sellHistory.length,
-    profit: sellHistory.reduce((s, r) => s + r.net_profit, 0),
-    revenue: sellHistory.reduce((s, r) => s + r.sold_price, 0),
-    best: sellHistory.length > 0
-      ? sellHistory.reduce((best, r) => r.net_profit > best.net_profit ? r : best)
+    count: allSells.length,
+    profit: allSells.reduce((s, r) => s + r.net_profit, 0),
+    revenue: allSells.reduce((s, r) => s + r.sold_price, 0),
+    best: allSells.length > 0
+      ? allSells.reduce((best, r) => r.net_profit > best.net_profit ? r : best)
       : null,
-  }), [sellHistory])
+  }), [allSells])
 
   const tradeStats = useMemo(() => ({
-    count: tradeHistory.length,
-    costBasis: tradeHistory.reduce((s, r) => s + r.cost_basis, 0),
-  }), [tradeHistory])
+    count: allTrades.length,
+    costBasis: allTrades.reduce((s, r) => s + r.cost_basis, 0),
+  }), [allTrades])
+
+  // ── Action handlers ──────────────────────────────────────────────────────────
+  const handleSell = useCallback((card: PokemonCard) => {
+    setSwipedId(null)
+    if (card.is_favorite) setConfirmFav({ card, mode: 'sell' })
+    else setActionCard({ card, mode: 'sell' })
+  }, [])
+
+  const handleTrade = useCallback((card: PokemonCard) => {
+    setSwipedId(null)
+    if (card.is_favorite) setConfirmFav({ card, mode: 'trade' })
+    else setActionCard({ card, mode: 'trade' })
+  }, [])
 
   const selectedSale = selectedSaleId ? (sales.find(s => s.id === selectedSaleId) ?? null) : null
   const selectedCard = selectedCardId ? (cards.find(c => c.id === selectedCardId) ?? null) : null
@@ -86,49 +174,93 @@ export default function LedgerPage() {
         LEDGER
       </h1>
 
-      {/* 3-pill tab switcher — same spring pill as nav bar */}
+      {/* Spring pill tab switcher */}
       <div ref={containerRef} className="section-enter" style={{
         animationDelay: '40ms',
-        position: 'relative',
-        display: 'flex', padding: 4,
+        position: 'relative', display: 'flex', padding: 4,
         borderRadius: 18, background: 'var(--surface)', border: '1px solid var(--border)',
       }}>
-        {/* Animated gold pill */}
         {pill && (
           <div style={{
-            position: 'absolute',
-            left: pill.left,
-            top: 4,
-            width: pill.w,
-            height: 'calc(100% - 8px)',
-            borderRadius: 13,
-            background: 'var(--gold)',
-            pointerEvents: 'none',
-            zIndex: 0,
+            position: 'absolute', left: pill.left, top: 4,
+            width: pill.w, height: 'calc(100% - 8px)',
+            borderRadius: 13, background: 'var(--gold)',
+            pointerEvents: 'none', zIndex: 0,
             transition: 'left 0.38s cubic-bezier(0.34, 1.56, 0.64, 1), width 0.38s cubic-bezier(0.34, 1.56, 0.64, 1)',
           }} />
         )}
         {TABS.map((t, i) => (
-          <button
-            key={t}
-            ref={el => { tabRefs.current[i] = el }}
-            onClick={() => setTab(t)}
-            style={{
-              flex: 1, padding: '10px 0', borderRadius: 13,
-              fontSize: 11, fontWeight: 900, letterSpacing: '0.1em',
-              background: 'transparent',
-              color: tab === t ? '#0D0F1A' : 'var(--text2)',
-              border: 'none', cursor: 'pointer',
-              position: 'relative', zIndex: 1,
-              transition: 'color 0.22s ease',
-            }}>
+          <button key={t} ref={el => { tabRefs.current[i] = el }} onClick={() => setTab(t)} style={{
+            flex: 1, padding: '10px 0', borderRadius: 13,
+            fontSize: 11, fontWeight: 900, letterSpacing: '0.1em',
+            background: 'transparent', color: tab === t ? '#0D0F1A' : 'var(--text2)',
+            border: 'none', cursor: 'pointer', position: 'relative', zIndex: 1,
+            transition: 'color 0.22s ease',
+          }}>
             {TAB_LABELS[t]}
           </button>
         ))}
       </div>
 
-      {/* Stat cards */}
-      <div className="section-enter" style={{ animationDelay: '80ms' }}>
+      {/* Search bar */}
+      <div className="section-enter" style={{ animationDelay: '70ms', position: 'relative' }}>
+        <span style={{
+          position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)',
+          fontSize: 13, color: 'var(--text3)', pointerEvents: 'none',
+        }}>
+          &#128269;
+        </span>
+        <input
+          type="text"
+          placeholder={`Search ${tab === 'buy' ? 'cards' : tab === 'sell' ? 'sales' : 'trades'}…`}
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={{
+            width: '100%', padding: '11px 36px 11px 34px',
+            borderRadius: 14, fontSize: 14, outline: 'none',
+            background: 'var(--surface)', border: '1px solid var(--border)',
+            color: 'var(--text)', boxSizing: 'border-box',
+          }}
+        />
+        {search && (
+          <button onClick={() => setSearch('')} style={{
+            position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)',
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: 'var(--text3)', fontSize: 18, lineHeight: 1, padding: '0 2px',
+          }}>
+            ×
+          </button>
+        )}
+      </div>
+
+      {/* Sort chips */}
+      <div className="section-enter" style={{
+        animationDelay: '90ms',
+        display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4,
+        scrollbarWidth: 'none',
+      } as React.CSSProperties}>
+        {tab === 'buy' && BUY_SORTS.map(({ key, label }) => (
+          <button key={key} onClick={() => setBuySort(key)}
+            className={`chip flex-shrink-0 ${buySort === key ? 'chip-active' : 'chip-default'}`}>
+            {label}
+          </button>
+        ))}
+        {tab === 'sell' && SELL_SORTS.map(({ key, label }) => (
+          <button key={key} onClick={() => setSellSort(key)}
+            className={`chip flex-shrink-0 ${sellSort === key ? 'chip-active' : 'chip-default'}`}>
+            {label}
+          </button>
+        ))}
+        {tab === 'trade' && TRADE_SORTS.map(({ key, label }) => (
+          <button key={key} onClick={() => setTradeSort(key)}
+            className={`chip flex-shrink-0 ${tradeSort === key ? 'chip-active' : 'chip-default'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Stats */}
+      <div className="section-enter" style={{ animationDelay: '110ms' }}>
         {tab === 'buy' && (
           <div className="grid grid-cols-3 gap-3">
             <MiniStatCard label="In Portfolio" value={String(buyStats.count)} />
@@ -149,7 +281,7 @@ export default function LedgerPage() {
             </div>
             {sellStats.best && (
               <div className="surface-card p-3 flex items-center gap-3">
-                <div style={{ fontSize: 18 }}>🏆</div>
+                <div style={{ fontSize: 18 }}>&#127942;</div>
                 <div className="flex-1 min-w-0">
                   <p className="section-label">BEST SALE</p>
                   <p className="font-bold text-sm truncate">{sellStats.best.card_name}</p>
@@ -163,28 +295,40 @@ export default function LedgerPage() {
         )}
         {tab === 'trade' && (
           <div className="grid grid-cols-2 gap-3">
-            <MiniStatCard label="Cards Traded / Gifted" value={String(tradeStats.count)} />
+            <MiniStatCard label="Traded / Gifted" value={String(tradeStats.count)} />
             <MiniStatCard label="Cost Given Away" value={formatPrice(tradeStats.costBasis)} color="var(--crimson)" />
           </div>
         )}
       </div>
 
       {/* Row list */}
-      <div className="section-enter space-y-2" style={{ animationDelay: '130ms' }}>
+      <div className="section-enter space-y-2" style={{ animationDelay: '150ms' }}>
         {tab === 'buy' && (
           ownedCards.length === 0 ? (
-            <EmptyState text="No cards in your portfolio yet. Add cards from the FIND tab." />
+            <EmptyState text={search
+              ? `No cards matching “${search}”.`
+              : 'No cards in your portfolio yet. Add cards from the FIND tab.'} />
           ) : (
             ownedCards.map((card, i) => (
               <div key={card.id} className="card-enter" style={{ animationDelay: `${Math.min(i, 12) * 22}ms` }}>
-                <BuyRow card={card} onClick={() => setSelectedCardId(card.id)} />
+                <SwipeRow
+                  card={card}
+                  isOpen={swipedId === card.id}
+                  onOpen={() => setSwipedId(card.id)}
+                  onClose={() => setSwipedId(null)}
+                  onSell={() => handleSell(card)}
+                  onTrade={() => handleTrade(card)}
+                  onView={() => setSelectedCardId(card.id)}
+                />
               </div>
             ))
           )
         )}
         {tab === 'sell' && (
           sellHistory.length === 0 ? (
-            <EmptyState text="No sales yet. Use SELL on any owned card to log a sale." />
+            <EmptyState text={search
+              ? `No sales matching “${search}”.`
+              : 'No sales yet. Use SELL on any owned card to log a sale.'} />
           ) : (
             sellHistory.map((sale, i) => (
               <div key={sale.id} className="card-enter" style={{ animationDelay: `${Math.min(i, 12) * 22}ms` }}>
@@ -195,7 +339,9 @@ export default function LedgerPage() {
         )}
         {tab === 'trade' && (
           tradeHistory.length === 0 ? (
-            <EmptyState text="No trades or gifts yet. Use GIFT or TRADE on any owned card." />
+            <EmptyState text={search
+              ? `No trades matching “${search}”.`
+              : 'No trades or gifts yet. Use GIFT or TRADE on any owned card.'} />
           ) : (
             tradeHistory.map((sale, i) => (
               <div key={sale.id} className="card-enter" style={{ animationDelay: `${Math.min(i, 12) * 22}ms` }}>
@@ -206,52 +352,238 @@ export default function LedgerPage() {
         )}
       </div>
 
+      {/* Favorite confirmation */}
+      {confirmFav && (
+        <Modal open onClose={() => setConfirmFav(null)} maxWidth={320}>
+          <div style={{ textAlign: 'center', padding: '4px 0 0' }}>
+            <div style={{ fontSize: 34, marginBottom: 10 }}>&#11088;</div>
+            <h3 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 800 }}>This card is a favorite</h3>
+            <p style={{ margin: '0 0 20px', fontSize: 13, color: 'var(--text3)', lineHeight: 1.55 }}>
+              <strong style={{ color: 'var(--text)' }}>{confirmFav.card.name}</strong> is in your
+              favorites. Are you sure you want to {confirmFav.mode} it?
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setConfirmFav(null)}
+                style={{
+                  flex: 1, padding: '11px', borderRadius: 10, fontSize: 13, fontWeight: 700,
+                  background: 'var(--surface)', color: 'var(--text)',
+                  border: '1px solid var(--border)', cursor: 'pointer',
+                }}>
+                Keep it
+              </button>
+              <button
+                onClick={() => {
+                  setActionCard({ card: confirmFav.card, mode: confirmFav.mode })
+                  setConfirmFav(null)
+                }}
+                style={{
+                  flex: 1, padding: '11px', borderRadius: 10, fontSize: 13, fontWeight: 700,
+                  background: confirmFav.mode === 'sell' ? 'var(--btn-sell)' : 'var(--btn-info)',
+                  color: '#fff', border: 'none', cursor: 'pointer',
+                }}>
+                {confirmFav.mode === 'sell' ? 'Yes, Sell' : 'Yes, Trade'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Sell / Trade action modal */}
+      {actionCard && (
+        <CardDetailModal
+          card={actionCard.card}
+          initialView={actionCard.mode}
+          onClose={() => setActionCard(null)}
+        />
+      )}
+
       {selectedSale && <SaleDetailModal sale={selectedSale} onClose={() => setSelectedSaleId(null)} />}
       {selectedCard && <BuyDetailModal card={selectedCard} onClose={() => setSelectedCardId(null)} />}
     </div>
   )
 }
 
-// ─── BUY row ──────────────────────────────────────────────────────────────────
+// ─── Swipe-to-reveal BUY row ──────────────────────────────────────────────────
 
-function BuyRow({ card, onClick }: { card: PokemonCard; onClick: () => void }) {
-  const gain = card.price_paid != null && card.market_price != null
-    ? unrealizedProfit(card) : null
+function SwipeRow({
+  card, isOpen, onOpen, onClose, onSell, onTrade, onView,
+}: {
+  card: PokemonCard
+  isOpen: boolean
+  onOpen: () => void
+  onClose: () => void
+  onSell: () => void
+  onTrade: () => void
+  onView: () => void
+}) {
+  const rowRef = useRef<HTMLDivElement>(null)
+  const [dragging, setDragging] = useState(false)
+  const [dragX, setDragX] = useState(0)
+  const [hovered, setHovered] = useState(false)
+
+  // stable refs so the native event listener effect doesn't need re-registration
+  const isOpenRef = useRef(isOpen)
+  const cbRef = useRef({ onOpen, onClose })
+  useEffect(() => { isOpenRef.current = isOpen }, [isOpen])
+  useEffect(() => { cbRef.current = { onOpen, onClose } }, [onOpen, onClose])
+
+  useEffect(() => { setDragX(0); setDragging(false) }, [isOpen])
+
+  useEffect(() => {
+    const el = rowRef.current
+    if (!el) return
+
+    let startX = 0, startY = 0
+    let isHoriz = false, decided = false, active = false
+
+    function onTouchStart(e: TouchEvent) {
+      startX = e.touches[0].clientX
+      startY = e.touches[0].clientY
+      isHoriz = false; decided = false; active = true
+    }
+
+    function onTouchMove(e: TouchEvent) {
+      if (!active) return
+      const dx = e.touches[0].clientX - startX
+      const dy = e.touches[0].clientY - startY
+      if (!decided) {
+        if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return
+        isHoriz = Math.abs(dx) > Math.abs(dy)
+        decided = true
+      }
+      if (!isHoriz) return
+      e.preventDefault()
+      const base = isOpenRef.current ? -REVEAL_W : 0
+      setDragX(Math.max(-REVEAL_W, Math.min(0, base + dx)))
+      setDragging(true)
+    }
+
+    function onTouchEnd(e: TouchEvent) {
+      if (!active) return
+      active = false
+      if (!decided || !isHoriz) { setDragging(false); return }
+      const dx = e.changedTouches[0].clientX - startX
+      if (isOpenRef.current) {
+        if (dx > 50) cbRef.current.onClose()
+      } else {
+        if (dx < -60) cbRef.current.onOpen()
+      }
+      setDragging(false)
+      setDragX(0)
+    }
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    el.addEventListener('touchend', onTouchEnd, { passive: true })
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [])
+
+  const translateX = dragging ? dragX : isOpen ? -REVEAL_W : 0
+  const transition = dragging ? 'none' : 'transform 0.35s cubic-bezier(0.34, 1.2, 0.64, 1)'
+  const gain = card.price_paid != null && card.market_price != null ? unrealizedProfit(card) : null
 
   return (
-    <div onClick={onClick} className="surface-card surface-card-interactive p-3 flex items-center gap-3">
-      <div style={{ width: 44, height: 62, flexShrink: 0, borderRadius: 8, overflow: 'hidden', background: 'var(--bg)', position: 'relative' }}>
-        {card.image_sm && <Image src={card.image_sm} alt={card.name} fill className="object-cover" />}
+    <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 16 }}>
+
+      {/* Action buttons — behind the sliding row, revealed on swipe */}
+      <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, display: 'flex', width: REVEAL_W, zIndex: 0 }}>
+        <button
+          onPointerDown={e => e.stopPropagation()}
+          onClick={e => { e.stopPropagation(); onSell() }}
+          style={{
+            flex: 1, background: 'var(--btn-sell)', color: '#fff', border: 'none', cursor: 'pointer',
+            fontSize: 11, fontWeight: 900, letterSpacing: '0.06em',
+          }}>
+          SELL
+        </button>
+        <button
+          onPointerDown={e => e.stopPropagation()}
+          onClick={e => { e.stopPropagation(); onTrade() }}
+          style={{
+            flex: 1, background: 'var(--btn-info)', color: '#fff', border: 'none', cursor: 'pointer',
+            fontSize: 11, fontWeight: 900, letterSpacing: '0.06em', borderRadius: '0 16px 16px 0',
+          }}>
+          TRADE
+        </button>
       </div>
 
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p className="font-bold text-sm truncate">{card.name}</p>
-        <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--text3)' }}>
-          {card.set_name}{card.set_number ? ` · #${card.set_number}` : ''} · {card.condition}
-          {card.language && card.language !== 'EN' ? ` · ${card.language}` : ''}
-        </p>
-        <div style={{ display: 'flex', gap: 10, marginTop: 3, flexWrap: 'wrap' }}>
-          {card.bought_from && (
-            <span style={{ fontSize: 10, color: 'var(--text3)' }}>from {card.bought_from}</span>
-          )}
-          <span style={{ fontSize: 10, color: 'var(--text3)' }}>{formatDate(card.date_added)}</span>
+      {/* Card row — slides left on swipe */}
+      <div
+        ref={rowRef}
+        style={{ transform: `translateX(${translateX}px)`, transition, position: 'relative', zIndex: 1 }}
+        onClick={() => isOpen ? onClose() : onView()}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
+        <div className="surface-card p-3 flex items-center gap-3"
+          style={{ cursor: 'pointer', userSelect: 'none', position: 'relative' }}>
+
+          <div style={{ width: 44, height: 62, flexShrink: 0, borderRadius: 8, overflow: 'hidden', background: 'var(--bg)', position: 'relative' }}>
+            {card.image_sm && <Image src={card.image_sm} alt={card.name} fill className="object-cover" />}
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <p className="font-bold text-sm truncate">{card.name}</p>
+              {card.is_favorite && (
+                <span style={{ fontSize: 10, flexShrink: 0, color: 'var(--gold)' }}>&#11088;</span>
+              )}
+            </div>
+            <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--text3)' }}>
+              {card.set_name}{card.set_number ? ` · #${card.set_number}` : ''} · {card.condition}
+              {card.language && card.language !== 'EN' ? ` · ${card.language}` : ''}
+            </p>
+            <div style={{ display: 'flex', gap: 10, marginTop: 3, flexWrap: 'wrap' }}>
+              {card.bought_from && <span style={{ fontSize: 10, color: 'var(--text3)' }}>from {card.bought_from}</span>}
+              <span style={{ fontSize: 10, color: 'var(--text3)' }}>{formatDate(card.date_added)}</span>
+            </div>
+          </div>
+
+          <div style={{ textAlign: 'right', flexShrink: 0, minWidth: 52 }}>
+            {card.price_paid != null ? (
+              <>
+                <p className="font-extrabold text-sm" style={{ color: 'var(--gold)' }}>{formatPrice(card.price_paid)}</p>
+                <p style={{ fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>paid</p>
+              </>
+            ) : (
+              <p style={{ fontSize: 10, color: 'var(--text3)' }}>—</p>
+            )}
+            {gain != null && (
+              <p style={{ fontSize: 10, fontWeight: 700, marginTop: 3, color: gain >= 0 ? 'var(--emerald)' : 'var(--crimson)' }}>
+                {gain >= 0 ? '+' : ''}{formatPrice(gain)}
+              </p>
+            )}
+          </div>
+
+          {/* Desktop: hover to reveal action buttons */}
+          <div style={{
+            position: 'absolute', right: 0, top: 0, bottom: 0,
+            display: 'flex', alignItems: 'center', gap: 6, paddingRight: 10,
+            opacity: hovered && !isOpen ? 1 : 0,
+            pointerEvents: hovered && !isOpen ? 'all' : 'none',
+            transition: 'opacity 0.15s ease',
+            background: 'linear-gradient(to right, transparent, var(--surface) 28%)',
+            zIndex: 2,
+          }}>
+            <button onClick={e => { e.stopPropagation(); onSell() }} style={{
+              padding: '6px 12px', borderRadius: 8, fontSize: 10, fontWeight: 800,
+              background: 'var(--btn-sell)', color: '#fff', border: 'none', cursor: 'pointer', letterSpacing: '0.04em',
+            }}>
+              SELL
+            </button>
+            <button onClick={e => { e.stopPropagation(); onTrade() }} style={{
+              padding: '6px 12px', borderRadius: 8, fontSize: 10, fontWeight: 800,
+              background: 'var(--btn-info)', color: '#fff', border: 'none', cursor: 'pointer', letterSpacing: '0.04em',
+            }}>
+              TRADE
+            </button>
+          </div>
         </div>
-      </div>
-
-      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        {card.price_paid != null ? (
-          <>
-            <p className="font-extrabold text-sm" style={{ color: 'var(--gold)' }}>{formatPrice(card.price_paid)}</p>
-            <p style={{ fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>paid</p>
-          </>
-        ) : (
-          <p style={{ fontSize: 10, color: 'var(--text3)' }}>—</p>
-        )}
-        {gain != null && (
-          <p style={{ fontSize: 10, fontWeight: 700, marginTop: 3, color: gain >= 0 ? 'var(--emerald)' : 'var(--crimson)' }}>
-            {gain >= 0 ? '+' : ''}{formatPrice(gain)}
-          </p>
-        )}
       </div>
     </div>
   )
@@ -490,6 +822,8 @@ function LoadingSkeleton() {
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-4">
       <div className="h-8 w-28 rounded-xl img-skeleton" />
       <div className="h-12 rounded-2xl img-skeleton" />
+      <div className="h-10 rounded-2xl img-skeleton" />
+      <div className="h-8 rounded-xl img-skeleton" style={{ width: '60%' }} />
       <div className="grid grid-cols-3 gap-3">
         {[0, 1, 2].map(i => <div key={i} className="h-16 rounded-2xl img-skeleton" />)}
       </div>

@@ -32,7 +32,7 @@ function formatSetDate(raw?: string | null): string {
 interface CardDetailModalProps {
   card: PokemonCard | null
   onClose: () => void
-  initialView?: 'detail' | 'sell' | 'gift'
+  initialView?: 'detail' | 'sell' | 'gift' | 'trade'
   view?: 'portfolio' | 'wishlist'
 }
 
@@ -43,7 +43,7 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
   )
   const [showSell, setShowSell] = useState(initialView === 'sell')
   const [showGift, setShowGift] = useState(initialView === 'gift')
-  const [showTrade, setShowTrade] = useState(false)
+  const [showTrade, setShowTrade] = useState(initialView === 'trade')
   const [showMove, setShowMove] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
