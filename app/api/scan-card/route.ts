@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   // annotations[0].description is all detected text in reading order (top→bottom, left→right)
   // The card name is at the top of the card so it appears first
   const fullText: string = body.responses?.[0]?.textAnnotations?.[0]?.description ?? ''
-  console.log('Vision raw:', JSON.stringify(fullText.slice(0, 300)))
+  console.log('scan|raw:', JSON.stringify(fullText.slice(0, 200)))
 
   // Card name: first alphabetic line that isn't a stage/type label
   const STAGE_ONLY = /^(BASIC|STAGE\s*\d+|V-?UNION|VMAX|VSTAR|GX|EX|TAG\s*TEAM)$/i
@@ -45,6 +45,6 @@ export async function POST(req: NextRequest) {
   const numberMatch = fullText.match(/\b([A-Z]{0,3}\d{1,3})\/[A-Z]{0,3}\d{2,3}\b/)
   const number = numberMatch ? numberMatch[1] : ''
 
-  console.log('nameLine:', JSON.stringify(nameLine), '| name:', JSON.stringify(name), '| number:', number)
+  console.log(`scan|name:${JSON.stringify(name)}|number:${number}|nameLine:${JSON.stringify(nameLine)}`)
   return NextResponse.json({ name, number })
 }

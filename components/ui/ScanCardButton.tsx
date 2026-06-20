@@ -104,8 +104,8 @@ export function ScanCardButton({ onResult }: Props) {
           style={{
             position: 'fixed', inset: 0, zIndex: 50,
             background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(4px)',
-            display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-            padding: '0 16px 40px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '0 16px',
           }}
           onClick={() => setState('idle')}
         >
@@ -124,7 +124,6 @@ export function ScanCardButton({ onResult }: Props) {
               {cardNumber ? `Card #${cardNumber} · fix name if needed, then Search.` : 'Fix the name if needed, then tap Search.'}
             </p>
             <input
-              autoFocus
               value={editValue}
               onChange={e => setEditValue(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSearch()}
