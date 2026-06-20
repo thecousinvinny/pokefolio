@@ -32,15 +32,15 @@ export async function POST(req: NextRequest) {
   const fullText: string = body.responses?.[0]?.textAnnotations?.[0]?.description ?? ''
   console.log('Vision raw:', JSON.stringify(fullText.slice(0, 300)))
 
-  const name = fullText
-    .split('\n')
-    .map((l: string) => l.trim())
-    .filter((l: string) => l.length > 1 && /^[A-Za-zÀ-ö]/.test(l))
-    .at(0)
-    ?.replace(/\s+HP\s*\d.*/i, '')
+  // Take the first alphabetic line — Vision reads top→bottom so card name comes first
+  const firstLine = fullText.split('\n').map((l: string) => l.trim()).find((l: string) => l.length > 1 && /^[A-Za-z]/.test(l)) ?? ''
+  // Strip "BASIC"/"STAGE 1" etc. and "HP 330" suffixes, then take remainder or first word
+  const name = firstLine
+    .replace(/^(BASIC|STAGE\s*\d+|V-?UNION)\s+/i, '')
+    .replace(/\s+HP\s*\d.*/i, '')
     .replace(/\s+\d{1,3}\s*$/, '')
-    .trim() ?? ''
+    .trim() || firstLine.split(/\s+/)[1] || firstLine
 
-  console.log('Extracted name:', JSON.stringify(name))
+  console.log('firstLine:', JSON.stringify(firstLine), '| name:', JSON.stringify(name))
   return NextResponse.json({ name })
 }
