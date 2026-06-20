@@ -1,5 +1,6 @@
 'use client'
 import { useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 type ScanState = 'idle' | 'scanning' | 'confirm'
 
@@ -56,7 +57,12 @@ export function ScanCardButton({ onResult }: Props) {
     const file = e.target.files?.[0]
     if (!file) return
     if (fileRef.current) fileRef.current.value = ''
-    setState('scanning')
+
+    // Show modal immediately — proves it renders before any async work
+    setEditValue('Scanning…')
+    setCardNumber('')
+    setState('confirm')
+
     try {
       const imageBase64 = await toBase64(file)
       const res = await fetch('/api/scan-card', {
@@ -67,10 +73,8 @@ export function ScanCardButton({ onResult }: Props) {
       const data = await res.json() as { name?: string; number?: string; debug?: string }
       setEditValue(data.name || data.debug || 'no name detected')
       setCardNumber(data.number ?? '')
-      setState('confirm')
     } catch (err) {
       setEditValue(`Error: ${String(err)}`)
-      setState('confirm')
     }
   }
 
@@ -121,11 +125,12 @@ export function ScanCardButton({ onResult }: Props) {
         )}
       </button>
 
-      {state === 'confirm' && (
+      {state === 'confirm' && typeof document !== 'undefined' && createPortal(
         <div
           style={{
-            position: 'fixed', inset: 0, zIndex: 50,
+            position: 'fixed', inset: 0, zIndex: 200,
             background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(4px)',
+            WebkitBackdropFilter: 'blur(4px)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             padding: '0 16px',
           }}
@@ -143,7 +148,11 @@ export function ScanCardButton({ onResult }: Props) {
               CARD DETECTED
             </p>
             <p style={{ margin: '0 0 14px', fontSize: 12, color: 'var(--text3)' }}>
-              {cardNumber ? `Card #${cardNumber} · fix name if needed, then Search.` : 'Fix the name if needed, then tap Search.'}
+              {editValue === 'Scanning…'
+                ? 'Reading card…'
+                : cardNumber
+                  ? `Card #${cardNumber} · fix name if needed, then Search.`
+                  : 'Fix the name if needed, then tap Search.'}
             </p>
             <input
               value={editValue}
@@ -177,17 +186,18 @@ export function ScanCardButton({ onResult }: Props) {
               >↺ Retry</button>
               <button
                 onClick={handleSearch}
-                disabled={!editValue.trim()}
+                disabled={!editValue.trim() || editValue === 'Scanning…'}
                 style={{
                   flex: 2, padding: '10px 0', borderRadius: 10, fontSize: 13, fontWeight: 700,
-                  background: editValue.trim() ? 'var(--btn-info)' : 'var(--btn-disabled)',
+                  background: editValue.trim() && editValue !== 'Scanning…' ? 'var(--btn-info)' : 'var(--btn-disabled)',
                   color: '#fff', border: 'none',
-                  cursor: editValue.trim() ? 'pointer' : 'default',
+                  cursor: editValue.trim() && editValue !== 'Scanning…' ? 'pointer' : 'default',
                 }}
               >Search</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
