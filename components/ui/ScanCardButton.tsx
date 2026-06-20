@@ -141,15 +141,17 @@ export function ScanCardButton({ onResult }: Props) {
           <div
             style={{
               width: '100%', maxWidth: 480,
-              background: 'var(--surface)', borderRadius: 20,
-              padding: '20px 20px 24px', border: '1px solid var(--border)',
+              background: '#252843', borderRadius: 20,
+              padding: '20px 20px 24px',
+              border: '1px solid rgba(255,255,255,0.18)',
+              boxShadow: '0 8px 48px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06)',
             }}
             onClick={e => e.stopPropagation()}
           >
-            <p style={{ margin: '0 0 2px', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text3)' }}>
+            <p style={{ margin: '0 0 2px', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)' }}>
               CARD DETECTED
             </p>
-            <p style={{ margin: '0 0 14px', fontSize: 12, color: 'var(--text3)' }}>
+            <p style={{ margin: '0 0 14px', fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>
               {editValue === 'Scanning…'
                 ? 'Reading card…'
                 : cardNumber
@@ -164,8 +166,8 @@ export function ScanCardButton({ onResult }: Props) {
               style={{
                 display: 'block', width: '100%', padding: '11px 14px',
                 borderRadius: 10, boxSizing: 'border-box',
-                background: 'var(--elevated)', border: '1px solid var(--border2)',
-                color: 'var(--text)', fontSize: 16, outline: 'none',
+                background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)',
+                color: '#ffffff', fontSize: 16, outline: 'none',
                 marginBottom: 12,
               }}
             />
@@ -174,15 +176,15 @@ export function ScanCardButton({ onResult }: Props) {
                 onClick={() => setState('idle')}
                 style={{
                   flex: 1, padding: '10px 0', borderRadius: 10, fontSize: 13, fontWeight: 700,
-                  background: 'transparent', color: 'var(--text3)',
-                  border: '1px solid rgba(255,255,255,0.10)', cursor: 'pointer',
+                  background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.6)',
+                  border: '1px solid rgba(255,255,255,0.12)', cursor: 'pointer',
                 }}
               >Cancel</button>
               <button
                 onClick={handleRetry}
                 style={{
                   flex: 1, padding: '10px 0', borderRadius: 10, fontSize: 13, fontWeight: 700,
-                  background: 'transparent', color: 'var(--text2)',
+                  background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.75)',
                   border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer',
                 }}
               >↺ Retry</button>
