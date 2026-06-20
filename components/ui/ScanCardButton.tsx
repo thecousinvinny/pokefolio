@@ -43,8 +43,8 @@ export function ScanCardButton({ onResult }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageBase64 }),
       })
-      const data = await res.json() as { name?: string; number?: string }
-      setEditValue(data.name ?? '')
+      const data = await res.json() as { name?: string; number?: string; debug?: string }
+      setEditValue(data.name || data.debug || 'no name detected')
       setCardNumber(data.number ?? '')
       setState('confirm')
     } catch {
