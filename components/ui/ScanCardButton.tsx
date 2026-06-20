@@ -52,13 +52,16 @@ export function ScanCardButton({ onResult }: Props) {
   const [state, setState] = useState<ScanState>('idle')
   const [editValue, setEditValue] = useState('')
   const [cardNumber, setCardNumber] = useState('')
+  const openedAtRef = useRef<number>(0)
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     if (fileRef.current) fileRef.current.value = ''
 
-    // Show modal immediately — proves it renders before any async work
+    // Record when modal opened so backdrop click guard ignores
+    // the stray click event that fires when the file picker closes
+    openedAtRef.current = Date.now()
     setEditValue('Scanning…')
     setCardNumber('')
     setState('confirm')
@@ -133,7 +136,7 @@ export function ScanCardButton({ onResult }: Props) {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             padding: '0 16px',
           }}
-          onClick={() => setState('idle')}
+          onClick={() => { if (Date.now() - openedAtRef.current > 400) setState('idle') }}
         >
           <div
             style={{
