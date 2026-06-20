@@ -4,8 +4,13 @@ import { searchCardsFlexible } from '@/lib/tcg'
 const VISION_URL = 'https://vision.googleapis.com/v1/images:annotate'
 
 const SUFFIX_RE = /\s+(ex|V|VMAX|VSTAR|VUNION|GX|EX|TAG\s*TEAM)\s*$/i
+// Only actual stage-of-evolution labels — NOT card-name suffixes like EX/GX/VMAX/V
+const STAGE_LABEL_RE = /^(BASIC|STAGE\s*\d+)$/i
+// Full list used only for skipping standalone lines in line-based fallback
 const STAGE_RE = /^(BASIC|STAGE\s*\d+|V-?UNION|VMAX|VSTAR|GX|EX|TAG\s*TEAM)$/i
 const HP_TOKEN_RE = /^(HP|\d+)$/i
+// Splits fused suffix tokens: "ReshiramEX" → "Reshiram EX", "CharizardVMAX" → "Charizard VMAX"
+const FUSED_SUFFIX_RE = /([A-Za-z])(VMAX|VSTAR|VUNION|GX|EX|ex)(?=\s|$)/g
 
 interface WordAnnotation {
   description: string
@@ -40,9 +45,10 @@ function parseCardText(annotations: WordAnnotation[], fullText: string): { rawNa
 
   const nameTokens = topWords
     .map(w => w.description)
-    .filter(t => !STAGE_RE.test(t) && !HP_TOKEN_RE.test(t))
+    .filter(t => !STAGE_LABEL_RE.test(t) && !HP_TOKEN_RE.test(t))
   const rawName = nameTokens
     .join(' ')
+    .replace(FUSED_SUFFIX_RE, '$1 $2')
     .replace(/\s+HP\s*\d.*/i, '')
     .replace(/\s+\d{1,3}\s*$/, '')
     .trim()
@@ -68,7 +74,8 @@ function parseLinesBased(fullText: string): { rawName: string; rawNumber: string
   const lines = fullText.split('\n').map(l => l.trim()).filter(l => l.length > 1 && /^[A-Za-z]/.test(l))
   const nameLine = lines.find(l => !STAGE_RE.test(l)) ?? lines[0] ?? ''
   const rawName = nameLine
-    .replace(/^(BASIC|STAGE\s*\d+|V-?UNION|VMAX|VSTAR|GX|EX|TAG\s*TEAM)\s+/i, '')
+    .replace(/^(BASIC|STAGE\s*\d+)\s+/i, '')
+    .replace(FUSED_SUFFIX_RE, '$1 $2')
     .replace(/\s+HP\s*\d.*/i, '')
     .replace(/\s+\d{1,3}\s*$/, '')
     .trim()
