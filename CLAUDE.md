@@ -48,9 +48,14 @@ app/
     wishlist/page.tsx
     sold/page.tsx
   (auth)/login/page.tsx     → unused (auth bypassed)
+  share/[id]/
+    page.tsx                → server component, reads share row via anon Supabase key
+    ShareView.tsx           → client component, renders the public share page
   api/tcg/search/route.ts
   api/tcg/card/[id]/route.ts
 ```
+
+`app/share/[id]/` is **outside the `(app)` group** — no `AppShell`, no auth gate. It uses `createClient` from `lib/supabase/server` (anon key, RLS applies). `components/layout/ProfileSheet.tsx` handles the share modal inside the app: it builds the share payload, writes it to the `user_shares` Supabase table, and lets the user filter by All / Full Art / Favs Only before copying the link.
 
 ### Design system — VAULT/FOLIO Swift files are source of truth
 
@@ -80,13 +85,21 @@ CSS custom properties in `globals.css` and Tailwind colors in `tailwind.config.t
 
 All action buttons use `background: var(--btn-x)`, `color: #fff`, `border: none`. Reference the CSS var in inline styles (the dominant pattern) or add `className="btn btn-x"` for the hover/active opacity transitions from the `.btn` base class. Never hardcode the gradient hex values — always use the vars.
 
+### Animation classes and stacking contexts
+
+`globals.css` defines several reusable animation classes:
+- `.card-enter` — entrance for list items: `opacity 0→1, translateY 16px→0, scale 0.95→1`, spring curve, `fill-mode: both`. **Caution:** `fill-mode: both` retains `transform: scale(1) translateY(0)` after the animation ends. Any non-`none` transform creates a persistent stacking context. If you render a fixed/absolute overlay (e.g. a backdrop at `z-index: 5`) and need a `.card-enter` child to appear above it, apply the z-index **on the `.card-enter` wrapper itself** (e.g. `zIndex: 7`), not on a descendant — descendants' z-indices are scoped to the animation's stacking context and won't compete against the root-level overlay.
+- `.section-enter` — entrance for full-width page sections: `opacity + translateY`, ease-out, no bounce.
+- `.showcase-border` — prismatic rainbow glow for the DASH showcase card, driven by `@keyframes prismatic-glow` cycling `box-shadow` colors.
+- Spring curve for all interactive motion: `cubic-bezier(0.34, 1.56, 0.64, 1)` at `0.38s`.
+
 ### Card component architecture
 
 `components/cards/CardArtwork.tsx` renders the type-based gradient background (colors from VAULT `Theme.swift` `CardType.artColors`). It is used inside every card tile and the detail modal. It also exports `TypeBadge` (small colored dot for info rows) and `getArtColors` (for direct gradient access).
 
 `components/cards/CardTile.tsx` exports `PortfolioTile` (owned cards with condition, profit/loss, sparkles for holo) and `BrowseTile` (TCG search results with quick-add buttons). Both use `CardArtwork` internally and implement VAULT's 0.72 aspect-ratio artwork + info section layout. BrowseTile action row order: heart → TCG → +CATCHM.
 
-`components/layout/AppShell.tsx` renders a floating liquid-glass pill tab bar (not full-width, `left/right: 14px`). The active tab gets a frosted-glass capsule (`rgba(255,255,255,0.15)` + `blur(10px)` + `border-radius: 9999px`) that wraps both the icon and label together. The pill position is measured via `getBoundingClientRect()` on wrapper `div` refs and animated with a spring transition. Nav order: DASH → FIND → WISH → CATCHM → LEDGER. Each tab's inner wrapper is fixed at `width: 62px` so the pill stays a uniform oval regardless of label text length.
+`components/layout/AppShell.tsx` renders a floating liquid-glass pill tab bar (not full-width, `left/right: 14px`). The active tab gets a frosted-glass capsule (`rgba(255,255,255,0.15)` + `blur(10px)` + `border-radius: 9999px`) that wraps both the icon and label together. The pill position is measured via `getBoundingClientRect()` on wrapper `div` refs and animated with a spring transition. Nav order: DASH → FIND → WISH → CATCHM → LEDGER. Each tab's inner wrapper is fixed at `width: 72px` so the pill stays a uniform oval regardless of label text length.
 
 ### TCG links
 
