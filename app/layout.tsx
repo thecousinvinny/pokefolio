@@ -28,13 +28,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {children}
         <script dangerouslySetInnerHTML={{ __html: `
           if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function(regs) {
-              if (regs.length > 0) {
-                Promise.all(regs.map(function(r) { return r.unregister() })).then(function() {
-                  window.location.reload()
+            try {
+              if (!sessionStorage.getItem('__swkill')) {
+                navigator.serviceWorker.getRegistrations().then(function(regs) {
+                  if (regs.length > 0) {
+                    sessionStorage.setItem('__swkill', '1')
+                    Promise.all(regs.map(function(r) { return r.unregister() })).then(function() {
+                      window.location.reload()
+                    })
+                  }
                 })
               }
-            })
+            } catch(e) {}
           }
         `}} />
       </body>
