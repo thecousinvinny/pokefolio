@@ -4,7 +4,7 @@ import { useRef, useState } from 'react'
 type ScanState = 'idle' | 'scanning' | 'confirm'
 
 interface Props {
-  onResult: (name: string) => void
+  onResult: (name: string, number?: string) => void
 }
 
 // Resize to max 1200px and encode as JPEG base64 to keep the payload small
@@ -29,6 +29,7 @@ export function ScanCardButton({ onResult }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [state, setState] = useState<ScanState>('idle')
   const [editValue, setEditValue] = useState('')
+  const [cardNumber, setCardNumber] = useState('')
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -42,8 +43,9 @@ export function ScanCardButton({ onResult }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageBase64 }),
       })
-      const data = await res.json() as { name?: string }
+      const data = await res.json() as { name?: string; number?: string }
       setEditValue(data.name ?? '')
+      setCardNumber(data.number ?? '')
       setState('confirm')
     } catch {
       setState('idle')
@@ -51,7 +53,7 @@ export function ScanCardButton({ onResult }: Props) {
   }
 
   function handleSearch() {
-    if (editValue.trim()) onResult(editValue.trim())
+    if (editValue.trim()) onResult(editValue.trim(), cardNumber || undefined)
     setState('idle')
   }
 
@@ -119,7 +121,7 @@ export function ScanCardButton({ onResult }: Props) {
               CARD DETECTED
             </p>
             <p style={{ margin: '0 0 14px', fontSize: 12, color: 'var(--text3)' }}>
-              Fix the name if needed, then tap Search.
+              {cardNumber ? `Card #${cardNumber} · fix name if needed, then Search.` : 'Fix the name if needed, then tap Search.'}
             </p>
             <input
               autoFocus

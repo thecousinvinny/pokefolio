@@ -82,6 +82,7 @@ function lsGet<T>(key: string, def: T): T {
 export default function BrowsePage() {
   const { cards, addCard, removeCard } = useCollection()
   const [query, setQuery] = useState('')
+  const [cardNumber, setCardNumber] = useState('')
   const [sort, setSort] = useState<SortMode>(() => lsGet('catchm_b_sort', 'premium'))
   const [rarityGroup, setRarityGroup] = useState<RarityGroup>(() => lsGet('catchm_b_rarity', 'all'))
   const [showFilters, setShowFilters] = useState(false)
@@ -139,10 +140,10 @@ export default function BrowsePage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const loadingRef = useRef(false)
 
-  const search = useCallback(async (q: string, set: string, p: number, append: boolean) => {
+  const search = useCallback(async (q: string, set: string, p: number, append: boolean, num = '') => {
     if (loadingRef.current && append) return
-    // Serve from cache on fresh load (page 1, not appending)
-    if (!append && p === 1) {
+    // Serve from cache on fresh load (page 1, not appending) — but not when number filter is active
+    if (!append && p === 1 && !num) {
       const key = cacheKey(q, set)
       if (cacheValid(key)) {
         const cached = _browseCache.get(key)!
@@ -160,7 +161,8 @@ export default function BrowsePage() {
       const params = new URLSearchParams()
       if (q)   params.set('q', q)
       if (set) params.set('set', set)
-      if (!q && !set) params.set('fullArtOnly', 'true')
+      if (num) params.set('number', num)
+      if (!q && !set && !num) params.set('fullArtOnly', 'true')
       params.set('page', String(p))
       params.set('pageSize', String(PAGE_SIZE))
       const res = await fetch(`/api/tcg/search?${params}`)
@@ -196,10 +198,10 @@ export default function BrowsePage() {
     const delay = query || setFilter ? 350 : 0
     debounceRef.current = setTimeout(() => {
       setPage(1)
-      search(query, setFilter, 1, false)
+      search(query, setFilter, 1, false, cardNumber)
     }, delay)
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
-  }, [query, setFilter, search])
+  }, [query, setFilter, cardNumber, search])
 
   // Auto-switch rarity: browsing = all (server already filters to full arts)
   //                     searching = all (show everything matching the query)
@@ -263,8 +265,8 @@ export default function BrowsePage() {
     if (loadingRef.current || !hasMore) return
     const next = pageRef.current + 1
     setPage(next)
-    search(query, setFilter, next, true)
-  }, [hasMore, search, query, setFilter])
+    search(query, setFilter, next, true, cardNumber)
+  }, [hasMore, search, query, setFilter, cardNumber])
 
   const handleCardClick = useCallback((card: TCGCard) => setDetailCard(card), [])
   const handleAddToPortfolio = useCallback((card: TCGCard) => { setAddTarget(card); setAddDefaultStatus('owned') }, [])
@@ -329,7 +331,7 @@ export default function BrowsePage() {
             type="text"
             placeholder="Search cards or sets…"
             value={query}
-            onChange={e => setQuery(e.target.value)}
+            onChange={e => { setQuery(e.target.value); setCardNumber('') }}
             className="flex-1 bg-transparent outline-none text-sm"
             style={{ color: 'var(--text)' }}
           />
@@ -338,7 +340,7 @@ export default function BrowsePage() {
           )}
         </div>
 
-        <ScanCardButton onResult={name => setQuery(name)} />
+        <ScanCardButton onResult={(name, num) => { setQuery(name); setCardNumber(num ?? '') }} />
 
         {/* Icon-only filter button */}
         <button

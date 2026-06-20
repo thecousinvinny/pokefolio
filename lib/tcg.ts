@@ -89,6 +89,7 @@ export async function searchCardsFlexible(params: {
   set?: string
   type?: string
   rarity?: string
+  number?: string
   minPrice?: number
   maxPrice?: number
   page?: number
@@ -96,14 +97,22 @@ export async function searchCardsFlexible(params: {
   skipEnrich?: boolean
   fullArtOnly?: boolean
 }): Promise<TCGSearchResponse> {
-  const { query, set, type, rarity, page = 1, pageSize = 20, skipEnrich = false, fullArtOnly = false } = params
+  const { query, set, type, rarity, number, page = 1, pageSize = 20, skipEnrich = false, fullArtOnly = false } = params
 
   const parts: string[] = []
 
   if (query && query.trim()) {
     const q = query.trim()
-    // Search by card name AND set name so "Perfect Order" or "Surging Sparks" finds the whole set
-    parts.push(`(name:"${q}*" OR set.name:"${q}*")`)
+    if (number) {
+      // When we have a card number, search by name + number for an exact match
+      parts.push(`name:"${q}*"`)
+    } else {
+      // Search by card name AND set name so "Perfect Order" or "Surging Sparks" finds the whole set
+      parts.push(`(name:"${q}*" OR set.name:"${q}*")`)
+    }
+  }
+  if (number) {
+    parts.push(`number:${number}`)
   }
   if (set) {
     parts.push(`set.name:"${set}*"`)

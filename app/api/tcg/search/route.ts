@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
       set,
       type: searchParams.get('type') ?? undefined,
       rarity: searchParams.get('rarity') ?? undefined,
+      number: searchParams.get('number') ?? undefined,
       page: Number(searchParams.get('page') ?? 1),
       pageSize: Number(searchParams.get('pageSize') ?? 24),
       skipEnrich: true,
