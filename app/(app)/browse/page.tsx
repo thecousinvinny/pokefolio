@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { SearchIcon, HeartIcon, XIcon } from '@/components/ui/Icons'
+import { ScanCardButton } from '@/components/ui/ScanCardButton'
 import { BrowseTile } from '@/components/cards/CardTile'
 import { CardArtwork } from '@/components/cards/CardArtwork'
 import { AddToPortfolioModal } from '@/components/cards/AddToPortfolioModal'
@@ -336,6 +337,8 @@ export default function BrowsePage() {
             <button onClick={() => setQuery('')} style={{ color: 'var(--text3)', display: 'flex' }}><XIcon size={16} /></button>
           )}
         </div>
+
+        <ScanCardButton onResult={name => setQuery(name)} />
 
         {/* Icon-only filter button */}
         <button
