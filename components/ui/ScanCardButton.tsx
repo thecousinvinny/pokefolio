@@ -7,106 +7,47 @@ interface Props {
   onResult: (name: string) => void
 }
 
-// Grayscale + contrast to help Tesseract on colorful card backgrounds
-function preprocessImage(file: File): Promise<Blob> {
+// Resize to max 1200px and encode as JPEG base64 to keep the payload small
+function resizeAndEncode(file: File, maxDim = 1200): Promise<string> {
   return new Promise(resolve => {
     const img = new Image()
     const url = URL.createObjectURL(file)
     img.onload = () => {
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height))
       const canvas = document.createElement('canvas')
-      canvas.width = img.width
-      canvas.height = img.height
-      const ctx = canvas.getContext('2d')!
-      ctx.drawImage(img, 0, 0)
-      const d = ctx.getImageData(0, 0, canvas.width, canvas.height)
-      for (let i = 0; i < d.data.length; i += 4) {
-        const g = Math.round(0.299 * d.data[i] + 0.587 * d.data[i + 1] + 0.114 * d.data[i + 2])
-        const c = Math.min(255, Math.max(0, (g - 128) * 1.6 + 128))
-        d.data[i] = d.data[i + 1] = d.data[i + 2] = c
-      }
-      ctx.putImageData(d, 0, 0)
+      canvas.width = Math.round(img.width * scale)
+      canvas.height = Math.round(img.height * scale)
+      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
       URL.revokeObjectURL(url)
-      canvas.toBlob(b => resolve(b!), 'image/png')
+      resolve(canvas.toDataURL('image/jpeg', 0.85).split(',')[1])
     }
     img.src = url
   })
-}
-
-type TWord = { text: string; confidence: number; bbox: { x0: number; y0: number; x1: number; y1: number } }
-
-// Find the card name by locating the tallest (largest font) text cluster
-function extractCardName(words: TWord[], imageHeight: number): string {
-  const candidates = words.filter(w =>
-    w.confidence > 25 &&
-    w.text.trim().length > 1 &&
-    /^[A-Za-zÀ-ö]/.test(w.text.trim()) &&
-    // Ignore text in the bottom third (attacks, flavor text, set number)
-    w.bbox.y1 < imageHeight * 0.67
-  )
-  if (!candidates.length) return ''
-
-  // Anchor on the word with the tallest bounding box = largest font = card name
-  const sorted = [...candidates].sort((a, b) =>
-    (b.bbox.y1 - b.bbox.y0) - (a.bbox.y1 - a.bbox.y0)
-  )
-  const anchor = sorted[0]
-  const anchorH = anchor.bbox.y1 - anchor.bbox.y0
-  const anchorMidY = (anchor.bbox.y0 + anchor.bbox.y1) / 2
-
-  // Collect all words on the same line as the anchor
-  const line = candidates
-    .filter(w => {
-      const wMidY = (w.bbox.y0 + w.bbox.y1) / 2
-      const wH = w.bbox.y1 - w.bbox.y0
-      return (
-        Math.abs(wMidY - anchorMidY) < anchorH * 0.65 &&
-        wH > anchorH * 0.45
-      )
-    })
-    .sort((a, b) => a.bbox.x0 - b.bbox.x0)
-    .map(w => w.text.trim())
-    .join(' ')
-    .replace(/\s+HP\s*\d.*/i, '')   // strip "HP 330" suffix
-    .replace(/\s+\d{1,3}\s*$/, '')  // strip trailing standalone numbers
-    .trim()
-
-  return line || anchor.text.trim()
 }
 
 export function ScanCardButton({ onResult }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [state, setState] = useState<ScanState>('idle')
   const [editValue, setEditValue] = useState('')
-  const lastFileRef = useRef<File | null>(null)
-
-  async function runOCR(file: File) {
-    setState('scanning')
-    try {
-      const processed = await preprocessImage(file)
-      const { createWorker } = await import('tesseract.js')
-      const worker = await createWorker('eng')
-      // PSM 11 = sparse text — finds text anywhere without assuming layout
-      await worker.setParameters({ tessedit_pageseg_mode: '11' as never })
-      const { data } = await worker.recognize(processed)
-      await worker.terminate()
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const words = (data as any).words as TWord[]
-      const imgH = words.length ? Math.max(...words.map(w => w.bbox.y1)) : 1000
-      const name = extractCardName(words, imgH)
-      setEditValue(name)
-      setState('confirm')
-    } catch {
-      setState('idle')
-    }
-  }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    lastFileRef.current = file
     if (fileRef.current) fileRef.current.value = ''
-    await runOCR(file)
+    setState('scanning')
+    try {
+      const imageBase64 = await resizeAndEncode(file)
+      const res = await fetch('/api/scan-card', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64 }),
+      })
+      const data = await res.json() as { name?: string }
+      setEditValue(data.name ?? '')
+      setState('confirm')
+    } catch {
+      setState('idle')
+    }
   }
 
   function handleSearch() {
