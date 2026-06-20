@@ -30,6 +30,7 @@ export function ScanCardButton({ onResult }: Props) {
   const [camError, setCamError] = useState('')
   const [videoReady, setVideoReady] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
+  const cardGuideRef = useRef<HTMLDivElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const openedAtRef = useRef<number>(0)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -79,14 +80,34 @@ export function ScanCardButton({ onResult }: Props) {
     const video = videoRef.current
     if (!video || !video.videoWidth) return
 
+    const vNW = video.videoWidth
+    const vNH = video.videoHeight
+
+    // Crop to the card guide rectangle so Vision only sees the card, not background.
+    // objectFit:cover scales the video to fill the container; we reverse that to find
+    // which native pixels correspond to the guide's screen position.
+    const guide = cardGuideRef.current
+    let sx = 0, sy = 0, sw = vNW, sh = vNH
+    if (guide) {
+      const vb = video.getBoundingClientRect()
+      const gb = guide.getBoundingClientRect()
+      const coverScale = Math.max(vb.width / vNW, vb.height / vNH)
+      const overflowX = (vNW * coverScale - vb.width) / 2
+      const overflowY = (vNH * coverScale - vb.height) / 2
+      sx = Math.max(0, (gb.left - vb.left + overflowX) / coverScale)
+      sy = Math.max(0, (gb.top  - vb.top  + overflowY) / coverScale)
+      sw = Math.min(vNW - sx, gb.width  / coverScale)
+      sh = Math.min(vNH - sy, gb.height / coverScale)
+    }
+
     const maxDim = 1200
-    const scale = Math.min(1, maxDim / Math.max(video.videoWidth, video.videoHeight))
+    const scale = Math.min(1, maxDim / Math.max(sw, sh))
     const canvas = document.createElement('canvas')
-    canvas.width = Math.round(video.videoWidth * scale)
-    canvas.height = Math.round(video.videoHeight * scale)
+    canvas.width  = Math.round(sw * scale)
+    canvas.height = Math.round(sh * scale)
     const ctx = canvas.getContext('2d')
     if (!ctx) return
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height)
     const imageBase64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1]
 
     streamRef.current?.getTracks().forEach(t => t.stop())
@@ -245,7 +266,7 @@ export function ScanCardButton({ onResult }: Props) {
 
           {/* Card guide */}
           {videoReady && (
-            <div style={{
+            <div ref={cardGuideRef} style={{
               position: 'relative', zIndex: 1,
               width: 'min(72vw, 260px)',
               aspectRatio: '5/7',
