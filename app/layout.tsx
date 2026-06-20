@@ -28,7 +28,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {children}
         <script dangerouslySetInnerHTML={{ __html: `
           if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js')
+            navigator.serviceWorker.getRegistrations().then(regs => {
+              regs.forEach(r => r.unregister())
+            })
           }
         `}} />
       </body>

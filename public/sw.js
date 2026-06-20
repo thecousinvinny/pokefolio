@@ -1,6 +1,5 @@
-self.addEventListener('install', e => e.waitUntil(self.skipWaiting()))
-self.addEventListener('activate', e => e.waitUntil(self.clients.claim()))
-self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return
-  e.respondWith(fetch(e.request))
+// Intentionally unregisters itself — replaced by direct network requests
+self.addEventListener('install', () => self.skipWaiting())
+self.addEventListener('activate', e => {
+  e.waitUntil(self.registration.unregister())
 })
