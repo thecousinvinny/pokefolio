@@ -7,22 +7,43 @@ interface Props {
   onResult: (name: string, number?: string) => void
 }
 
-// Resize to max 1200px and encode as JPEG base64 to keep the payload small
-function resizeAndEncode(file: File, maxDim = 1200): Promise<string> {
-  return new Promise(resolve => {
-    const img = new Image()
-    const url = URL.createObjectURL(file)
-    img.onload = () => {
-      const scale = Math.min(1, maxDim / Math.max(img.width, img.height))
-      const canvas = document.createElement('canvas')
-      canvas.width = Math.round(img.width * scale)
-      canvas.height = Math.round(img.height * scale)
-      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
-      URL.revokeObjectURL(url)
-      resolve(canvas.toDataURL('image/jpeg', 0.85).split(',')[1])
-    }
-    img.src = url
+// FileReader fallback — works everywhere, no canvas needed
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve((reader.result as string).split(',')[1])
+    reader.onerror = () => reject(new Error('FileReader failed'))
+    reader.readAsDataURL(file)
   })
+}
+
+// Try canvas resize first; fall back to raw FileReader if canvas unavailable
+async function toBase64(file: File, maxDim = 1200): Promise<string> {
+  try {
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const img = new Image()
+      const url = URL.createObjectURL(file)
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('img load failed')) }
+      img.onload = () => {
+        try {
+          const scale = Math.min(1, maxDim / Math.max(img.width, img.height))
+          const canvas = document.createElement('canvas')
+          canvas.width = Math.round(img.width * scale)
+          canvas.height = Math.round(img.height * scale)
+          const ctx = canvas.getContext('2d')
+          if (!ctx) { URL.revokeObjectURL(url); reject(new Error('no canvas ctx')); return }
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+          URL.revokeObjectURL(url)
+          resolve(canvas.toDataURL('image/jpeg', 0.85).split(',')[1])
+        } catch (e) { URL.revokeObjectURL(url); reject(e) }
+      }
+      img.src = url
+    })
+    return base64
+  } catch {
+    // Canvas failed — send file directly, Vision can handle it
+    return fileToBase64(file)
+  }
 }
 
 export function ScanCardButton({ onResult }: Props) {
@@ -37,7 +58,7 @@ export function ScanCardButton({ onResult }: Props) {
     if (fileRef.current) fileRef.current.value = ''
     setState('scanning')
     try {
-      const imageBase64 = await resizeAndEncode(file)
+      const imageBase64 = await toBase64(file)
       const res = await fetch('/api/scan-card', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -47,8 +68,9 @@ export function ScanCardButton({ onResult }: Props) {
       setEditValue(data.name || data.debug || 'no name detected')
       setCardNumber(data.number ?? '')
       setState('confirm')
-    } catch {
-      setState('idle')
+    } catch (err) {
+      setEditValue(`Error: ${String(err)}`)
+      setState('confirm')
     }
   }
 
