@@ -28,8 +28,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {children}
         <script dangerouslySetInnerHTML={{ __html: `
           if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(regs => {
-              regs.forEach(r => r.unregister())
+            navigator.serviceWorker.getRegistrations().then(function(regs) {
+              if (regs.length > 0) {
+                Promise.all(regs.map(function(r) { return r.unregister() })).then(function() {
+                  window.location.reload()
+                })
+              }
             })
           }
         `}} />
