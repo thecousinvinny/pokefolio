@@ -32,7 +32,11 @@ export async function POST(req: NextRequest) {
     const STAGE_ONLY = /^(BASIC|STAGE\s*\d+|V-?UNION|VMAX|VSTAR|GX|EX|TAG\s*TEAM)$/i
     const lines = fullText.split('\n').map((l: string) => l.trim()).filter((l: string) => l.length > 1 && /^[A-Za-z]/.test(l))
     const nameLine = lines.find(l => !STAGE_ONLY.test(l)) ?? lines[0] ?? ''
-    const name = nameLine.replace(/\s+HP\s*\d.*/i, '').replace(/\s+\d{1,3}\s*$/, '').trim()
+    const name = nameLine
+      .replace(/^(BASIC|STAGE\s*\d+|V-?UNION|VMAX|VSTAR|GX|EX|TAG\s*TEAM)\s+/i, '')
+      .replace(/\s+HP\s*\d.*/i, '')
+      .replace(/\s+\d{1,3}\s*$/, '')
+      .trim()
 
     const numberMatch = fullText.match(/\b([A-Z]{0,3}\d{1,3})\/[A-Z]{0,3}\d{2,3}\b/)
     const number = numberMatch ? numberMatch[1] : ''
