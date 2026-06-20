@@ -94,9 +94,8 @@ export function ScanCardButton({ onResult }: Props) {
         ref={fileRef}
         type="file"
         accept="image/*"
-        capture="environment"
         onChange={handleFile}
-        style={{ display: 'none' }}
+        style={{ position: 'fixed', top: -9999, left: -9999, opacity: 0, pointerEvents: 'none' }}
       />
 
       <button
