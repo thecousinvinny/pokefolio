@@ -340,7 +340,12 @@ export default function BrowsePage() {
           )}
         </div>
 
-        <ScanCardButton onResult={(name, num) => { setQuery(name); setCardNumber(num ?? '') }} />
+        <ScanCardButton onResult={(name, num) => {
+          // Bust the cache so scan always hits the server fresh
+          _browseCache.delete(cacheKey(name, ''))
+          setQuery(name)
+          setCardNumber(num ?? '')
+        }} />
 
         {/* Icon-only filter button */}
         <button

@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
   const set = searchParams.get('set') ?? undefined
   const isDefault = !q && !set
 
+  console.log('TCG search:', { q, set, number: searchParams.get('number') })
   try {
     const data = await searchCardsFlexible({
       query: q,
