@@ -21,8 +21,20 @@ const SERVICE_KEY  = env.SUPABASE_SERVICE_ROLE_KEY
 const TCG_KEY      = env.POKEMONTCG_API_KEY
 const MODERN_CUTOFF = '2020-01-01'   // SWSH base onward
 
-if (!SUPABASE_URL || !SERVICE_KEY) {
-  console.error('✗ Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
+// Precise diagnostics — a blind exit(1) in CI is useless. Report exactly what's set.
+console.log(`• NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL ? SUPABASE_URL : '(MISSING)'}`)
+console.log(`• SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_KEY ? `set, ${SERVICE_KEY.length} chars` : '(MISSING)'}`)
+console.log(`• POKEMONTCG_API_KEY: ${TCG_KEY ? 'set' : '(missing — slower, rate-limited)'}`)
+
+if (!SUPABASE_URL) { console.error('✗ NEXT_PUBLIC_SUPABASE_URL is empty'); process.exit(1) }
+if (!SERVICE_KEY)  { console.error('✗ SUPABASE_SERVICE_ROLE_KEY is empty — add it as a repo secret'); process.exit(1) }
+
+// Confirm the key is actually a service_role key (anon won't bypass RLS → upserts fail)
+let role = '(undecodable)'
+try { role = JSON.parse(Buffer.from(SERVICE_KEY.split('.')[1], 'base64').toString('utf8')).role } catch {}
+console.log(`• key role claim: ${role}`)
+if (role !== 'service_role') {
+  console.error(`✗ Key role is "${role}", expected "service_role". Bulk upsert will be blocked by RLS.`)
   process.exit(1)
 }
 
