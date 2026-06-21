@@ -3,6 +3,69 @@ import { searchCardsFlexible } from '@/lib/tcg'
 
 const VISION_URL = 'https://vision.googleapis.com/v1/images:annotate'
 
+// --- Pokémon species name dictionary for fuzzy OCR correction ---
+// Fetched once from PokéAPI on first scan request, then held in memory for the lifetime
+// of the serverless instance (equivalent to localStorage for server-side code).
+let _pokemonNames: string[] | null = null
+
+async function getPokemonNames(): Promise<string[]> {
+  if (_pokemonNames) return _pokemonNames
+  try {
+    const res = await fetch('https://pokeapi.co/api/v2/pokemon-species?limit=1200', {
+      next: { revalidate: 86400 },
+    })
+    if (!res.ok) return []
+    const data = await res.json() as { results: { name: string }[] }
+    // "mr-mime" → "Mr Mime", "ho-oh" → "Ho Oh" (close enough for Levenshtein matching)
+    _pokemonNames = data.results.map(p =>
+      p.name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+    )
+  } catch {
+    _pokemonNames = []
+  }
+  return _pokemonNames!
+}
+
+function levenshtein(a: string, b: string): number {
+  let row = Array.from({ length: b.length + 1 }, (_, i) => i)
+  for (let i = 1; i <= a.length; i++) {
+    const next = [i]
+    for (let j = 1; j <= b.length; j++) {
+      next[j] = a[i - 1] === b[j - 1]
+        ? row[j - 1]
+        : 1 + Math.min(row[j - 1], row[j], next[j - 1])
+    }
+    row = next
+  }
+  return row[b.length]
+}
+
+// Snaps the OCR'd name to the nearest Pokémon species name when the edit distance
+// is small enough to be a plausible OCR error. Preserves any trailing suffix (ex/VMAX…).
+async function fuzzySnapName(raw: string): Promise<string> {
+  if (!raw || raw.length < 3) return raw
+  const names = await getPokemonNames()
+  if (!names.length) return raw
+
+  const suffixMatch = raw.match(SUFFIX_RE)
+  const base = suffixMatch ? raw.slice(0, suffixMatch.index) : raw
+  const suffix = suffixMatch ? suffixMatch[0] : ''
+
+  const input = base.toLowerCase()
+  let bestName = ''
+  let bestDist = Infinity
+
+  for (const name of names) {
+    const d = levenshtein(input, name.toLowerCase())
+    if (d < bestDist) { bestDist = d; bestName = name }
+  }
+
+  // Threshold: at most 3 edits, and no more than 35% of the base name length.
+  // Keeps trainer/energy names (longer, more unique) from snapping to a Pokémon name.
+  const threshold = Math.min(3, Math.floor(base.length * 0.35))
+  return bestDist <= threshold ? bestName + suffix : raw
+}
+
 const SUFFIX_RE = /\s+(ex|V|VMAX|VSTAR|VUNION|GX|EX|TAG\s*TEAM)\s*$/i
 // Only actual stage-of-evolution labels — NOT card-name suffixes like EX/GX/VMAX/V
 const STAGE_LABEL_RE = /^(BASIC|STAGE\s*\d+)$/i
@@ -28,7 +91,7 @@ function minX(w: WordAnnotation): number {
 
 // Parse name from the top zone and number from the bottom zone using bounding boxes.
 // Falls back to line-based parsing when no position data is available.
-function parseCardText(annotations: WordAnnotation[], fullText: string): { rawName: string; rawNumber: string } {
+function parseCardText(annotations: WordAnnotation[], fullText: string): { rawName: string; rawNumber: string; rawTotal: string } {
   if (annotations.length < 2) return parseLinesBased(fullText)
 
   const words = annotations.slice(1)
@@ -61,16 +124,17 @@ function parseCardText(annotations: WordAnnotation[], fullText: string): { rawNa
     .join(' ')
 
   // Flexible number regex: handles plain digits, and prefixes up to 6 chars (SWSH, TG, SV, GG…)
-  const numMatch = bottomText.match(/([A-Z]{0,6}\d{1,3})\/[A-Z]{0,6}\d{2,3}/)
+  const numMatch = bottomText.match(/([A-Z]{0,6}\d{1,3})\/([A-Z]{0,6}\d{2,3})/)
   const rawNumber = numMatch ? numMatch[1] : ''
+  const rawTotal = numMatch ? numMatch[2].replace(/^[A-Z]+/, '') : ''
 
   // If position parsing found nothing, fall back
   if (!rawName) return parseLinesBased(fullText)
 
-  return { rawName, rawNumber }
+  return { rawName, rawNumber, rawTotal }
 }
 
-function parseLinesBased(fullText: string): { rawName: string; rawNumber: string } {
+function parseLinesBased(fullText: string): { rawName: string; rawNumber: string; rawTotal: string } {
   const lines = fullText.split('\n').map(l => l.trim()).filter(l => l.length > 1 && /^[A-Za-z]/.test(l))
   const nameLine = lines.find(l => !STAGE_RE.test(l)) ?? lines[0] ?? ''
   const rawName = nameLine
@@ -79,9 +143,10 @@ function parseLinesBased(fullText: string): { rawName: string; rawNumber: string
     .replace(/\s+HP\s*\d.*/i, '')
     .replace(/\s+\d{1,3}\s*$/, '')
     .trim()
-  const numMatch = fullText.match(/([A-Z]{0,6}\d{1,3})\/[A-Z]{0,6}\d{2,3}/)
+  const numMatch = fullText.match(/([A-Z]{0,6}\d{1,3})\/([A-Z]{0,6}\d{2,3})/)
   const rawNumber = numMatch ? numMatch[1] : ''
-  return { rawName, rawNumber }
+  const rawTotal = numMatch ? numMatch[2].replace(/^[A-Z]+/, '') : ''
+  return { rawName, rawNumber, rawTotal }
 }
 
 async function trySearch(query: string, number?: string): Promise<boolean> {
@@ -93,7 +158,25 @@ async function trySearch(query: string, number?: string): Promise<boolean> {
   }
 }
 
-async function verifyName(name: string, number: string): Promise<{ name: string; number: string }> {
+// set.total + card number → returns the API name when exactly one card matches.
+// Only runs for plain-digit numbers (skips TG01, SV001 subsets).
+async function resolveBySetTotal(cardNumber: string, total: string): Promise<string | null> {
+  if (!/^\d+$/.test(cardNumber) || !/^\d+$/.test(total)) return null
+  try {
+    const r = await searchCardsFlexible({ setTotal: total, number: cardNumber, pageSize: 3, skipEnrich: true })
+    return r.data.length === 1 ? r.data[0].name : null
+  } catch {
+    return null
+  }
+}
+
+async function verifyName(name: string, number: string, total: string): Promise<{ name: string; number: string }> {
+  // 0. Set total + card number: bypasses OCR name entirely when the number is unambiguous
+  if (number && total) {
+    const resolved = await resolveBySetTotal(number, total)
+    if (resolved) return { name: resolved, number }
+  }
+
   if (!name) return { name, number }
 
   // 1. Exact: name + card number
@@ -147,10 +230,11 @@ export async function POST(req: NextRequest) {
     const annotations: WordAnnotation[] = body.responses?.[0]?.textAnnotations ?? []
     const fullText: string = annotations[0]?.description ?? ''
 
-    const { rawName, rawNumber } = parseCardText(annotations, fullText)
-    const { name, number } = await verifyName(rawName, rawNumber)
+    const { rawName, rawNumber, rawTotal } = parseCardText(annotations, fullText)
+    const snappedName = rawName ? await fuzzySnapName(rawName) : rawName
+    const { name, number } = await verifyName(snappedName, rawNumber, rawTotal)
 
-    const debug = `ocr:${rawName}#${rawNumber} | verified:${name}#${number} | raw:${fullText.slice(0, 60)}`
+    const debug = `ocr:${rawName}→snap:${snappedName} #${rawNumber}/${rawTotal} | verified:${name}#${number} | raw:${fullText.slice(0, 60)}`
     console.log(debug)
     return NextResponse.json({ name, number, debug })
   } catch (err) {

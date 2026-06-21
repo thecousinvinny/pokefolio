@@ -110,6 +110,7 @@ export function ScanCardButton({ onResult }: Props) {
     canvas.height = Math.round(sh * scale)
     const ctx = canvas.getContext('2d')
     if (!ctx) return
+    ctx.filter = 'contrast(1.4) brightness(1.1)'
     ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height)
     const imageBase64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1]
 
@@ -142,6 +143,7 @@ export function ScanCardButton({ onResult }: Props) {
           canvas.height = Math.round(img.height * scale)
           const ctx = canvas.getContext('2d')
           if (!ctx) { reject(new Error('no ctx')); return }
+          ctx.filter = 'contrast(1.4) brightness(1.1)'
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
           URL.revokeObjectURL(url)
           resolve(canvas.toDataURL('image/jpeg', 0.85).split(',')[1])

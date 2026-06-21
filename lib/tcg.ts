@@ -90,6 +90,7 @@ export async function searchCardsFlexible(params: {
   type?: string
   rarity?: string
   number?: string
+  setTotal?: string
   minPrice?: number
   maxPrice?: number
   page?: number
@@ -97,7 +98,7 @@ export async function searchCardsFlexible(params: {
   skipEnrich?: boolean
   fullArtOnly?: boolean
 }): Promise<TCGSearchResponse> {
-  const { query, set, type, rarity, number, page = 1, pageSize = 20, skipEnrich = false, fullArtOnly = false } = params
+  const { query, set, type, rarity, number, setTotal, page = 1, pageSize = 20, skipEnrich = false, fullArtOnly = false } = params
 
   const parts: string[] = []
 
@@ -122,6 +123,9 @@ export async function searchCardsFlexible(params: {
   }
   if (rarity) {
     parts.push(`rarity:"${rarity}"`)
+  }
+  if (setTotal) {
+    parts.push(`set.total:${setTotal}`)
   }
 
   // Default browse (no query): show full arts only, newest set first.
