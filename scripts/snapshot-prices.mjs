@@ -31,6 +31,7 @@ const ua = { 'User-Agent': 'CATCHM/1.0.0' }
 const SET_ALIASES = {
   'swsh black star promos': 'Sword & Shield Promo Cards',
   'scarlet & violet black star promos': 'Scarlet & Violet Promo Cards',
+  'scarlet & violet promos': 'Scarlet & Violet Promo Cards',
 }
 const normSet = s => s.toLowerCase().replace(/^[a-z0-9&]+:\s*/, '').replace(/[^a-z0-9]+/g, '')
 const normNum = s => s.split('/')[0].trim().replace(/^0+(?=\d)/, '')

@@ -94,6 +94,7 @@ function normSetName(s: string): string {
 const SET_NAME_ALIASES: Record<string, string> = {
   'swsh black star promos': 'Sword & Shield Promo Cards',
   'scarlet & violet black star promos': 'Scarlet & Violet Promo Cards',
+  'scarlet & violet promos': 'Scarlet & Violet Promo Cards',
 }
 
 function resolveGroupId(groups: Group[], setName: string): number | null {
