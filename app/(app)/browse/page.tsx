@@ -19,14 +19,13 @@ type RarityGroup = 'all' | 'fullart' | 'ultra' | 'holo' | 'common'
 const PAGE_SIZE = 50
 const CACHE_TTL_MS = 30 * 60 * 1000  // 30 min — stale entries still shown instantly while refreshing
 
-const POPULAR_QUERIES = ['charizard', 'pikachu', 'mewtwo', 'lugia', 'rayquaza', 'umbreon', 'gengar', 'eevee']
 let _browseScrollY = 0   // persists across tab switches; restored on remount
 
 type CacheEntry = { results: TCGCard[]; totalCount: number; hasMore: boolean; ts: number }
 const _browseCache = new Map<string, CacheEntry>()
 
 // Persists default browse across page refreshes / new tabs — 30-min TTL
-const BROWSE_LS_KEY = 'catchm_browse_default_v2'
+const BROWSE_LS_KEY = 'catchm_browse_default_v3'
 const LS_TTL_MS = 30 * 60 * 1000
 
 function lsGetDefault(): CacheEntry | null {
@@ -132,29 +131,6 @@ export default function BrowsePage() {
     return () => { _browseScrollY = window.scrollY }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Pre-warm popular searches after the page settles so they're instant when typed
-  useEffect(() => {
-    const timer = setTimeout(async () => {
-      for (const q of POPULAR_QUERIES) {
-        if (_browseCache.has(cacheKey(q, ''))) continue  // already cached this session
-        try {
-          const res = await fetch(`/api/tcg/search?q=${encodeURIComponent(q)}&pageSize=24`)
-          if (!res.ok) continue
-          const data = await res.json()
-          if (data.data) {
-            _browseCache.set(cacheKey(q, ''), {
-              results: data.data,
-              totalCount: data.totalCount ?? 0,
-              hasMore: 24 < (data.totalCount ?? 0),
-              ts: Date.now(),
-            })
-          }
-        } catch { /* best-effort, ignore */ }
-        await new Promise(r => setTimeout(r, 300))  // 300ms between requests
-      }
-    }, 4000)  // wait 4s after mount before warming
-    return () => clearTimeout(timer)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const ownedTcgIds = useMemo(() =>
     new Set(cards.filter(c => c.status === 'owned' || c.status === 'for_sale').map(c => c.tcg_id)),
@@ -218,7 +194,7 @@ export default function BrowsePage() {
         const next = append ? [...prev, ...batch] : batch
         const cEntry: CacheEntry = { results: next, totalCount: data.totalCount ?? 0, hasMore: nextHasMore, ts: Date.now() }
         _browseCache.set(key, cEntry)
-        if (!q && !set) lsSaveDefault(cEntry)
+        if (!q && !set && !num) lsSaveDefault(cEntry)
         return next
       })
       setTotalCount(data.totalCount ?? 0)
@@ -380,7 +356,7 @@ export default function BrowsePage() {
             style={{ color: 'var(--text)' }}
           />
           {query && (
-            <button onClick={() => setQuery('')} style={{ color: 'var(--text3)', display: 'flex' }}><XIcon size={16} /></button>
+            <button onClick={() => { setQuery(''); setCardNumber('') }} style={{ color: 'var(--text3)', display: 'flex' }}><XIcon size={16} /></button>
           )}
         </div>
 
