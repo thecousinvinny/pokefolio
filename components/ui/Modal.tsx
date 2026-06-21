@@ -20,6 +20,7 @@ export function Modal({ open, onClose, title, children, maxWidth = 480 }: ModalP
   const [dragY, setDragY] = useState(0)
   const [snapping, setSnapping] = useState(false)
   const [closing, setClosing] = useState(false)   // flinging physically off-screen
+  const [closeArmed, setCloseArmed] = useState(false)
 
   const startYRef = useRef(0)
   const dragYRef = useRef(0)
@@ -28,6 +29,11 @@ export function Modal({ open, onClose, title, children, maxWidth = 480 }: ModalP
   const lastYRef = useRef(0)
   const lastTRef = useRef(0)
   const velRef = useRef(0)
+
+  // Keep onClose in a ref so gesture/timer effects don't re-run (and reset) when
+  // the parent passes a fresh onClose each render.
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
 
   // Animate-out state: visible = portal rendered, animOut = closing anim playing
   const [visible, setVisible] = useState(open)
@@ -40,6 +46,7 @@ export function Modal({ open, onClose, title, children, maxWidth = 480 }: ModalP
       setDragY(0)
       setSnapping(false)
       setClosing(false)
+      setCloseArmed(false)
     } else if (visible) {
       setAnimOut(true)
     }
@@ -52,14 +59,24 @@ export function Modal({ open, onClose, title, children, maxWidth = 480 }: ModalP
   // Keyboard + body scroll lock
   useEffect(() => {
     if (!open) return
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onCloseRef.current() }
     document.addEventListener('keydown', handler)
     document.body.style.overflow = 'hidden'
     return () => {
       document.removeEventListener('keydown', handler)
       document.body.style.overflow = ''
     }
-  }, [open, onClose])
+  }, [open])
+
+  // Drive the dismiss fling deterministically: arm the off-screen transform on the
+  // next frame (so the transition reliably animates from the drag position), then
+  // unmount on a timer — never relying on transitionend, which can be skipped.
+  useEffect(() => {
+    if (!closing) return
+    const raf = requestAnimationFrame(() => requestAnimationFrame(() => setCloseArmed(true)))
+    const timer = setTimeout(() => { setVisible(false); onCloseRef.current() }, 360)
+    return () => { cancelAnimationFrame(raf); clearTimeout(timer) }
+  }, [closing])
 
   // Swipe / pull-down to dismiss. Drags when grabbing the handle (always) or when
   // the content is scrolled to the top. Dismisses past a distance threshold OR on a
@@ -116,7 +133,7 @@ export function Modal({ open, onClose, title, children, maxWidth = 480 }: ModalP
       el.removeEventListener('touchmove', onTouchMove)
       el.removeEventListener('touchend', onTouchEnd)
     }
-  }, [open, onClose])
+  }, [open])
 
   if (!visible) return null
 
@@ -127,23 +144,26 @@ export function Modal({ open, onClose, title, children, maxWidth = 480 }: ModalP
       ? Math.max(0.15, 0.7 * (1 - dragY / 320)).toFixed(2)
       : '0.70'
 
-  // closing flings from the current drag position the rest of the way off-screen
+  // closing flings from the current drag position the rest of the way off-screen.
+  // First render keeps the drag position (transition already present); the armed
+  // frame moves it to 100vh so the browser animates between them.
   let transform: string | undefined
   let transition: string | undefined
-  if (closing) { transform = 'translateY(100vh)'; transition = 'transform 0.32s cubic-bezier(0.32, 0, 0.67, 0)' }
-  else if (dragging) { transform = `translateY(${dragY}px)`; transition = 'transform 0s' }
+  if (closing) {
+    transform = closeArmed ? 'translateY(100vh)' : `translateY(${dragY}px)`
+    transition = 'transform 0.34s cubic-bezier(0.32, 0, 0.67, 0)'
+  } else if (dragging) { transform = `translateY(${dragY}px)`; transition = 'transform 0s' }
   else if (snapping) { transform = 'translateY(0)'; transition = SNAP_BACK }
 
   function onContentTransitionEnd(e: React.TransitionEvent) {
     if (e.target !== e.currentTarget || e.propertyName !== 'transform') return
-    if (closing) { setVisible(false); onClose() }
-    else if (snapping) setSnapping(false)
+    if (snapping) setSnapping(false)
   }
 
   return createPortal(
     <div
       className={`fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4 modal-backdrop ${animOut ? 'animate-backdrop-out' : 'animate-backdrop-in'}`}
-      style={{ background: `rgba(0,0,0,${backdropAlpha})`, transition: closing ? 'background 0.32s linear' : undefined }}
+      style={{ background: `rgba(0,0,0,${backdropAlpha})`, transition: closing ? 'background 0.34s linear' : undefined }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div
         ref={ref}
@@ -162,34 +182,36 @@ export function Modal({ open, onClose, title, children, maxWidth = 480 }: ModalP
           willChange: 'transform',
         }}>
 
-        {/* Drag handle — grab here to pull the sheet down from anywhere */}
+        {/* Drag header — grab the handle OR the title bar to pull the sheet down.
+            Sticky so it stays grabbable even when the content is scrolled. */}
         <div ref={handleRef} style={{
-          display: 'flex', justifyContent: 'center',
-          padding: '11px 0 7px',
+          position: 'sticky', top: 0, zIndex: 1,
+          background: 'var(--elevated)',
+          borderTopLeftRadius: 16, borderTopRightRadius: 16,
           touchAction: 'none', cursor: 'grab', userSelect: 'none',
         }}>
-          <div style={{
-            width: 40, height: 5, borderRadius: 3,
-            background: `rgba(255,255,255,${dragY > 0 ? 0.45 : 0.22})`,
-            transition: 'background 0.15s',
-          }} />
-        </div>
-
-        {title && (
-          <div className="flex items-center justify-between px-5 py-4"
-            style={{ borderBottom: '1px solid var(--border)' }}>
-            <h2 className="font-bold text-base">{title}</h2>
-            <button onClick={onClose}
-              className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
-              style={{ color: 'var(--text3)' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text3)')}>
-              <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 8px' }}>
+            <div style={{
+              width: 40, height: 5, borderRadius: 3,
+              background: `rgba(255,255,255,${dragY > 0 ? 0.5 : 0.25})`,
+              transition: 'background 0.15s',
+            }} />
           </div>
-        )}
+
+          {title && (
+            <div className="flex items-center justify-between px-5 pb-4"
+              style={{ borderBottom: '1px solid var(--border)' }}>
+              <h2 className="font-bold text-base">{title}</h2>
+              <button onClick={onClose}
+                className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+                style={{ color: 'var(--text3)' }}>
+                <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          )}
+        </div>
         <div className="p-5">{children}</div>
       </div>
     </div>,
