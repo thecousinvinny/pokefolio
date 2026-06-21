@@ -1,7 +1,8 @@
 'use client'
 import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
-import { XIcon } from '@/components/ui/Icons'
+import { XIcon, TrendingUpIcon, CardIcon } from '@/components/ui/Icons'
+import { StatCard } from '@/components/ui/StatCard'
 import { Modal } from '@/components/ui/Modal'
 import { PortfolioTile } from '@/components/cards/CardTile'
 import { CardDetailModal } from '@/components/cards/CardDetailModal'
@@ -121,19 +122,10 @@ export default function WishlistPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 pt-14 pb-8 animate-fade-in">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <p className="text-sm" style={{ color: 'var(--text3)' }}>
-            {wishlistRaw.length} cards · {formatPrice(totalMarket)} market value
-          </p>
-        </div>
-        <button
-          onClick={() => setShowBudget(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold"
-          style={{ background: 'rgba(255,200,69,0.1)', color: 'var(--gold)', border: '1px solid rgba(255,200,69,0.2)' }}>
-          Budget
-        </button>
+      {/* Header stats */}
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <StatCard label="Market Value" value={formatPrice(totalMarket, true)} icon={<TrendingUpIcon size={22} />} color="var(--gold)" />
+        <StatCard label="Cards" value={String(wishlistRaw.length)} icon={<CardIcon size={22} />} color="var(--sky)" />
       </div>
 
       {/* Search + filter icon */}

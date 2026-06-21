@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { TrendingUpIcon, CardIcon, SparkleIcon } from '@/components/ui/Icons'
+import { StatCard } from '@/components/ui/StatCard'
 import { getArtColors } from '@/components/cards/CardArtwork'
 import { useCollection } from '@/components/CollectionContext'
 import { conditionAdjustedValue, unrealizedProfit } from '@/types'
@@ -117,16 +118,6 @@ function PortfolioHero({ totalValue, unrealized }: { totalValue: number; unreali
         <span>{unrealized >= 0 ? '▲' : '▼'}</span>
         <span>{formatPrice(Math.abs(unrealized))} unrealized</span>
       </div>
-    </div>
-  )
-}
-
-function StatCard({ label, value, icon, color }: { label: string; value: string; icon: React.ReactNode; color: string }) {
-  return (
-    <div className="stat-card">
-      <div className="mb-2" style={{ color }}>{icon}</div>
-      <p className="text-2xl font-extrabold pv" style={{ color }}>{value}</p>
-      <p className="section-label mt-1">{label.toUpperCase()}</p>
     </div>
   )
 }

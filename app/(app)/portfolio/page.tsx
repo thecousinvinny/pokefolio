@@ -1,11 +1,12 @@
 'use client'
 import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
-import { StarIcon, XIcon } from '@/components/ui/Icons'
+import { StarIcon, XIcon, TrendingUpIcon, CardIcon } from '@/components/ui/Icons'
+import { StatCard } from '@/components/ui/StatCard'
 import { PortfolioTile } from '@/components/cards/CardTile'
 import { CardDetailModal } from '@/components/cards/CardDetailModal'
 import { useCollection } from '@/components/CollectionContext'
-import { conditionAdjustedValue } from '@/types'
+import { conditionAdjustedValue, unrealizedProfit } from '@/types'
 import { formatPrice, rarityWeight } from '@/lib/utils'
 import type { PokemonCard } from '@/types'
 
@@ -119,6 +120,7 @@ export default function PortfolioPage() {
   }, [filtered])
 
   const totalValue = owned.reduce((s, c) => s + conditionAdjustedValue(c), 0)
+  const totalUnrealized = owned.reduce((s, c) => s + unrealizedProfit(c), 0)
 
   const filterCount = (sort !== 'value' ? 1 : 0) + (rarityGroup !== 'all' ? 1 : 0) + (groupBySet ? 1 : 0) + (!favOnly ? 1 : 0)
 
@@ -142,11 +144,16 @@ export default function PortfolioPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 pt-14 pb-8 animate-fade-in">
-      {/* Header */}
-      <div className="mb-5">
-        <p className="text-sm" style={{ color: 'var(--text3)' }}>
-          {owned.length} cards · {formatPrice(totalValue)} total
-        </p>
+      {/* Header stats */}
+      <div className="grid grid-cols-3 gap-3 mb-5">
+        <StatCard label="Value" value={formatPrice(totalValue, true)} icon={<TrendingUpIcon size={22} />} color="var(--gold)" />
+        <StatCard label="Cards" value={String(owned.length)} icon={<CardIcon size={22} />} color="var(--sky)" />
+        <StatCard
+          label="Unrealized"
+          value={`${totalUnrealized >= 0 ? '+' : ''}${formatPrice(totalUnrealized, true)}`}
+          icon={<TrendingUpIcon size={22} />}
+          color={totalUnrealized >= 0 ? 'var(--emerald)' : 'var(--crimson)'}
+        />
       </div>
 
       {/* Search + filter icon */}
