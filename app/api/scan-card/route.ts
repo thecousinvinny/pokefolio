@@ -63,14 +63,30 @@ async function fuzzySnapName(raw: string): Promise<string> {
   // Threshold: at most 3 edits, and no more than 35% of the base name length.
   // Keeps trainer/energy names (longer, more unique) from snapping to a Pokémon name.
   const threshold = Math.min(3, Math.floor(base.length * 0.35))
-  return bestDist <= threshold ? bestName + suffix : raw
+  if (bestDist <= threshold) return bestName + suffix
+
+  // Full-string snap failed — try each token individually (longest first).
+  // Catches "VATAR Leafeon" where the corrupted suffix token survived zone filtering
+  // but the real Pokémon name is right there as another token.
+  const tokens = base.split(/\s+/).filter(t => t.length >= 3).sort((a, b) => b.length - a.length)
+  for (const token of tokens) {
+    const tInput = token.toLowerCase()
+    let tBest = '', tBestDist = Infinity
+    for (const name of names) {
+      const d = levenshtein(tInput, name.toLowerCase())
+      if (d < tBestDist) { tBestDist = d; tBest = name }
+    }
+    const tThreshold = Math.min(3, Math.floor(token.length * 0.35))
+    if (tBestDist <= tThreshold) return tBest + suffix
+  }
+
+  return raw
 }
 
 const SUFFIX_RE = /\s+(ex|V|VMAX|VSTAR|VUNION|GX|EX|TAG\s*TEAM)\s*$/i
-// Only actual stage-of-evolution labels — NOT card-name suffixes like EX/GX/VMAX/V
-const STAGE_LABEL_RE = /^(BASIC|STAGE\s*\d+)$/i
-// Full list used only for skipping standalone lines in line-based fallback
-const STAGE_RE = /^(BASIC|STAGE\s*\d+|V-?UNION|VMAX|VSTAR|GX|EX|TAG\s*TEAM)$/i
+// Standalone tokens that are never the Pokémon's base name — used to filter the top name zone
+// and to skip whole lines in the line-based fallback. Includes bare "V" (Leafeon V, etc.).
+const STAGE_RE = /^(BASIC|STAGE\s*\d+|V|V-?UNION|VMAX|VSTAR|GX|EX|TAG\s*TEAM)$/i
 const HP_TOKEN_RE = /^(HP|\d+)$/i
 // Splits fused suffix tokens: "ReshiramEX" → "Reshiram EX", "CharizardVMAX" → "Charizard VMAX"
 const FUSED_SUFFIX_RE = /([A-Za-z])(VMAX|VSTAR|VUNION|GX|EX|ex)(?=\s|$)/g
@@ -108,7 +124,7 @@ function parseCardText(annotations: WordAnnotation[], fullText: string): { rawNa
 
   const nameTokens = topWords
     .map(w => w.description)
-    .filter(t => !STAGE_LABEL_RE.test(t) && !HP_TOKEN_RE.test(t))
+    .filter(t => !STAGE_RE.test(t) && !HP_TOKEN_RE.test(t))
   const rawName = nameTokens
     .join(' ')
     .replace(FUSED_SUFFIX_RE, '$1 $2')
