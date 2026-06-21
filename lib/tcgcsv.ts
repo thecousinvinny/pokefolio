@@ -78,13 +78,30 @@ function extractProductId(url: string): number | null {
   return m ? parseInt(m[1], 10) : null
 }
 
+// Normalizes a set name for cross-source matching. tcgcsv prefixes an era code
+// ("SWSH: Crown Zenith") and uses a colon before subsets ("Crown Zenith: Galarian
+// Gallery"), while pokemontcg.io has neither ("Crown Zenith Galarian Gallery").
+// Strip the leading era prefix, then drop all punctuation/whitespace.
+function normSetName(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/^[a-z0-9&]+:\s*/, '')   // era prefix: "swsh: ", "sv: ", "swsh12: "
+    .replace(/[^a-z0-9]+/g, '')        // "crown zenith: galarian gallery" → "crownzenithgalariangallery"
+}
+
 function resolveGroupId(groups: Group[], setName: string): number | null {
-  const lc = setName.toLowerCase()
-  return (
-    groups.find(g => g.name.toLowerCase() === lc)?.groupId ??
-    groups.find(g => lc.includes(g.name.toLowerCase()) || g.name.toLowerCase().includes(lc))?.groupId ??
-    null
-  )
+  const target = normSetName(setName)
+  if (!target) return null
+  // Exact normalized match first — keeps base "Crown Zenith" from grabbing the
+  // "Crown Zenith Galarian Gallery" group (and vice-versa).
+  const exact = groups.find(g => normSetName(g.name) === target)
+  if (exact) return exact.groupId
+  // Containment fallback for legacy/partial names.
+  const partial = groups.find(g => {
+    const n = normSetName(g.name)
+    return n.length > 0 && (n.includes(target) || target.includes(n))
+  })
+  return partial?.groupId ?? null
 }
 
 function pickBestPrice(prices: CSVPrice[]): CSVPrice | null {
