@@ -184,12 +184,14 @@ function parseCardText(annotations: WordAnnotation[], fullText: string): { rawNa
   const maxH = topWords.length ? Math.max(...topWords.map(boxH)) : 0
   const bigWords = topWords.filter(w => maxH > 0 && boxH(w) >= maxH * 0.6)
 
-  // The name sits on the topmost big-text line; read it left-to-right.
+  // Find the name line from the big text, then take ALL tokens on that line —
+  // including smaller ones like the "N's"/"Lillie's" possessive prefix that sits
+  // left of the big Pokémon name. (Evolves-from/HP are on other lines or filtered.)
   let nameTokens: string[] = []
   if (bigWords.length) {
     bigWords.sort((a, b) => midY(a) - midY(b))
     const nameY = midY(bigWords[0])
-    nameTokens = bigWords
+    nameTokens = topWords
       .filter(w => Math.abs(midY(w) - nameY) <= maxH * 0.7)   // same line as the name
       .sort((a, b) => minX(a) - minX(b))
       .map(w => w.description)
@@ -214,9 +216,15 @@ function parseCardText(annotations: WordAnnotation[], fullText: string): { rawNa
 
 // Card number from the bottom text. Handles the standard "025/198" form and the
 // promo form with no denominator ("SWSH291", "SVP123", "SM210").
+// Catalog/pokemontcg.io store plain card numbers without leading zeros ("25"),
+// so "025/198" must become "25" or name+number lookups never match.
+function stripLeadingZeros(num: string): string {
+  return /^\d+$/.test(num) ? num.replace(/^0+(?=\d)/, '') : num
+}
+
 function parseNumber(text: string): { rawNumber: string; rawTotal: string } {
   const slash = text.match(/([A-Z]{0,6}\d{1,3})\/([A-Z]{0,6}\d{2,3})/)
-  if (slash) return { rawNumber: slash[1], rawTotal: slash[2].replace(/^[A-Z]+/, '') }
+  if (slash) return { rawNumber: stripLeadingZeros(slash[1]), rawTotal: stripLeadingZeros(slash[2].replace(/^[A-Z]+/, '')) }
   // Promo: 2–5 uppercase letters + digits, no "/total"
   const promo = text.match(/\b([A-Z]{2,5}\d{1,3})\b/)
   return { rawNumber: promo ? promo[1] : '', rawTotal: '' }
@@ -253,27 +261,41 @@ async function resolveBySetTotal(cardNumber: string, total: string): Promise<str
   }
 }
 
-async function verifyName(name: string, number: string, total: string): Promise<{ name: string; number: string }> {
+async function verifyName(rawName: string, number: string, total: string): Promise<{ name: string; number: string }> {
   // ── Catalog-first: instant local verification (covers virtually all modern scans) ──
+  // Verify the RAW OCR name before fuzzy-snapping, so a correctly-read multi-word
+  // name ("N's Zekrom") isn't snapped down to a bare species ("Zekrom").
   try {
-    // a. number + printed total → authoritative exact card
+    // a. number + printed total → authoritative exact card (name-independent)
     if (number && total) {
       const hit = await resolveCatalogByNumberTotal(number, total)
       if (hit) return { name: hit, number }
     }
-    // b. name + number → confirm/correct against the exact printing
-    if (name && number) {
-      const r = await searchCatalog({ query: name, number, pageSize: 2 })
+    // b. raw name + number → confirm/correct against the exact printing
+    if (rawName && number) {
+      const r = await searchCatalog({ query: rawName, number, pageSize: 2 })
       if (r && r.data.length) return { name: r.data[0].name, number }
     }
-    // c. name exists in catalog → trust the OCR name. Drop the number so the
-    //    client's follow-up search stays name-only (a promo number not in the
-    //    catalog would otherwise force a slow live lookup).
-    if (name && await catalogNameExists(name)) return { name, number: '' }
-  } catch { /* catalog unavailable — fall through to live */ }
+    // c. raw name exists in catalog → trust it. Drop the number so the client's
+    //    follow-up search stays name-only (a number not in the catalog would
+    //    otherwise force a slow live lookup).
+    if (rawName && await catalogNameExists(rawName)) return { name: rawName, number: '' }
 
-  // ── Live fallback: pokemontcg.io cascade for cards not in the catalog ──
-  return verifyNameLive(name, number, total)
+    // d. fuzzy-snap to the nearest Pokémon species and retry — fixes OCR typos
+    //    (Pikahu→Pikachu) only when the raw name didn't already resolve.
+    const snapped = rawName ? await fuzzySnapName(rawName) : rawName
+    if (snapped && snapped !== rawName) {
+      if (number) {
+        const r = await searchCatalog({ query: snapped, number, pageSize: 2 })
+        if (r && r.data.length) return { name: r.data[0].name, number }
+      }
+      if (await catalogNameExists(snapped)) return { name: snapped, number: '' }
+    }
+    // ── Live fallback: pokemontcg.io cascade for cards not in the catalog ──
+    return verifyNameLive(snapped || rawName, number, total)
+  } catch {
+    return verifyNameLive(rawName, number, total)
+  }
 }
 
 async function verifyNameLive(name: string, number: string, total: string): Promise<{ name: string; number: string }> {
@@ -336,16 +358,15 @@ export async function POST(req: NextRequest) {
     const fullText: string = annotations[0]?.description ?? ''
 
     const { rawName, rawNumber, rawTotal } = parseCardText(annotations, fullText)
-    const snappedName = rawName ? await fuzzySnapName(rawName) : rawName
-    // 10-second budget for the entire verify cascade; falls back to the snapped OCR name
+    // 10-second budget for the entire verify cascade; falls back to the raw OCR name
     const { name, number } = await Promise.race([
-      verifyName(snappedName, rawNumber, rawTotal),
+      verifyName(rawName, rawNumber, rawTotal),
       new Promise<{ name: string; number: string }>(resolve =>
-        setTimeout(() => resolve({ name: snappedName, number: rawNumber }), 10_000)
+        setTimeout(() => resolve({ name: rawName, number: rawNumber }), 10_000)
       ),
     ])
 
-    const debug = `ocr:${rawName}→snap:${snappedName} #${rawNumber}/${rawTotal} | verified:${name}#${number} | raw:${fullText.slice(0, 60)}`
+    const debug = `ocr:${rawName} #${rawNumber}/${rawTotal} | verified:${name}#${number} | raw:${fullText.slice(0, 60)}`
     console.log(debug)
     return NextResponse.json({ name, number, debug })
   } catch (err) {
