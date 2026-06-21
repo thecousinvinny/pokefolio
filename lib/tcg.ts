@@ -83,6 +83,38 @@ function buildQuery(input: string): string {
 const FULL_ART_FILTER =
   '(rarity:"Special Illustration Rare" OR rarity:"Illustration Rare" OR rarity:"Hyper Rare" OR rarity:"Rare Rainbow" OR rarity:"Rainbow Rare")'
 
+// Cheaper two-term variant used only when the full filter above times out —
+// fewer OR clauses, still full-art, so the FIND tab never lands empty.
+const FULL_ART_FALLBACK_FILTER =
+  '(rarity:"Special Illustration Rare" OR rarity:"Illustration Rare")'
+
+// Single fetch attempt with an abort timeout, retried on timeout only.
+// HTTP errors (4xx/5xx) are thrown immediately — retrying won't fix them.
+async function fetchTcgJson(
+  url: string,
+  revalidate: number,
+  timeoutMs: number,
+  retries: number,
+): Promise<TCGSearchResponse> {
+  let lastErr: unknown
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, {
+        headers: headers(),
+        next: { revalidate },
+        signal: AbortSignal.timeout(timeoutMs),
+      })
+      if (!res.ok) throw new Error(`TCG API ${res.status}`)
+      return await res.json() as TCGSearchResponse
+    } catch (err) {
+      lastErr = err
+      const n = (err as Error)?.name
+      if (n !== 'TimeoutError' && n !== 'AbortError') throw err
+    }
+  }
+  throw lastErr
+}
+
 // Called from the API route to handle flexible queries
 export async function searchCardsFlexible(params: {
   query?: string
@@ -97,8 +129,14 @@ export async function searchCardsFlexible(params: {
   pageSize?: number
   skipEnrich?: boolean
   fullArtOnly?: boolean
+  timeoutMs?: number
+  retries?: number
 }): Promise<TCGSearchResponse> {
-  const { query, set, type, rarity, number, setTotal, page = 1, pageSize = 20, skipEnrich = false, fullArtOnly = false } = params
+  const {
+    query, set, type, rarity, number, setTotal,
+    page = 1, pageSize = 20, skipEnrich = false, fullArtOnly = false,
+    timeoutMs = 8_000, retries = 0,
+  } = params
 
   const parts: string[] = []
 
@@ -130,14 +168,28 @@ export async function searchCardsFlexible(params: {
 
   // Default browse (no query): show full arts only, newest set first.
   // When a query is present, show all matching cards of any rarity.
+  const isDefault = !query && !set && !type && !rarity && !number && !setTotal
   const q = parts.length > 0 ? parts.join(' ') : (fullArtOnly ? FULL_ART_FILTER : 'hp:[1 TO *]')
 
-  const url = `${BASE}/cards?q=${encodeURIComponent(q)}&page=${page}&pageSize=${pageSize}&orderBy=-set.releaseDate`
+  const buildUrl = (lucene: string) =>
+    `${BASE}/cards?q=${encodeURIComponent(lucene)}&page=${page}&pageSize=${pageSize}&orderBy=-set.releaseDate`
   // Default full-art browse is static data — cache for 1 hour. User searches cache for 5 min.
-  const revalidate = (!query && !set && !type && !rarity) ? 3600 : 300
-  const res = await fetch(url, { headers: headers(), next: { revalidate }, signal: AbortSignal.timeout(8_000) })
-  if (!res.ok) throw new Error(`TCG API ${res.status}`)
-  const json: TCGSearchResponse = await res.json()
+  const revalidate = isDefault ? 3600 : 300
+
+  let json: TCGSearchResponse
+  try {
+    json = await fetchTcgJson(buildUrl(q), revalidate, timeoutMs, retries)
+  } catch (err) {
+    // Default-browse fallback: the 5-term full-art filter is the slowest query.
+    // One last attempt with the cheaper 2-term filter on a shorter 8s budget so
+    // total server time stays bounded and the client can fall back to its cache.
+    if (isDefault && fullArtOnly) {
+      json = await fetchTcgJson(buildUrl(FULL_ART_FALLBACK_FILTER), revalidate, 8_000, 0)
+    } else {
+      throw err
+    }
+  }
+
   const enriched = skipEnrich ? json.data : await Promise.all(json.data.map(enrichCardPrices))
   return { ...json, data: enriched }
 }

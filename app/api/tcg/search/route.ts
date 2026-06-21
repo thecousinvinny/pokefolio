@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { searchCardsFlexible } from '@/lib/tcg'
 
+// Bound worst case: 12s default attempt + 8s fallback attempt ≈ 20s
+export const maxDuration = 25
+
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl
   const q = searchParams.get('q') ?? undefined
@@ -19,6 +22,11 @@ export async function GET(request: NextRequest) {
       pageSize: Number(searchParams.get('pageSize') ?? 24),
       skipEnrich: true,
       fullArtOnly: searchParams.get('fullArtOnly') === 'true',
+      // Initial default browse is the heaviest query → longer budget; the cheaper
+      // 2-term fallback filter inside searchCardsFlexible acts as its retry.
+      // Active user searches stay snappy with a tighter single-attempt budget.
+      timeoutMs: isDefault ? 12_000 : 9_000,
+      retries: 0,
     })
     return NextResponse.json(data, {
       headers: {

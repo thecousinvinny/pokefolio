@@ -30,14 +30,19 @@ const _browseCache = new Map<string, CacheEntry>()
 const BROWSE_LS_KEY = 'catchm_browse_default_v3'
 const LS_TTL_MS = 30 * 60 * 1000
 
-function lsGetDefault(): CacheEntry | null {
+// Reads the persisted default browse ignoring TTL — used as a last-resort fallback
+// when the live fetch fails, so the FIND tab always shows *something*.
+function lsGetDefaultStale(): CacheEntry | null {
   if (typeof window === 'undefined') return null
   try {
     const s = localStorage.getItem(BROWSE_LS_KEY)
-    if (!s) return null
-    const e: CacheEntry = JSON.parse(s)
-    return Date.now() - e.ts < LS_TTL_MS ? e : null
+    return s ? JSON.parse(s) as CacheEntry : null
   } catch { return null }
+}
+
+function lsGetDefault(): CacheEntry | null {
+  const e = lsGetDefaultStale()
+  return e && Date.now() - e.ts < LS_TTL_MS ? e : null
 }
 
 function lsSaveDefault(e: CacheEntry) {
@@ -187,6 +192,26 @@ export default function BrowsePage() {
     const signal = abortRef.current.signal
     setSearchError(null)
 
+    const isDefaultReq = !q && !set && !num && !append
+
+    // Unified failure handler with a graded fallback chain:
+    //   1. already showing stale module-cache → keep it, soft-note the error
+    //   2. default browse → fall back to persisted (even expired) LS cache
+    //   3. nothing to show → surface the error + retry banner
+    const handleFailure = (msg: string) => {
+      if (stale) { setSearchError(msg); return }
+      const fb = isDefaultReq ? lsGetDefaultStale() : null
+      if (fb && fb.results.length) {
+        setRawResults(fb.results)
+        setTotalCount(fb.totalCount)
+        setHasMore(fb.hasMore)
+        setSearchError('Showing saved cards — live data unavailable.')
+        return
+      }
+      setSearchError(msg)
+      if (!append) setRawResults([])
+    }
+
     loadingRef.current = true
     try {
       const params = new URLSearchParams()
@@ -198,8 +223,7 @@ export default function BrowsePage() {
       params.set('pageSize', String(PAGE_SIZE))
       const res = await fetch(`/api/tcg/search?${params}`, { signal })
       if (!res.ok) {
-        setSearchError(res.status === 504 ? 'Search timed out — tap retry.' : `Search failed (${res.status})`)
-        if (!append && !stale) setRawResults([])
+        handleFailure(res.status === 504 ? 'Search timed out — tap retry.' : `Search failed (${res.status})`)
         return
       }
       setSearchError(null)
@@ -217,8 +241,7 @@ export default function BrowsePage() {
       setHasMore(nextHasMore)
     } catch (err) {
       if ((err as Error).name === 'AbortError') return  // superseded by newer query or unmount — ignore
-      setSearchError('Search failed — tap retry.')
-      if (!append && !stale) setRawResults([])
+      handleFailure('Search failed — tap retry.')
     } finally {
       setLoading(false)
       loadingRef.current = false
@@ -512,7 +535,7 @@ export default function BrowsePage() {
           ))}
         </div>
       ) : displayResults.length === 0 ? (
-        <EmptyBrowse hasQuery={!!query || !!setFilter || hasFilters} />
+        <EmptyBrowse hasQuery={!!query || !!setFilter || hasFilters} hasError={!!searchError} />
       ) : (
         <>
           <div className="grid gap-4"
@@ -743,14 +766,16 @@ function rarityColorBrowse(rarity?: string | null): string {
   return 'rgba(255,255,255,0.38)'
 }
 
-function EmptyBrowse({ hasQuery }: { hasQuery: boolean }) {
+function EmptyBrowse({ hasQuery, hasError }: { hasQuery: boolean; hasError?: boolean }) {
+  const title = hasError ? 'Couldn’t load cards' : hasQuery ? 'No cards found' : 'Loading cards…'
+  const sub = hasError
+    ? 'Check your connection, then tap retry above.'
+    : hasQuery ? 'Try a different name, set, or remove filters.' : ''
   return (
     <div className="text-center py-20">
       <div className="mb-4 opacity-30 flex justify-center"><SearchIcon size={48} /></div>
-      <p className="font-bold text-lg mb-2">{hasQuery ? 'No cards found' : 'Loading cards…'}</p>
-      <p className="text-sm" style={{ color: 'var(--text3)' }}>
-        {hasQuery ? 'Try a different name, set, or remove filters.' : ''}
-      </p>
+      <p className="font-bold text-lg mb-2">{title}</p>
+      <p className="text-sm" style={{ color: 'var(--text3)' }}>{sub}</p>
     </div>
   )
 }
