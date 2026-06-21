@@ -165,8 +165,14 @@ export function Modal({ open, onClose, title, children, maxWidth = 480 }: ModalP
 
   return createPortal(
     <div
-      className={`fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4 modal-backdrop ${animOut ? 'animate-backdrop-out' : 'animate-backdrop-in'}`}
-      style={{ background: `rgba(0,0,0,${backdropAlpha})`, transition: closing ? 'background 0.34s linear' : undefined }}
+      className={`fixed inset-0 z-[200] flex items-end sm:items-center justify-center px-4 modal-backdrop ${animOut ? 'animate-backdrop-out' : 'animate-backdrop-in'}`}
+      style={{
+        background: `rgba(0,0,0,${backdropAlpha})`,
+        transition: closing ? 'background 0.34s linear' : undefined,
+        // keep the sheet (and its grab header) clear of the Dynamic Island / home indicator
+        paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)',
+        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
+      }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div
         ref={ref}
@@ -177,7 +183,8 @@ export function Modal({ open, onClose, title, children, maxWidth = 480 }: ModalP
           maxWidth,
           background: 'var(--elevated)',
           border: '1px solid var(--border2)',
-          maxHeight: 'calc(100dvh - 2rem)',
+          // fit within the safe-area-padded backdrop so the top never goes under the island
+          maxHeight: 'calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 32px)',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',          // outer never scrolls — it only transforms
