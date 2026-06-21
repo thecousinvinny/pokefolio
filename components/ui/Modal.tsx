@@ -10,16 +10,26 @@ interface ModalProps {
   maxWidth?: number
 }
 
-const CLOSE_THRESHOLD = 88
+const CLOSE_THRESHOLD = 110     // px pulled down to dismiss
+const FLICK_VELOCITY = 0.5      // px/ms downward flick that dismisses regardless of distance
+const SNAP_BACK = 'transform 0.34s cubic-bezier(0.34, 1.56, 0.64, 1)'
 
 export function Modal({ open, onClose, title, children, maxWidth = 480 }: ModalProps) {
   const ref = useRef<HTMLDivElement>(null)
+  const handleRef = useRef<HTMLDivElement>(null)
   const [dragY, setDragY] = useState(0)
+  const [snapping, setSnapping] = useState(false)
+  const [closing, setClosing] = useState(false)   // flinging physically off-screen
+
   const startYRef = useRef(0)
   const dragYRef = useRef(0)
   const draggingRef = useRef(false)
+  const fromHandleRef = useRef(false)
+  const lastYRef = useRef(0)
+  const lastTRef = useRef(0)
+  const velRef = useRef(0)
 
-  // Animate-out state: visible = whether the portal is rendered, animOut = whether closing anim is playing
+  // Animate-out state: visible = portal rendered, animOut = closing anim playing
   const [visible, setVisible] = useState(open)
   const [animOut, setAnimOut] = useState(false)
 
@@ -27,6 +37,9 @@ export function Modal({ open, onClose, title, children, maxWidth = 480 }: ModalP
     if (open) {
       setVisible(true)
       setAnimOut(false)
+      setDragY(0)
+      setSnapping(false)
+      setClosing(false)
     } else if (visible) {
       setAnimOut(true)
     }
@@ -48,34 +61,51 @@ export function Modal({ open, onClose, title, children, maxWidth = 480 }: ModalP
     }
   }, [open, onClose])
 
-  // Non-passive touch listeners for swipe-to-close
+  // Swipe / pull-down to dismiss. Drags when grabbing the handle (always) or when
+  // the content is scrolled to the top. Dismisses past a distance threshold OR on a
+  // fast downward flick; otherwise springs back into place.
   useEffect(() => {
     const el = ref.current
     if (!el || !open) return
 
     function onTouchStart(e: TouchEvent) {
-      startYRef.current = e.touches[0].clientY
+      const t = e.touches[0]
+      startYRef.current = t.clientY
+      lastYRef.current = t.clientY
+      lastTRef.current = performance.now()
+      velRef.current = 0
       draggingRef.current = false
       dragYRef.current = 0
+      fromHandleRef.current = !!handleRef.current && handleRef.current.contains(e.target as Node)
+      setSnapping(false)
     }
 
     function onTouchMove(e: TouchEvent) {
-      const delta = e.touches[0].clientY - startYRef.current
-      if (delta > 0 && (el?.scrollTop ?? 0) <= 0) {
+      const t = e.touches[0]
+      const delta = t.clientY - startYRef.current
+      const canDrag = fromHandleRef.current || (el?.scrollTop ?? 0) <= 0
+      if (delta > 0 && canDrag) {
         e.preventDefault()
         draggingRef.current = true
+        const now = performance.now()
+        velRef.current = (t.clientY - lastYRef.current) / Math.max(1, now - lastTRef.current)
+        lastYRef.current = t.clientY
+        lastTRef.current = now
         dragYRef.current = delta
         setDragY(delta)
       }
     }
 
     function onTouchEnd() {
-      if (draggingRef.current && dragYRef.current > CLOSE_THRESHOLD) {
-        onClose()
+      const dismiss = draggingRef.current && (dragYRef.current > CLOSE_THRESHOLD || velRef.current > FLICK_VELOCITY)
+      if (dismiss) {
+        setClosing(true)    // fling the rest of the way down, then unmount
+      } else if (draggingRef.current) {
+        setSnapping(true)   // spring back into place
+        setDragY(0)
       }
       draggingRef.current = false
       dragYRef.current = 0
-      setDragY(0)
     }
 
     el.addEventListener('touchstart', onTouchStart, { passive: true })
@@ -90,22 +120,36 @@ export function Modal({ open, onClose, title, children, maxWidth = 480 }: ModalP
 
   if (!visible) return null
 
-  const isDragging = dragY > 0
-  const backdropAlpha = isDragging
-    ? Math.max(0.15, 0.7 * (1 - dragY / 320)).toFixed(2)
-    : '0.70'
+  const dragging = dragY > 0 && !snapping && !closing
+  const backdropAlpha = closing
+    ? '0.00'
+    : dragY > 0
+      ? Math.max(0.15, 0.7 * (1 - dragY / 320)).toFixed(2)
+      : '0.70'
+
+  // closing flings from the current drag position the rest of the way off-screen
+  let transform: string | undefined
+  let transition: string | undefined
+  if (closing) { transform = 'translateY(100vh)'; transition = 'transform 0.32s cubic-bezier(0.32, 0, 0.67, 0)' }
+  else if (dragging) { transform = `translateY(${dragY}px)`; transition = 'transform 0s' }
+  else if (snapping) { transform = 'translateY(0)'; transition = SNAP_BACK }
+
+  function onContentTransitionEnd(e: React.TransitionEvent) {
+    if (e.target !== e.currentTarget || e.propertyName !== 'transform') return
+    if (closing) { setVisible(false); onClose() }
+    else if (snapping) setSnapping(false)
+  }
 
   return createPortal(
     <div
       className={`fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4 modal-backdrop ${animOut ? 'animate-backdrop-out' : 'animate-backdrop-in'}`}
-      style={{
-        background: `rgba(0,0,0,${backdropAlpha})`,
-      }}
+      style={{ background: `rgba(0,0,0,${backdropAlpha})`, transition: closing ? 'background 0.32s linear' : undefined }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div
         ref={ref}
-        className={`w-full rounded-2xl ${animOut ? 'animate-slide-down' : 'animate-slide-up'}`}
+        className={`w-full rounded-2xl ${animOut ? 'animate-slide-down' : closing ? '' : 'animate-slide-up'}`}
         onAnimationEnd={handleAnimEnd}
+        onTransitionEnd={onContentTransitionEnd}
         style={{
           maxWidth,
           background: 'var(--elevated)',
@@ -113,20 +157,20 @@ export function Modal({ open, onClose, title, children, maxWidth = 480 }: ModalP
           maxHeight: 'calc(100dvh - 2rem)',
           overflowY: 'auto',
           overscrollBehavior: 'contain',
-          transform: isDragging ? `translateY(${dragY}px)` : undefined,
-          transition: isDragging ? 'none' : undefined,
+          transform,
+          transition,
           willChange: 'transform',
         }}>
 
-        {/* Drag handle */}
-        <div style={{
+        {/* Drag handle — grab here to pull the sheet down from anywhere */}
+        <div ref={handleRef} style={{
           display: 'flex', justifyContent: 'center',
-          padding: '10px 0 0',
-          userSelect: 'none',
+          padding: '11px 0 7px',
+          touchAction: 'none', cursor: 'grab', userSelect: 'none',
         }}>
           <div style={{
-            width: 36, height: 4, borderRadius: 2,
-            background: `rgba(255,255,255,${isDragging ? 0.4 : 0.2})`,
+            width: 40, height: 5, borderRadius: 3,
+            background: `rgba(255,255,255,${dragY > 0 ? 0.45 : 0.22})`,
             transition: 'background 0.15s',
           }} />
         </div>
