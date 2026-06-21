@@ -1,0 +1,25 @@
+name: Snapshot card prices
+
+# Records one market-price row per catalog card each day, building real price
+# history over time. Idempotent — re-running a given day just overwrites it.
+
+on:
+  schedule:
+    - cron: '30 9 * * *'   # 09:30 UTC daily
+  workflow_dispatch: {}     # manual trigger from the Actions tab
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Snapshot prices
+        run: node scripts/snapshot-prices.mjs
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://ydbcfvernfothrukmyty.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
