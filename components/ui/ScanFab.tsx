@@ -68,6 +68,16 @@ export function ScanFab() {
     setAddTarget(card)
   }
 
+  // Escape hatch when a "direct" match is wrong (e.g. the user's exact printing
+  // isn't in the catalog): show every printing of the scanned name, or rescan.
+  async function seeAllMatches() {
+    if (!ocrName) { setState('camera'); return }
+    setState('scanning')
+    const cards = await searchCards(ocrName, '')
+    if (cards.length > 1) { setCandidates(cards); setState('picker') }
+    else { setState('camera') }   // nothing else to choose — rescan
+  }
+
   return (
     <>
       {/* Floating camera FAB — sits just above the nav bar, right side */}
@@ -111,6 +121,7 @@ export function ScanFab() {
         <CandidatePicker
           cards={candidates}
           onPick={card => { setResult(card); setState('result') }}
+          onRescan={() => setState('camera')}
           onClose={reset}
         />
       )}
@@ -121,6 +132,8 @@ export function ScanFab() {
           onClose={reset}
           onAddOwned={() => chooseAdd(result, 'owned')}
           onAddWishlist={() => chooseAdd(result, 'wishlist')}
+          onRescan={() => setState('camera')}
+          onSeeAll={seeAllMatches}
         />
       )}
 
@@ -165,7 +178,7 @@ function NotFoundModal({ ocrName, onRetry, onClose }: { ocrName: string; onRetry
   )
 }
 
-function CandidatePicker({ cards, onPick, onClose }: { cards: TCGCard[]; onPick: (c: TCGCard) => void; onClose: () => void }) {
+function CandidatePicker({ cards, onPick, onRescan, onClose }: { cards: TCGCard[]; onPick: (c: TCGCard) => void; onRescan: () => void; onClose: () => void }) {
   return (
     <Modal open onClose={onClose} maxWidth={460}>
       <div style={{ position: 'relative' }}>
@@ -197,17 +210,22 @@ function CandidatePicker({ cards, onPick, onClose }: { cards: TCGCard[]; onPick:
             )
           })}
         </div>
-        <button onClick={onClose} style={{ marginTop: 12, width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 13, fontWeight: 700, background: 'rgba(255,255,255,0.07)', color: 'var(--text2)', border: '1px solid var(--border)', cursor: 'pointer' }}>Cancel</button>
+        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: '10px 0', borderRadius: 10, fontSize: 13, fontWeight: 700, background: 'rgba(255,255,255,0.07)', color: 'var(--text2)', border: '1px solid var(--border)', cursor: 'pointer' }}>Cancel</button>
+          <button onClick={onRescan} style={{ flex: 1, padding: '10px 0', borderRadius: 10, fontSize: 13, fontWeight: 700, background: 'var(--btn-info)', color: '#fff', border: 'none', cursor: 'pointer' }}>↺ Rescan</button>
+        </div>
       </div>
     </Modal>
   )
 }
 
-function ScanResultModal({ card, onClose, onAddOwned, onAddWishlist }: {
+function ScanResultModal({ card, onClose, onAddOwned, onAddWishlist, onRescan, onSeeAll }: {
   card: TCGCard
   onClose: () => void
   onAddOwned: () => void
   onAddWishlist: () => void
+  onRescan: () => void
+  onSeeAll: () => void
 }) {
   const { cards } = useCollection()
   const ownedMatches = useMemo(
@@ -295,6 +313,16 @@ function ScanResultModal({ card, onClose, onAddOwned, onAddWishlist }: {
             </button>
           )}
           <TcgLink url={tcgSearchUrl(card.name, card.set.name)} style={{ display: 'block', textAlign: 'center', padding: '8px 0', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#fff', background: 'var(--btn-info)', border: 'none', textDecoration: 'none' }}>↗ View on TCGPlayer</TcgLink>
+
+          {/* Escape hatch — the "match" may be the wrong printing (or not your card) */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 18, marginTop: 4 }}>
+            <button onClick={onSeeAll} style={{ background: 'none', border: 'none', color: 'var(--text3)', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 4 }}>
+              Not this card?
+            </button>
+            <button onClick={onRescan} style={{ background: 'none', border: 'none', color: 'var(--text3)', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 4 }}>
+              ↺ Rescan
+            </button>
+          </div>
         </div>
       </div>
     </Modal>
