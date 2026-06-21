@@ -35,7 +35,8 @@ const TRADE_SORTS: { key: TradeSort; label: string }[] = [
 ]
 
 const REVEAL_W = 160
-const SNAP_THRESHOLD = REVEAL_W * 0.4
+const SNAP_THRESHOLD = REVEAL_W * 0.4   // deliberate swipe needed to OPEN
+const CLOSE_THRESHOLD = 16              // any small rightward swipe CLOSES (easy to dismiss)
 const RESISTANCE = 0.85
 
 function haptic(style: 'medium' | 'light') {
@@ -483,7 +484,7 @@ function SwipeRow({
       if (!tDecided || !tHoriz) return
       const dx = e.changedTouches[0].clientX - tStartX
       if (isOpenRef.current) {
-        if (dx > SNAP_THRESHOLD) { haptic('light'); cbRef.current.onClose() }
+        if (dx > CLOSE_THRESHOLD) { haptic('light'); cbRef.current.onClose() }
       } else {
         if (dx < -SNAP_THRESHOLD) { haptic('medium'); cbRef.current.onOpen() }
       }
@@ -517,7 +518,7 @@ function SwipeRow({
       if (!didDragRef.current) return
       const dx = e.clientX - mStartX
       if (isOpenRef.current) {
-        if (dx > SNAP_THRESHOLD) { haptic('light'); cbRef.current.onClose() }
+        if (dx > CLOSE_THRESHOLD) { haptic('light'); cbRef.current.onClose() }
       } else {
         if (dx < -SNAP_THRESHOLD) { haptic('medium'); cbRef.current.onOpen() }
       }

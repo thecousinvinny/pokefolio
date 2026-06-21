@@ -273,7 +273,7 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
 
   // ─────────────────────────────────────────────
   return (
-    <Modal open={open} onClose={onClose} title={view === 'share' ? undefined : 'Profile & Settings'}>
+    <Modal open={open} onClose={onClose}>
       {/* Hidden file input — must be in DOM for iOS */}
       <input
         ref={fileInputRef}
