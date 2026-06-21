@@ -23,9 +23,7 @@ export default function DashboardPage() {
     .slice(0, 3), [owned])
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
-      <h1 className="text-2xl font-extrabold tracking-tight section-enter" style={{ animationDelay: '0ms' }}>DASH</h1>
-
+    <div className="max-w-3xl mx-auto px-4 pt-14 pb-8 space-y-6">
       {loading ? (
         <LoadingSkeleton />
       ) : (

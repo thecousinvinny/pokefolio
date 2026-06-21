@@ -141,11 +141,10 @@ export default function PortfolioPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 animate-fade-in">
+    <div className="max-w-5xl mx-auto px-4 pt-14 pb-8 animate-fade-in">
       {/* Header */}
       <div className="mb-5">
-        <h1 className="text-2xl font-extrabold tracking-tight">CATCHM</h1>
-        <p className="text-sm mt-0.5" style={{ color: 'var(--text3)' }}>
+        <p className="text-sm" style={{ color: 'var(--text3)' }}>
           {owned.length} cards · {formatPrice(totalValue)} total
         </p>
       </div>

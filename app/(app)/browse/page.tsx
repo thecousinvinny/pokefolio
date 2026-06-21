@@ -376,8 +376,7 @@ export default function BrowsePage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 animate-fade-in">
-      <h1 className="text-2xl font-extrabold tracking-tight mb-5">FIND</h1>
+    <div className="max-w-5xl mx-auto px-4 pt-14 pb-8 animate-fade-in">
 
       {/* Search bar + icon-only filter button */}
       <div className="flex gap-2 mb-4">

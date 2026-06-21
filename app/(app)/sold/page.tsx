@@ -177,11 +177,7 @@ export default function LedgerPage() {
   if (loading) return <LoadingSkeleton />
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-5">
-      <h1 className="text-2xl font-extrabold tracking-tight section-enter" style={{ animationDelay: '0ms' }}>
-        LEDGER
-      </h1>
-
+    <div className="max-w-3xl mx-auto px-4 pt-14 pb-8 space-y-5">
       {/* Spring pill tab switcher */}
       <div ref={containerRef} className="section-enter" style={{
         animationDelay: '40ms',

@@ -120,12 +120,11 @@ export default function WishlistPage() {
   const totalMarket = wishlistRaw.reduce((s, c) => s + (c.market_price ?? 0), 0)
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 animate-fade-in">
+    <div className="max-w-5xl mx-auto px-4 pt-14 pb-8 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight">WISH</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--text3)' }}>
+          <p className="text-sm" style={{ color: 'var(--text3)' }}>
             {wishlistRaw.length} cards · {formatPrice(totalMarket)} market value
           </p>
         </div>
