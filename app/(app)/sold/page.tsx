@@ -435,111 +435,62 @@ function SwipeRow({
   onGift: () => void
   onView: () => void
 }) {
-  const rowRef = useRef<HTMLDivElement>(null)
   const [dragging, setDragging] = useState(false)
   const [dragX, setDragX] = useState(0)
 
   const isOpenRef = useRef(isOpen)
   const cbRef = useRef({ onOpen, onClose })
   // Tracks whether the pointer moved enough to be a real drag — suppresses the
-  // click event that always fires after mouseup/touchend on the same element.
+  // click event that always fires after pointerup on the same element.
   const didDragRef = useRef(false)
+  const downXRef = useRef<number | null>(null)
+  const downYRef = useRef(0)
+  const horizRef = useRef(false)
   useEffect(() => { isOpenRef.current = isOpen }, [isOpen])
   useEffect(() => { cbRef.current = { onOpen, onClose } }, [onOpen, onClose])
   useEffect(() => { setDragX(0); setDragging(false) }, [isOpen])
 
-  useEffect(() => {
-    const el = rowRef.current
-    if (!el) return
+  // ── Drag via Pointer Events. touch-action:pan-y lets the page scroll
+  // vertically while horizontal swipes come to us. We only capture the pointer
+  // once the gesture is decided horizontal, so vertical scroll is never stolen. ──
+  function onPointerDown(e: React.PointerEvent) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    downXRef.current = e.clientX
+    downYRef.current = e.clientY
+    horizRef.current = false
+    didDragRef.current = false
+  }
 
-    // ── Touch (direction-aware so vertical page scroll still works) ───────────
-    let tStartX = 0, tStartY = 0, tDecided = false, tHoriz = false
-
-    function onTouchStart(e: TouchEvent) {
-      tStartX = e.touches[0].clientX
-      tStartY = e.touches[0].clientY
-      tDecided = false; tHoriz = false
-      didDragRef.current = false
+  function onPointerMove(e: React.PointerEvent) {
+    if (downXRef.current == null) return
+    const dx = e.clientX - downXRef.current
+    const dy = e.clientY - downYRef.current
+    if (!horizRef.current) {
+      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return
+      if (Math.abs(dx) <= Math.abs(dy)) { downXRef.current = null; return }  // vertical → let the page scroll
+      horizRef.current = true
+      try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) } catch {}
     }
+    didDragRef.current = true
+    const base = isOpenRef.current ? -REVEAL_W : 0
+    setDragX(Math.max(-REVEAL_W, Math.min(0, base + dx * RESISTANCE)))
+    setDragging(true)
+  }
 
-    function onTouchMove(e: TouchEvent) {
-      const dx = e.touches[0].clientX - tStartX
-      const dy = e.touches[0].clientY - tStartY
-      if (!tDecided) {
-        if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return
-        tHoriz = Math.abs(dx) > Math.abs(dy)
-        tDecided = true
-      }
-      if (!tHoriz) return
-      e.preventDefault()
-      didDragRef.current = true
-      const base = isOpenRef.current ? -REVEAL_W : 0
-      setDragX(Math.max(-REVEAL_W, Math.min(0, base + dx * RESISTANCE)))
-      setDragging(true)
+  function endDrag(clientX: number, e: React.PointerEvent) {
+    const startX = downXRef.current
+    downXRef.current = null
+    setDragging(false)
+    setDragX(0)
+    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId) } catch {}
+    if (!horizRef.current || startX == null) return
+    const dx = clientX - startX
+    if (isOpenRef.current) {
+      if (dx > CLOSE_THRESHOLD) { haptic('light'); cbRef.current.onClose() }
+    } else {
+      if (dx < -SNAP_THRESHOLD) { haptic('medium'); cbRef.current.onOpen() }
     }
-
-    function onTouchEnd(e: TouchEvent) {
-      setDragging(false)
-      setDragX(0)
-      if (!tDecided || !tHoriz) return
-      const dx = e.changedTouches[0].clientX - tStartX
-      if (isOpenRef.current) {
-        if (dx > CLOSE_THRESHOLD) { haptic('light'); cbRef.current.onClose() }
-      } else {
-        if (dx < -SNAP_THRESHOLD) { haptic('medium'); cbRef.current.onOpen() }
-      }
-    }
-
-    // ── Mouse (completely separate state — never corrupts touch in progress) ──
-    let mActive = false, mStartX = 0
-
-    function onMouseDown(e: MouseEvent) {
-      if (e.button !== 0) return
-      mActive = true
-      mStartX = e.clientX
-      didDragRef.current = false
-    }
-
-    function onMouseMove(e: MouseEvent) {
-      if (!mActive) return
-      const dx = e.clientX - mStartX
-      if (Math.abs(dx) < 4) return
-      didDragRef.current = true
-      const base = isOpenRef.current ? -REVEAL_W : 0
-      setDragX(Math.max(-REVEAL_W, Math.min(0, base + dx * RESISTANCE)))
-      setDragging(true)
-    }
-
-    function onMouseUp(e: MouseEvent) {
-      if (!mActive) return
-      mActive = false
-      setDragging(false)
-      setDragX(0)
-      if (!didDragRef.current) return
-      const dx = e.clientX - mStartX
-      if (isOpenRef.current) {
-        if (dx > CLOSE_THRESHOLD) { haptic('light'); cbRef.current.onClose() }
-      } else {
-        if (dx < -SNAP_THRESHOLD) { haptic('medium'); cbRef.current.onOpen() }
-      }
-    }
-
-    el.addEventListener('touchstart', onTouchStart, { passive: true })
-    el.addEventListener('touchmove', onTouchMove, { passive: false })
-    el.addEventListener('touchend', onTouchEnd, { passive: true })
-    el.addEventListener('mousedown', onMouseDown)
-    document.addEventListener('mousemove', onMouseMove)
-    document.addEventListener('mouseup', onMouseUp)
-
-    return () => {
-      el.removeEventListener('touchstart', onTouchStart)
-      el.removeEventListener('touchmove', onTouchMove)
-      el.removeEventListener('touchend', onTouchEnd)
-      el.removeEventListener('mousedown', onMouseDown)
-      document.removeEventListener('mousemove', onMouseMove)
-      document.removeEventListener('mouseup', onMouseUp)
-    }
-  }, [])
+  }
 
   const translateX = dragging ? dragX : isOpen ? -REVEAL_W : 0
   // Overshoot spring — overflow:hidden clips the excess so the bounce looks like
@@ -590,14 +541,18 @@ function SwipeRow({
 
       {/* Sliding card — sits above buttons, fully covers them at rest */}
       <div
-        ref={rowRef}
         role="button"
         tabIndex={0}
         aria-label={`${card.name}, ${card.set_name}${card.price_paid != null ? `, paid ${formatPrice(card.price_paid)}` : ''}`}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={e => endDrag(e.clientX, e)}
+        onPointerCancel={e => endDrag(e.clientX, e)}
         style={{
           transform: `translateX(${translateX}px)`, transition,
           position: 'relative', zIndex: 1, background: 'var(--surface)',
           cursor: dragging ? 'grabbing' : 'grab',
+          touchAction: 'pan-y',   // page scrolls vertically; horizontal swipes are ours
         }}
         onClick={() => {
           // Every mouseup/touchend on this element also fires a click. Swallow it
