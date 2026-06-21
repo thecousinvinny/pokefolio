@@ -146,6 +146,13 @@ function minX(w: WordAnnotation): number {
   return Math.min(...w.boundingPoly.vertices.map(v => v.x ?? 0))
 }
 
+// Bounding-box height ≈ font size. The card name is the largest text up top;
+// "Evolves from …", HP, set codes and description text are all smaller.
+function boxH(w: WordAnnotation): number {
+  const ys = w.boundingPoly.vertices.map(v => v.y ?? 0)
+  return Math.max(...ys) - Math.min(...ys)
+}
+
 // Parse name from the top zone and number from the bottom zone using bounding boxes.
 // Falls back to line-based parsing when no position data is available.
 function parseCardText(annotations: WordAnnotation[], fullText: string): { rawName: string; rawNumber: string; rawTotal: string } {
@@ -155,19 +162,25 @@ function parseCardText(annotations: WordAnnotation[], fullText: string): { rawNa
   const allY = words.flatMap(w => w.boundingPoly.vertices.map(v => v.y ?? 0))
   const imgHeight = Math.max(...allY, 1)
 
-  // TOP zone: top 22% — card name lives here
-  const topWords = words
-    .filter(w => midY(w) < imgHeight * 0.22)
-    .sort((a, b) => {
-      const dy = midY(a) - midY(b)
-      return Math.abs(dy) > 8 ? dy : minX(a) - minX(b)
-    })
+  // TOP zone: top 30%. Within it the name is the LARGEST font — keep only
+  // name-sized tokens so "Evolves from Gabite", HP, set codes and any stray
+  // middle-description text that creeps in are dropped (fixes Garchomp→Gabite
+  // and middle-text captures).
+  const topWords = words.filter(w => midY(w) < imgHeight * 0.30)
+  const maxH = topWords.length ? Math.max(...topWords.map(boxH)) : 0
+  const bigWords = topWords.filter(w => maxH > 0 && boxH(w) >= maxH * 0.6)
 
-  // Keep suffix tokens (VSTAR/VMAX/V/GX/EX) — only drop stage labels and HP/numbers.
-  // canonicalizeSuffix then relocates the suffix to the end so "Leafeon VSTAR" survives.
-  const nameTokens = topWords
-    .map(w => w.description)
-    .filter(t => !BASIC_STAGE_RE.test(t) && !HP_TOKEN_RE.test(t))
+  // The name sits on the topmost big-text line; read it left-to-right.
+  let nameTokens: string[] = []
+  if (bigWords.length) {
+    bigWords.sort((a, b) => midY(a) - midY(b))
+    const nameY = midY(bigWords[0])
+    nameTokens = bigWords
+      .filter(w => Math.abs(midY(w) - nameY) <= maxH * 0.7)   // same line as the name
+      .sort((a, b) => minX(a) - minX(b))
+      .map(w => w.description)
+      .filter(t => !BASIC_STAGE_RE.test(t) && !HP_TOKEN_RE.test(t))
+  }
   const rawName = canonicalizeSuffix(
     nameTokens
       .join(' ')

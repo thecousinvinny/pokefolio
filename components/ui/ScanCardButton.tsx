@@ -301,12 +301,12 @@ export function ScanCardButton({ onResult }: Props) {
               {/* Number zone — bottom 13% */}
               <div style={{
                 position: 'absolute', bottom: 0, left: 0, right: 0, height: '13%',
-                background: 'rgba(156,114,250,0.10)',
-                borderTop: '1px dashed rgba(156,114,250,0.55)',
+                background: 'rgba(255,200,69,0.10)',
+                borderTop: '1px dashed rgba(255,200,69,0.55)',
                 borderRadius: '0 0 6px 6px',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
-                <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: '0.14em', color: 'rgba(156,114,250,0.75)', textTransform: 'uppercase' }}># Number</span>
+                <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: '0.14em', color: 'rgba(255,200,69,0.75)', textTransform: 'uppercase' }}># Number</span>
               </div>
             </div>
           )}
@@ -340,11 +340,12 @@ export function ScanCardButton({ onResult }: Props) {
             </button>
           )}
 
-          {/* Close button */}
+          {/* Close button — sits below the iOS status bar / battery */}
           <button
             onClick={closeCamera}
             style={{
-              position: 'absolute', top: 20, right: 20, zIndex: 2,
+              position: 'absolute',
+              top: 'calc(env(safe-area-inset-top, 0px) + 48px)', right: 20, zIndex: 2,
               width: 36, height: 36, borderRadius: '50%',
               background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.2)',
               color: '#fff', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
