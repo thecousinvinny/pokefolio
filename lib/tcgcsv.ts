@@ -84,6 +84,7 @@ function extractProductId(url: string): number | null {
 // Strip the leading era prefix, then drop all punctuation/whitespace.
 function normSetName(s: string): string {
   return s
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')   // é → e ("Pokémon GO" ↔ tcgcsv "Pokemon GO")
     .toLowerCase()
     .replace(/^[a-z0-9&]+:\s*/, '')   // era prefix: "swsh: ", "sv: ", "swsh12: "
     .replace(/[^a-z0-9]+/g, '')        // "crown zenith: galarian gallery" → "crownzenithgalariangallery"
@@ -95,6 +96,7 @@ const SET_NAME_ALIASES: Record<string, string> = {
   'swsh black star promos': 'Sword & Shield Promo Cards',
   'scarlet & violet black star promos': 'Scarlet & Violet Promo Cards',
   'scarlet & violet promos': 'Scarlet & Violet Promo Cards',
+  "mcdonald's collection 2022": "McDonald's Promos 2022",
 }
 
 function resolveGroupId(groups: Group[], setName: string): number | null {

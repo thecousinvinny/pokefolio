@@ -32,8 +32,9 @@ const SET_ALIASES = {
   'swsh black star promos': 'Sword & Shield Promo Cards',
   'scarlet & violet black star promos': 'Scarlet & Violet Promo Cards',
   'scarlet & violet promos': 'Scarlet & Violet Promo Cards',
+  "mcdonald's collection 2022": "McDonald's Promos 2022",
 }
-const normSet = s => s.toLowerCase().replace(/^[a-z0-9&]+:\s*/, '').replace(/[^a-z0-9]+/g, '')
+const normSet = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/^[a-z0-9&]+:\s*/, '').replace(/[^a-z0-9]+/g, '')
 const normNum = s => s.split('/')[0].trim().replace(/^0+(?=\d)/, '')
 
 async function csvGet(path) {
