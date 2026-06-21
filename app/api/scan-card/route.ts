@@ -187,16 +187,15 @@ async function resolveBySetTotal(cardNumber: string, total: string): Promise<str
 }
 
 async function verifyName(name: string, number: string, total: string): Promise<{ name: string; number: string }> {
-  // 0. Set total + card number: bypasses OCR name entirely when the number is unambiguous
-  if (number && total) {
-    const resolved = await resolveBySetTotal(number, total)
-    if (resolved) return { name: resolved, number }
-  }
+  // Steps 0 + 1 run in parallel — most successful scans exit here in one round-trip
+  const [resolved, exactHit] = await Promise.all([
+    number && total ? resolveBySetTotal(number, total) : Promise.resolve(null),
+    name && number  ? trySearch(name, number)           : Promise.resolve(false),
+  ])
+  if (resolved) return { name: resolved, number }
+  if (exactHit)  return { name, number }
 
   if (!name) return { name, number }
-
-  // 1. Exact: name + card number
-  if (number && await trySearch(name, number)) return { name, number }
 
   // 2. Name only (number may be misread)
   if (await trySearch(name)) return { name, number: '' }
@@ -248,7 +247,13 @@ export async function POST(req: NextRequest) {
 
     const { rawName, rawNumber, rawTotal } = parseCardText(annotations, fullText)
     const snappedName = rawName ? await fuzzySnapName(rawName) : rawName
-    const { name, number } = await verifyName(snappedName, rawNumber, rawTotal)
+    // 10-second budget for the entire verify cascade; falls back to the snapped OCR name
+    const { name, number } = await Promise.race([
+      verifyName(snappedName, rawNumber, rawTotal),
+      new Promise<{ name: string; number: string }>(resolve =>
+        setTimeout(() => resolve({ name: snappedName, number: rawNumber }), 10_000)
+      ),
+    ])
 
     const debug = `ocr:${rawName}→snap:${snappedName} #${rawNumber}/${rawTotal} | verified:${name}#${number} | raw:${fullText.slice(0, 60)}`
     console.log(debug)

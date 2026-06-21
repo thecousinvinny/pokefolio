@@ -20,6 +20,8 @@ const PAGE_SIZE = 50
 const CACHE_TTL_MS = 30 * 60 * 1000  // 30 min — stale entries still shown instantly while refreshing
 
 let _browseScrollY = 0   // persists across tab switches; restored on remount
+let _lastQuery = ''      // restores search query when tab is re-entered
+let _lastCardNumber = ''
 
 type CacheEntry = { results: TCGCard[]; totalCount: number; hasMore: boolean; ts: number }
 const _browseCache = new Map<string, CacheEntry>()
@@ -82,8 +84,9 @@ function lsGet<T>(key: string, def: T): T {
 
 export default function BrowsePage() {
   const { cards, addCard, removeCard } = useCollection()
-  const [query, setQuery] = useState('')
-  const [cardNumber, setCardNumber] = useState('')
+  const [query, setQuery] = useState(() => _lastQuery)
+  const [cardNumber, setCardNumber] = useState(() => _lastCardNumber)
+  const [searchError, setSearchError] = useState<string | null>(null)
   const [sort, setSort] = useState<SortMode>(() => lsGet('catchm_b_sort', 'premium'))
   const [rarityGroup, setRarityGroup] = useState<RarityGroup>(() => lsGet('catchm_b_rarity', 'all'))
   const [showFilters, setShowFilters] = useState(false)
@@ -122,13 +125,20 @@ export default function BrowsePage() {
   useEffect(() => { try { localStorage.setItem('catchm_b_sort', JSON.stringify(sort)) } catch {} }, [sort])
   useEffect(() => { try { localStorage.setItem('catchm_b_rarity', JSON.stringify(rarityGroup)) } catch {} }, [rarityGroup])
 
-  // Save scroll on unmount, restore on mount when cache is warm
+  // Sync query/cardNumber to module-level vars so tab re-entry restores them
+  useEffect(() => { _lastQuery = query }, [query])
+  useEffect(() => { _lastCardNumber = cardNumber }, [cardNumber])
+
+  // Save scroll on unmount, restore on mount when cache is warm; abort any in-flight fetch
   useEffect(() => {
     if (cacheValid(cacheKey('', '')) && _browseScrollY > 0) {
       const y = _browseScrollY
       requestAnimationFrame(() => window.scrollTo(0, y))
     }
-    return () => { _browseScrollY = window.scrollY }
+    return () => {
+      _browseScrollY = window.scrollY
+      abortRef.current?.abort()
+    }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
 
@@ -175,6 +185,7 @@ export default function BrowsePage() {
     abortRef.current?.abort()
     abortRef.current = new AbortController()
     const signal = abortRef.current.signal
+    setSearchError(null)
 
     loadingRef.current = true
     try {
@@ -186,7 +197,12 @@ export default function BrowsePage() {
       params.set('page', String(p))
       params.set('pageSize', String(PAGE_SIZE))
       const res = await fetch(`/api/tcg/search?${params}`, { signal })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) {
+        setSearchError(res.status === 504 ? 'Search timed out — tap retry.' : `Search failed (${res.status})`)
+        if (!append && !stale) setRawResults([])
+        return
+      }
+      setSearchError(null)
       const data = await res.json()
       const batch: TCGCard[] = data.data ?? []
       const nextHasMore = p * PAGE_SIZE < (data.totalCount ?? 0)
@@ -200,7 +216,8 @@ export default function BrowsePage() {
       setTotalCount(data.totalCount ?? 0)
       setHasMore(nextHasMore)
     } catch (err) {
-      if ((err as Error).name === 'AbortError') return  // superseded by newer query — ignore
+      if ((err as Error).name === 'AbortError') return  // superseded by newer query or unmount — ignore
+      setSearchError('Search failed — tap retry.')
       if (!append && !stale) setRawResults([])
     } finally {
       setLoading(false)
@@ -458,6 +475,24 @@ export default function BrowsePage() {
               × Clear all
             </button>
           )}
+        </div>
+      )}
+
+      {/* Search error / retry banner */}
+      {searchError && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '10px 14px', marginBottom: 12, borderRadius: 10,
+          background: 'rgba(251,146,60,0.10)', border: '1px solid rgba(251,146,60,0.28)',
+        }}>
+          <span style={{ fontSize: 13, color: 'rgba(251,146,60,0.95)' }}>{searchError}</span>
+          <button
+            onClick={() => { setSearchError(null); search(query, setFilter, 1, false, cardNumber) }}
+            style={{
+              padding: '5px 12px', borderRadius: 7, fontSize: 12, fontWeight: 700,
+              background: 'var(--btn-info)', color: '#fff', border: 'none', cursor: 'pointer', flexShrink: 0,
+            }}
+          >↺ Retry</button>
         </div>
       )}
 

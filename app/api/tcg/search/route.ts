@@ -28,6 +28,10 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (err) {
+    const n = (err as Error)?.name
+    if (n === 'TimeoutError' || n === 'AbortError') {
+      return NextResponse.json({ error: 'timeout', data: [], totalCount: 0 }, { status: 504 })
+    }
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }
 }
