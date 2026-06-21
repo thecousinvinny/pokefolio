@@ -80,11 +80,14 @@ export function ScanFab() {
           right: 18,
           zIndex: 101,
           width: 56, height: 56, borderRadius: '50%',
-          background: 'var(--btn-catchm)',
-          border: 'none',
+          // Frosted liquid-glass so cards behind stay visible (blurred) through it
+          background: 'rgba(251, 146, 60, 0.22)',
+          backdropFilter: 'blur(16px) saturate(160%)',
+          WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+          border: '1px solid rgba(255, 255, 255, 0.22)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           color: '#fff', cursor: 'pointer',
-          boxShadow: '0 6px 20px rgba(251,146,60,0.45), 0 2px 8px rgba(0,0,0,0.4)',
+          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.28)',
           WebkitTapHighlightColor: 'transparent',
         }}
       >
