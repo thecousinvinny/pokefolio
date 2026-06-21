@@ -67,6 +67,19 @@ export default function LedgerPage() {
 
   useEffect(() => { setSearch(''); setSwipedId(null) }, [tab])
 
+  // Close the open swipe row when interacting anywhere outside it — a tap on empty
+  // space OR the start of a gesture on another row. Non-blocking (unlike a backdrop
+  // overlay), so the other row still receives the touch and can be swiped open.
+  useEffect(() => {
+    if (!swipedId) return
+    function onDocPointerDown(e: PointerEvent) {
+      const row = (e.target as HTMLElement | null)?.closest?.('[data-row-id]') as HTMLElement | null
+      if (!row || row.dataset.rowId !== swipedId) setSwipedId(null)
+    }
+    document.addEventListener('pointerdown', onDocPointerDown, true)
+    return () => document.removeEventListener('pointerdown', onDocPointerDown, true)
+  }, [swipedId])
+
   useLayoutEffect(() => {
     const idx = TABS.indexOf(tab)
     const tabEl = tabRefs.current[idx]
@@ -315,7 +328,7 @@ export default function LedgerPage() {
               : 'No cards in your portfolio yet. Add cards from the FIND tab.'} />
           ) : (
             ownedCards.map((card, i) => (
-              <div key={card.id} className="card-enter" style={{
+              <div key={card.id} className="card-enter" data-row-id={card.id} style={{
                 animationDelay: `${Math.min(i, 12) * 22}ms`,
                 position: 'relative',
                 zIndex: swipedId === card.id ? 7 : undefined,
@@ -407,14 +420,8 @@ export default function LedgerPage() {
         />
       )}
 
-      {/* Tap-anywhere-to-close backdrop when a row is swiped open */}
-      {swipedId && (
-        <div
-          aria-hidden="true"
-          style={{ position: 'fixed', inset: 0, zIndex: 5 }}
-          onClick={() => setSwipedId(null)}
-        />
-      )}
+      {/* Outside-tap / other-row close is handled by the document pointerdown
+          listener above — no blocking backdrop, so other rows stay swipeable. */}
 
       {selectedSale && <SaleDetailModal sale={selectedSale} onClose={() => setSelectedSaleId(null)} />}
       {selectedCard && <BuyDetailModal card={selectedCard} onClose={() => setSelectedCardId(null)} />}
