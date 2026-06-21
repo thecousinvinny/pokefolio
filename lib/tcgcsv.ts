@@ -27,7 +27,21 @@ interface CSVProduct {
   productId: number
   name: string
   cleanName?: string
-  number?: string
+  extendedData?: { name: string; displayName?: string; value: string }[]
+}
+
+// Normalizes a card number for cross-source matching: tcgcsv stores "054/091",
+// pokemontcg.io stores "54". Take the part before "/" and drop leading zeros.
+// "234/091"→"234", "054/091"→"54", "TG01/TG30"→"TG01", "54"→"54".
+export function normalizeCardNumber(s: string): string {
+  const head = s.split('/')[0].trim()
+  return head.replace(/^0+(?=\d)/, '')
+}
+
+// tcgcsv puts the printed card number inside extendedData, not a top-level field.
+function productCardNumber(p: CSVProduct): string | null {
+  const v = p.extendedData?.find(e => e.name === 'Number')?.value
+  return v ? normalizeCardNumber(v) : null
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -111,10 +125,11 @@ export async function fetchFallbackPrices(
   // Prefer product ID extracted from the TCGPlayer URL (most accurate)
   let productId = tcgplayerUrl ? extractProductId(tcgplayerUrl) : null
 
-  // Fall back to looking up product ID by card number
+  // Fall back to looking up product ID by card number (from extendedData)
   if (!productId) {
     const products = await getGroupProducts(groupId)
-    productId = products.find(p => p.number === cardNumber)?.productId ?? null
+    const want = normalizeCardNumber(cardNumber)
+    productId = products.find(p => productCardNumber(p) === want)?.productId ?? null
   }
 
   if (!productId) return null
@@ -131,4 +146,43 @@ export async function fetchFallbackPrices(
     high:      n(best.highPrice),
     directLow: n(best.directLowPrice),
   }
+}
+
+// Batch variant: fetches an entire set's prices once and returns a
+// card-number → PriceTiers map. Lets the catalog enrich a whole page of
+// results with one fetch per unique set instead of one per card.
+export async function fetchSetPriceMap(setName: string): Promise<Map<string, PriceTiers>> {
+  const out = new Map<string, PriceTiers>()
+  const groups = await getGroups()
+  const groupId = resolveGroupId(groups, setName)
+  if (!groupId) return out
+
+  const [prices, products] = await Promise.all([
+    getGroupPrices(groupId),
+    getGroupProducts(groupId),
+  ])
+  if (!prices.length || !products.length) return out
+
+  const byProduct = new Map<number, CSVPrice[]>()
+  for (const p of prices) {
+    const arr = byProduct.get(p.productId)
+    if (arr) arr.push(p)
+    else byProduct.set(p.productId, [p])
+  }
+
+  const n = (v: number | null): number | undefined => v ?? undefined
+  for (const prod of products) {
+    const num = productCardNumber(prod)
+    if (!num) continue
+    const best = pickBestPrice(byProduct.get(prod.productId) ?? [])
+    if (!best) continue
+    out.set(num, {
+      market:    n(best.marketPrice),
+      low:       n(best.lowPrice),
+      mid:       n(best.midPrice),
+      high:      n(best.highPrice),
+      directLow: n(best.directLowPrice),
+    })
+  }
+  return out
 }
