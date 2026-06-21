@@ -35,7 +35,7 @@ Mutations use optimistic updates: state is updated immediately, then the Supabas
 2. If the catalog returns hits → enrich prices from tcgcsv (`enrichCatalogPrices`, one fetch per unique set, parallel, hard time-capped) and return with `source: 'catalog'`.
 3. **Live fallback** — on a catalog miss/error, or when `type`/`rarity` filters are present, it falls through to `lib/tcg.ts:searchCardsFlexible` → `api.pokemontcg.io/v2`. This is the original path; nothing was removed, the live API is now the safety net rather than the bottleneck.
 
-`lib/tcg.ts` builds Lucene-style queries. Every live fetch has an `AbortSignal.timeout` (parameterized `timeoutMs`/`retries`); the default browse uses a longer budget plus a cheaper 2-term full-art fallback filter (`FULL_ART_FALLBACK_FILTER`) as its retry. The route returns **504** on timeout (the client shows a retry banner). `Cache-Control: public, s-maxage=…, stale-while-revalidate=…` headers are emitted for the edge/browser cache. `GET /api/tcg/card/[id]` → `lib/tcg.ts:getCard`. `POKEMONTCG_API_KEY` is optional (raises rate limits).
+`lib/tcg.ts` builds Lucene-style queries. Every live fetch has an `AbortSignal.timeout` (parameterized `timeoutMs`/`retries`); the default browse uses a longer budget plus a cheaper 2-term full-art fallback filter (`FULL_ART_FALLBACK_FILTER`) as its retry. The route returns **504** on timeout (the client shows a retry banner). `Cache-Control: public, s-maxage=…, stale-while-revalidate=…` headers are emitted for the edge/browser cache. `lib/tcg.ts:getCard` (single-card fetch + enrich) is used server-side by `/api/prices`. `POKEMONTCG_API_KEY` is optional (raises rate limits).
 
 **Catalog is identity/art only — prices are always live** (tcgcsv). To rebuild the catalog (e.g. a new set dropped) run `scripts/seed-catalog.mjs`; it selects sets by SWSH/SV set id (not a date cutoff) so promo sets with early release dates are still included. Migration: `supabase/migrations/002_card_catalog.sql`.
 
@@ -84,8 +84,8 @@ app/
     page.tsx                → server component, reads share row via anon Supabase key
     ShareView.tsx           → client component, renders the public share page
   api/tcg/search/route.ts   → catalog-first search (see Search architecture)
-  api/tcg/card/[id]/route.ts
   api/scan-card/route.ts    → Vision OCR pipeline (see Scan / OCR)
+  api/prices/route.ts       → batch price backfill for collection cards
   api/import/route.ts       → JSON collection import
 ```
 

@@ -13,3 +13,5 @@ FOLIO/
 VAULT/
 MEDIA/
 tsconfig.tsbuildinfo
+
+.vercel
