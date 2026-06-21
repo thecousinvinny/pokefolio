@@ -56,6 +56,7 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
   const [shareIncludeCollection, setShareIncludeCollection] = useState(true)
   const [shareIncludeWishlist, setShareIncludeWishlist] = useState(false)
   const [shareFilter, setShareFilter] = useState<ShareFilter>('all')
+  const [shareExpiryDays, setShareExpiryDays] = useState<number | null>(30) // null = never
   const [shareUrl, setShareUrl] = useState<string | null>(null)
   const [sharing, setSharing] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -218,6 +219,9 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
         wishlist_data: shareIncludeWishlist ? wishlist : null,
         include_collection: shareIncludeCollection,
         include_wishlist: shareIncludeWishlist,
+        expires_at: shareExpiryDays
+          ? new Date(Date.now() + shareExpiryDays * 86_400_000).toISOString()
+          : null,
       }
 
       const { data: existing } = await supabase
@@ -335,6 +339,8 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
           shareFilter={shareFilter}
           onSetFilter={setShareFilter}
           filteredOwnedCount={filteredOwnedCount}
+          expiryDays={shareExpiryDays}
+          onSetExpiry={setShareExpiryDays}
           shareUrl={shareUrl}
           sharing={sharing}
           copied={copied}
@@ -597,14 +603,22 @@ function MainView({
 
 // ── Share sub-view ─────────────────────────────────────────────────────────────
 
+const EXPIRY_OPTIONS: { days: number | null; label: string }[] = [
+  { days: 7,    label: '7 days' },
+  { days: 30,   label: '30 days' },
+  { days: 90,   label: '90 days' },
+  { days: null, label: 'Never' },
+]
+
 function ShareView({
   includeCollection, includeWishlist, onToggleCollection, onToggleWishlist,
-  shareFilter, onSetFilter, filteredOwnedCount,
+  shareFilter, onSetFilter, filteredOwnedCount, expiryDays, onSetExpiry,
   shareUrl, sharing, copied, ownedCount, wishlistCount, onGenerate, onCopy, onBack,
 }: {
   includeCollection: boolean; includeWishlist: boolean
   onToggleCollection: () => void; onToggleWishlist: () => void
   shareFilter: ShareFilter; onSetFilter: (f: ShareFilter) => void; filteredOwnedCount: number
+  expiryDays: number | null; onSetExpiry: (d: number | null) => void
   shareUrl: string | null; sharing: boolean; copied: boolean
   ownedCount: number; wishlistCount: number
   onGenerate: () => void; onCopy: () => void; onBack: () => void
@@ -680,6 +694,31 @@ function ShareView({
           onToggle={onToggleWishlist}
         />
       </div>
+
+      {/* Link expiry */}
+      <SectionLabel>Link expires</SectionLabel>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+        {EXPIRY_OPTIONS.map(({ days, label }) => (
+          <button
+            key={label}
+            onClick={() => onSetExpiry(days)}
+            style={{
+              flex: 1, padding: '8px 0', borderRadius: 9, fontSize: 12, fontWeight: 700,
+              border: 'none', cursor: 'pointer',
+              background: expiryDays === days ? 'var(--violet)' : 'var(--surface)',
+              color: expiryDays === days ? '#fff' : 'var(--text3)',
+              transition: 'background 0.15s, color 0.15s',
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <p style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 16 }}>
+        {expiryDays
+          ? `The link stops working ${expiryDays} days after you generate it.`
+          : 'The link never expires — anyone with it can view forever.'}
+      </p>
 
       {/* Generate */}
       <button
