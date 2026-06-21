@@ -3,6 +3,7 @@ import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { ProfileSheet, UserSvg, LS_DISPLAY_NAME, LS_AVATAR, LS_PRIVACY } from '@/components/layout/ProfileSheet'
+import { ScanFab } from '@/components/ui/ScanFab'
 
 const NAV = [
   { href: '/dashboard', label: 'DASH',   icon: DashIcon },
@@ -31,6 +32,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       }}>
         {children}
       </main>
+      <ScanFab />
       <FloatingTabBar />
       <ProfileAvatarButton onClick={() => setShowProfile(true)} avatarImg={avatarImg} />
       <ProfileSheet
