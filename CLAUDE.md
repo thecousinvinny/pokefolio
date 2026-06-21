@@ -27,13 +27,45 @@ Mutations use optimistic updates: state is updated immediately, then the Supabas
 
 `middleware.ts` is a passthrough (no auth gate). The migration is at `supabase/migrations/001_initial_schema.sql`; run it at `https://supabase.com/dashboard/project/ydbcfvernfothrukmyty/sql` if resetting.
 
-### TCG API proxy
+### Search architecture — catalog-first, live API as fallback
 
-All TCG API calls go through internal Next.js routes to hide the optional API key:
-- `GET /api/tcg/search?q=&set=&type=&rarity=&page=&pageSize=` → `lib/tcg.ts:searchCardsFlexible`
-- `GET /api/tcg/card/[id]` → `lib/tcg.ts:getCard`
+`GET /api/tcg/search` is **catalog-first**. This is the single most important thing to understand about search/prices:
 
-`lib/tcg.ts` builds Lucene-style queries for `api.pokemontcg.io/v2`. Server-side revalidate is dynamic: 3600s for the default full-art browse (no query/set params), 300s for user searches. The route handler adds matching `Cache-Control: public, s-maxage=…, stale-while-revalidate=…` response headers so the Vercel edge cache and browser cache responses directly. The `POKEMONTCG_API_KEY` env var is optional but raises rate limits.
+1. **Local catalog** (`lib/catalog.ts:searchCatalog`) — queries the `card_catalog` Supabase table (≈8,200 modern-era cards) with a pg_trgm prefix match. Instant (~130ms). Handles the default full-art browse, name queries, set queries, and name+number scans. Uses the **anon key** (catalog is public-read).
+2. If the catalog returns hits → enrich prices from tcgcsv (`enrichCatalogPrices`, one fetch per unique set, parallel, hard time-capped) and return with `source: 'catalog'`.
+3. **Live fallback** — on a catalog miss/error, or when `type`/`rarity` filters are present, it falls through to `lib/tcg.ts:searchCardsFlexible` → `api.pokemontcg.io/v2`. This is the original path; nothing was removed, the live API is now the safety net rather than the bottleneck.
+
+`lib/tcg.ts` builds Lucene-style queries. Every live fetch has an `AbortSignal.timeout` (parameterized `timeoutMs`/`retries`); the default browse uses a longer budget plus a cheaper 2-term full-art fallback filter (`FULL_ART_FALLBACK_FILTER`) as its retry. The route returns **504** on timeout (the client shows a retry banner). `Cache-Control: public, s-maxage=…, stale-while-revalidate=…` headers are emitted for the edge/browser cache. `GET /api/tcg/card/[id]` → `lib/tcg.ts:getCard`. `POKEMONTCG_API_KEY` is optional (raises rate limits).
+
+**Catalog is identity/art only — prices are always live** (tcgcsv). To rebuild the catalog (e.g. a new set dropped) run `scripts/seed-catalog.mjs`; it selects sets by SWSH/SV set id (not a date cutoff) so promo sets with early release dates are still included. Migration: `supabase/migrations/002_card_catalog.sql`.
+
+### Prices — tcgcsv fallback + daily snapshots
+
+`lib/tcgcsv.ts` pulls per-set price files from tcgcsv.com (TCGplayer mirror). Two cross-source quirks it reconciles, both of which bite anything price-related:
+- **Card numbers** live in `extendedData` as `"234/091"` (no top-level field); `normalizeCardNumber` maps these to pokemontcg.io's `"234"`/`"54"`.
+- **Set names** differ (tcgcsv prefixes an era like `"SWSH: Crown Zenith"` and uses a colon before subsets). `normSetName` strips the prefix/punctuation; `SET_NAME_ALIASES` handles the cases normalization can't bridge (promo sets: `"SWSH Black Star Promos"` ↔ tcgcsv `"Sword & Shield Promo Cards"`). **Add an alias here when a set comes back unpriced.**
+
+`price_snapshots` (migration 003) records one market price per catalog card per day via `scripts/snapshot-prices.mjs` — building real history so the sparklines can later switch off `generatePriceHistory` (synthetic). No API offers historical prices; this is the source.
+
+### Scan / OCR pipeline (`/api/scan-card`)
+
+`POST /api/scan-card` takes a base64 image → Google Vision `TEXT_DETECTION` (`GOOGLE_VISION_API_KEY`) → parsed card name + number. Key steps in `app/api/scan-card/route.ts`:
+- **Name** = the largest font in the top 30% (`boxH` filters by glyph height) — excludes "Evolves from …", HP, set codes, middle-description text.
+- `canonicalizeSuffix` relocates a detected/garbled suffix (`VSTAR`/`VMAX`/`V`/`GX`/`ex`) to the end so "Leafeon VSTAR" survives, distinct from base "Leafeon"; `cleanNameString` strips the HP value (fused or spaced); `parseNumber` handles `"025/198"` and promo `"SWSH291"`.
+- `fuzzySnapName` Levenshtein-snaps the OCR name to the nearest of ~1,025 PokéAPI species names (cached in module memory).
+- `verifyName` is **catalog-first** (instant `resolveCatalogByNumberTotal` / `searchCatalog` / `catalogNameExists`), falling back to the live API cascade only on a catalog miss. Wrapped in a 10s race.
+
+Scan UI: `components/ui/ScanFab.tsx` is the global camera FAB (on every tab via `AppShell`) → `components/ui/CameraCapture.tsx` (reusable viewfinder, crop-to-guide + contrast boost) → resolve → confidence fork (exactly one match → stats modal; multiple → scrollable picker) → Add to WISH/CATCHM (`AddToPortfolioModal`) or, if you own it, Sell (`SellModal`). The FIND search bar keeps its own `components/ui/ScanCardButton.tsx`.
+
+### Scripts & scheduled jobs
+
+`scripts/*.mjs` are standalone Node ESM (not part of the build). They read env from `process.env` first, then `.env.local`, and need **`SUPABASE_SERVICE_ROLE_KEY`** (bypasses RLS for bulk writes; the live app never uses it). Idempotent upserts — safe to re-run.
+- `seed-catalog.mjs` — rebuild `card_catalog` (run when new sets drop). GitHub Action: `.github/workflows/seed-catalog.yml`, quarterly + manual.
+- `snapshot-prices.mjs` — daily price snapshot. Action: `snapshot-prices.yml`, daily + manual.
+
+Both Actions reuse the `SUPABASE_SERVICE_ROLE_KEY` (and `POKEMONTCG_API_KEY`) repo secrets.
+
+**The Supabase MCP connection is read-only** — `apply_migration`/DDL returns "permission denied". Run schema changes by hand in the SQL editor (`https://supabase.com/dashboard/project/ydbcfvernfothrukmyty/sql`). The service-role key works for data, not DDL.
 
 ### Route structure
 
@@ -51,8 +83,10 @@ app/
   share/[id]/
     page.tsx                → server component, reads share row via anon Supabase key
     ShareView.tsx           → client component, renders the public share page
-  api/tcg/search/route.ts
+  api/tcg/search/route.ts   → catalog-first search (see Search architecture)
   api/tcg/card/[id]/route.ts
+  api/scan-card/route.ts    → Vision OCR pipeline (see Scan / OCR)
+  api/import/route.ts       → JSON collection import
 ```
 
 `app/share/[id]/` is **outside the `(app)` group** — no `AppShell`, no auth gate. It uses `createClient` from `lib/supabase/server` (anon key, RLS applies). `components/layout/ProfileSheet.tsx` handles the share modal inside the app: it builds the share payload, writes it to the `user_shares` Supabase table, and lets the user filter by All / Full Art / Favs Only before copying the link.
@@ -93,6 +127,10 @@ All action buttons use `background: var(--btn-x)`, `color: #fff`, `border: none`
 - `.showcase-border` — prismatic rainbow glow for the DASH showcase card, driven by `@keyframes prismatic-glow` cycling `box-shadow` colors.
 - Spring curve for all interactive motion: `cubic-bezier(0.34, 1.56, 0.64, 1)` at `0.38s`.
 
+`components/ui/RollingNumber.tsx` — slot-machine/odometer digit roll for headline numbers (each digit an independent drum, settles right-to-left). Used by `components/ui/StatCard.tsx` (the shared stat tile on DASH/CATCHM/WISH) and the DASH portfolio-value hero. Fires on mount, so it **replays on tab navigation** (App Router remounts the page). Pass `gradient` to keep a gradient text-fill (applied per glyph, since the drums' `overflow:hidden` would clip a normal `background-clip:text`).
+
+`components/ui/Modal.tsx` is the shared sheet for **every** dialog (card detail, add, sell, profile, scan picker/result). It has iOS-style **drag-to-dismiss**: grab the sticky header (handle or title) or pull from the top of scrolled content; past a distance/velocity threshold it physically flings off-screen (`translateY → 100vh`) and unmounts on a deterministic timer (do **not** rely on `transitionend` — it gets skipped), otherwise springs back. `onClose` is held in a ref so gesture/timer effects stay stable. Any new dialog should use this `Modal` to inherit the gesture.
+
 ### Card component architecture
 
 `components/cards/CardArtwork.tsx` renders the type-based gradient background (colors from VAULT `Theme.swift` `CardType.artColors`). It is used inside every card tile and the detail modal. It also exports `TypeBadge` (small colored dot for info rows) and `getArtColors` (for direct gradient access).
@@ -114,7 +152,7 @@ TCGPlayer blocks iframes via `frame-ancestors` CSP — never try to embed it in 
 `browse/page.tsx` keeps a three-tier cache for the default full-art browse:
 
 1. **Module-level `_browseCache`** (`Map<string, CacheEntry>`, 10-min TTL) — survives tab navigation within the same session. Keyed by `"query|set"`. Blank key (`"|"`) is the default browse; searching never pollutes it.
-2. **`localStorage` key `catchm_browse_default_v2`** (30-min TTL) — survives page refreshes and new tabs. On mount, `initState` reads from LS if the module cache is cold, warms the module cache from it, and skips the initial API call entirely.
+2. **`localStorage` key `catchm_browse_default_v3`** (30-min TTL) — survives page refreshes and new tabs. On mount, `initState` reads from LS if the module cache is cold, warms the module cache from it, and skips the initial API call entirely. On a live-fetch failure the page falls back to this LS entry even when expired (`lsGetDefaultStale`), so FIND is never blank.
 3. **HTTP edge cache** — the route handler emits `Cache-Control: s-maxage=3600, stale-while-revalidate=86400` so Vercel's edge serves repeat requests without hitting Next.js.
 
 `_browseScrollY: number` — saves scroll position on unmount, restored on remount via `requestAnimationFrame`.
@@ -152,6 +190,9 @@ Portfolio, Wishlist, and Browse pages persist their filter/sort state to `localS
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://ydbcfvernfothrukmyty.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=   # required for Supabase path to work
+NEXT_PUBLIC_SUPABASE_ANON_KEY=   # required for the Supabase path (incl. catalog read)
 POKEMONTCG_API_KEY=               # optional, raises TCG API rate limits
+GOOGLE_VISION_API_KEY=            # required for the camera scan OCR (/api/scan-card)
+SUPABASE_SERVICE_ROLE_KEY=        # server/scripts only — bypasses RLS for the seed/snapshot
+                                  # jobs. NEVER prefix with NEXT_PUBLIC_; not used by the app.
 ```
