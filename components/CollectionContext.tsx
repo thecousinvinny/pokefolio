@@ -148,6 +148,40 @@ export function CollectionProvider({ children }: { children: ReactNode }) {
     }
   }, [supabase, userId, useLocalStorage])
 
+  // Backfill missing prices. Collection prices are captured at add-time and never
+  // refresh, so cards added without one (old/promo cards pokemontcg.io priced later,
+  // or that needed tcgcsv) stay blank. On load, re-fetch the current price for any
+  // card missing one and patch it in. Each tcg_id is tried once per session; batches
+  // of 60 paginate as updates land.
+  const priceRefreshTried = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    if (loading) return
+    const ids = [...new Set(
+      cards
+        .filter(c => c.tcg_id && (c.market_price == null || c.market_price === 0) && !priceRefreshTried.current.has(c.tcg_id))
+        .map(c => c.tcg_id),
+    )].slice(0, 40)
+    if (ids.length === 0) return
+    ids.forEach(id => priceRefreshTried.current.add(id))
+
+    ;(async () => {
+      try {
+        const res = await fetch('/api/prices', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids }),
+        })
+        if (!res.ok) return
+        const { prices } = await res.json() as { prices: Record<string, number> }
+        const now = new Date().toISOString()
+        cards.forEach(c => {
+          const m = prices[c.tcg_id]
+          if (m != null && m !== c.market_price) updateCard(c.id, { market_price: m, price_updated_at: now })
+        })
+      } catch { /* offline / transient — retried next session */ }
+    })()
+  }, [cards, loading, updateCard])
+
   const removeCard = useCallback((id: string) => {
     setCards(prev => prev.filter(c => c.id !== id))
     if (!useLocalStorage && userId) {
