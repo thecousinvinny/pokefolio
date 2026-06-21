@@ -563,7 +563,7 @@ function Btn({ label, color = 'var(--text2)', accentBg, gradient, onClick, href,
 
 // ─── Sell / Gift / Trade modal ───────────────────────────────────────────────
 
-function SellModal({ card, mode, onClose, onBack }: {
+export function SellModal({ card, mode, onClose, onBack }: {
   card: PokemonCard; mode: 'sell' | 'gift' | 'trade'; onClose: () => void; onBack: () => void
 }) {
   const { sellCard } = useCollection()

@@ -7,10 +7,11 @@ import { Sparkline } from '@/components/ui/Sparkline'
 import { TcgLink } from '@/components/ui/TcgLink'
 import { Modal } from '@/components/ui/Modal'
 import { AddToPortfolioModal } from '@/components/cards/AddToPortfolioModal'
+import { SellModal } from '@/components/cards/CardDetailModal'
 import { useCollection } from '@/components/CollectionContext'
 import { formatPrice, generatePriceHistory, rarityWeight, tcgSearchUrl } from '@/lib/utils'
-import { getBestTCGPrice, getBestTCGPriceTiers } from '@/types'
-import type { TCGCard } from '@/types'
+import { getBestTCGPrice, getBestTCGPriceTiers, conditionAdjustedValue, CONDITION_LABELS } from '@/types'
+import type { TCGCard, PokemonCard } from '@/types'
 import { HeartIcon, XIcon } from '@/components/ui/Icons'
 
 type FlowState = 'idle' | 'camera' | 'scanning' | 'picker' | 'result' | 'notfound'
@@ -206,8 +207,19 @@ function ScanResultModal({ card, onClose, onAddOwned, onAddWishlist }: {
   onAddWishlist: () => void
 }) {
   const { cards } = useCollection()
-  const inCollection = cards.some(c => (c.status === 'owned' || c.status === 'for_sale') && c.tcg_id === card.id)
+  const ownedMatches = useMemo(
+    () => cards.filter(c => (c.status === 'owned' || c.status === 'for_sale') && c.tcg_id === card.id),
+    [cards, card.id],
+  )
+  const inCollection = ownedMatches.length > 0
   const inWishlist = cards.some(c => c.status === 'wishlist' && c.tcg_id === card.id)
+
+  const [sellTarget, setSellTarget] = useState<PokemonCard | null>(null)
+  const [pickCopy, setPickCopy] = useState(false)
+  function startSell() {
+    if (ownedMatches.length === 1) setSellTarget(ownedMatches[0])
+    else if (ownedMatches.length > 1) setPickCopy(true)
+  }
 
   const price = getBestTCGPrice(card)
   const tiers = getBestTCGPriceTiers(card)
@@ -219,6 +231,7 @@ function ScanResultModal({ card, onClose, onAddOwned, onAddWishlist }: {
   ].filter(Boolean).join(' · ')
 
   return (
+    <>
     <Modal open onClose={onClose} maxWidth={520}>
       <div style={{ position: 'relative' }}>
         <button onClick={onClose} style={{ position: 'absolute', top: -4, right: -4, width: 28, height: 28, borderRadius: 8, background: 'rgba(255,255,255,0.07)', border: 'none', color: 'var(--text3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}><XIcon size={14} /></button>
@@ -273,9 +286,48 @@ function ScanResultModal({ card, onClose, onAddOwned, onAddWishlist }: {
               {inCollection ? '+ Add Another' : 'Add to CATCHM'}
             </button>
           </div>
+          {inCollection && (
+            <button onClick={startSell} style={{ width: '100%', padding: '11px 0', borderRadius: 8, fontSize: 13, fontWeight: 700, background: 'var(--btn-sell)', color: '#fff', border: 'none', cursor: 'pointer' }}>
+              Sell{ownedMatches.length > 1 ? ` (${ownedMatches.length} copies)` : ''}
+            </button>
+          )}
           <TcgLink url={tcgSearchUrl(card.name, card.set.name)} style={{ display: 'block', textAlign: 'center', padding: '8px 0', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#fff', background: 'var(--btn-info)', border: 'none', textDecoration: 'none' }}>↗ View on TCGPlayer</TcgLink>
         </div>
       </div>
+    </Modal>
+
+    {pickCopy && (
+      <OwnedCopyPicker
+        matches={ownedMatches}
+        onPick={c => { setPickCopy(false); setSellTarget(c) }}
+        onClose={() => setPickCopy(false)}
+      />
+    )}
+    {sellTarget && (
+      <SellModal card={sellTarget} mode="sell" onClose={onClose} onBack={() => setSellTarget(null)} />
+    )}
+    </>
+  )
+}
+
+function OwnedCopyPicker({ matches, onPick, onClose }: { matches: PokemonCard[]; onPick: (c: PokemonCard) => void; onClose: () => void }) {
+  return (
+    <Modal open onClose={onClose} maxWidth={420}>
+      <p style={{ margin: '0 0 2px', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text3)' }}>You own {matches.length}</p>
+      <p style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 800 }}>Which copy to sell?</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {matches.map(c => (
+          <button key={c.id} onClick={() => onPick(c)}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '11px 14px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--border)', cursor: 'pointer', textAlign: 'left' }}>
+            <div>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 700 }}>{CONDITION_LABELS[c.condition] ?? c.condition}</p>
+              <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text3)' }}>Paid {c.price_paid != null ? formatPrice(c.price_paid) : '—'}</p>
+            </div>
+            <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--gold)' }}>{formatPrice(conditionAdjustedValue(c))}</span>
+          </button>
+        ))}
+      </div>
+      <button onClick={onClose} style={{ marginTop: 12, width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 13, fontWeight: 700, background: 'rgba(255,255,255,0.07)', color: 'var(--text2)', border: '1px solid var(--border)', cursor: 'pointer' }}>Cancel</button>
     </Modal>
   )
 }
