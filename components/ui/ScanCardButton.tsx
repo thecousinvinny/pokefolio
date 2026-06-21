@@ -225,14 +225,18 @@ export function ScanCardButton({ onResult }: Props) {
           background: '#000',
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         }}>
-          {/* Live video */}
+          {/* Live video — hidden until ready so the iOS camera-switch is invisible */}
           <video
             ref={videoRef}
             autoPlay
             playsInline
             muted
             onCanPlay={() => setVideoReady(true)}
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+            style={{
+              position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
+              opacity: videoReady ? 1 : 0,
+              transition: 'opacity 0.25s ease',
+            }}
           />
 
           {/* Loading spinner while camera warms up */}
