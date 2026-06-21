@@ -96,12 +96,32 @@ async function trySearch(query: string, number?: string): Promise<boolean> {
 async function verifyName(name: string, number: string): Promise<{ name: string; number: string }> {
   if (!name) return { name, number }
 
+  // 1. Exact: name + card number
   if (number && await trySearch(name, number)) return { name, number }
+
+  // 2. Name only (number may be misread)
   if (await trySearch(name)) return { name, number: '' }
 
+  // 3. Strip known trailing suffix (ex/V/VMAX etc. misread entirely)
   const stripped = name.replace(SUFFIX_RE, '').trim()
   if (stripped && stripped !== name && await trySearch(stripped)) return { name: stripped, number: '' }
 
+  // 4. First word only — handles suffix OCR'd as garbage word ("Reshiram X" → "Reshiram")
+  const firstWord = name.split(/\s+/)[0]
+  if (firstWord !== name && firstWord.length >= 3 && await trySearch(firstWord)) {
+    return { name: firstWord, number: '' }
+  }
+
+  // 5. Progressive right-trim — handles garbage fused to name ("ReshiramX" → "Reshiram")
+  //    Only when there's no space (step 4 already handles the spaced case)
+  if (!name.includes(' ')) {
+    for (let trim = 1; trim <= 3; trim++) {
+      const shorter = name.slice(0, -trim)
+      if (shorter.length >= 4 && await trySearch(shorter)) return { name: shorter, number: '' }
+    }
+  }
+
+  // 6. Nothing matched — return original so user can edit
   return { name, number }
 }
 
