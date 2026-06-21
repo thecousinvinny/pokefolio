@@ -17,7 +17,9 @@ type SortMode = 'premium' | 'newest' | 'price-desc' | 'price-asc' | 'alpha'
 type RarityGroup = 'all' | 'fullart' | 'ultra' | 'holo' | 'common'
 
 const PAGE_SIZE = 50
-const CACHE_TTL_MS = 10 * 60 * 1000
+const CACHE_TTL_MS = 30 * 60 * 1000  // 30 min — stale entries still shown instantly while refreshing
+
+const POPULAR_QUERIES = ['charizard', 'pikachu', 'mewtwo', 'lugia', 'rayquaza', 'umbreon', 'gengar', 'eevee']
 let _browseScrollY = 0   // persists across tab switches; restored on remount
 
 type CacheEntry = { results: TCGCard[]; totalCount: number; hasMore: boolean; ts: number }
@@ -130,6 +132,30 @@ export default function BrowsePage() {
     return () => { _browseScrollY = window.scrollY }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Pre-warm popular searches after the page settles so they're instant when typed
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      for (const q of POPULAR_QUERIES) {
+        if (_browseCache.has(cacheKey(q, ''))) continue  // already cached this session
+        try {
+          const res = await fetch(`/api/tcg/search?q=${encodeURIComponent(q)}&pageSize=24`)
+          if (!res.ok) continue
+          const data = await res.json()
+          if (data.data) {
+            _browseCache.set(cacheKey(q, ''), {
+              results: data.data,
+              totalCount: data.totalCount ?? 0,
+              hasMore: 24 < (data.totalCount ?? 0),
+              ts: Date.now(),
+            })
+          }
+        } catch { /* best-effort, ignore */ }
+        await new Promise(r => setTimeout(r, 300))  // 300ms between requests
+      }
+    }, 4000)  // wait 4s after mount before warming
+    return () => clearTimeout(timer)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   const ownedTcgIds = useMemo(() =>
     new Set(cards.filter(c => c.status === 'owned' || c.status === 'for_sale').map(c => c.tcg_id)),
     [cards])
@@ -139,24 +165,42 @@ export default function BrowsePage() {
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const loadingRef = useRef(false)
+  const abortRef = useRef<AbortController | null>(null)
 
   const search = useCallback(async (q: string, set: string, p: number, append: boolean, num = '') => {
     if (loadingRef.current && append) return
-    // Serve from cache on fresh load (page 1, not appending) — but not when number filter is active
-    if (!append && p === 1 && !num) {
-      const key = cacheKey(q, set)
-      if (cacheValid(key)) {
-        const cached = _browseCache.get(key)!
-        setRawResults(cached.results)
-        setTotalCount(cached.totalCount)
-        setHasMore(cached.hasMore)
-        setLoading(false)
-        return
-      }
+
+    const key = cacheKey(q, set)
+
+    // Fresh cache: serve immediately, skip network
+    if (!append && p === 1 && !num && cacheValid(key)) {
+      const cached = _browseCache.get(key)!
+      setRawResults(cached.results)
+      setTotalCount(cached.totalCount)
+      setHasMore(cached.hasMore)
+      setLoading(false)
+      return
     }
+
+    // Stale cache: show immediately so user isn't staring at a spinner,
+    // then fall through to fetch fresh data in background
+    const stale = !append && p === 1 && !num ? _browseCache.get(key) : null
+    if (stale) {
+      setRawResults(stale.results)
+      setTotalCount(stale.totalCount)
+      setHasMore(stale.hasMore)
+      setLoading(false)
+    } else {
+      if (!append) setRawResults([])
+      setLoading(true)
+    }
+
+    // Cancel any previous in-flight request so stale responses can't overwrite newer ones
+    abortRef.current?.abort()
+    abortRef.current = new AbortController()
+    const signal = abortRef.current.signal
+
     loadingRef.current = true
-    if (!append) setRawResults([])
-    setLoading(true)
     try {
       const params = new URLSearchParams()
       if (q)   params.set('q', q)
@@ -165,23 +209,23 @@ export default function BrowsePage() {
       if (!q && !set && !num) params.set('fullArtOnly', 'true')
       params.set('page', String(p))
       params.set('pageSize', String(PAGE_SIZE))
-      const res = await fetch(`/api/tcg/search?${params}`)
+      const res = await fetch(`/api/tcg/search?${params}`, { signal })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       const batch: TCGCard[] = data.data ?? []
       const nextHasMore = p * PAGE_SIZE < (data.totalCount ?? 0)
-      const key = cacheKey(q, set)
       setRawResults(prev => {
         const next = append ? [...prev, ...batch] : batch
         const cEntry: CacheEntry = { results: next, totalCount: data.totalCount ?? 0, hasMore: nextHasMore, ts: Date.now() }
         _browseCache.set(key, cEntry)
-        if (!q && !set) lsSaveDefault(cEntry)  // persist default browse for instant repeat loads
+        if (!q && !set) lsSaveDefault(cEntry)
         return next
       })
       setTotalCount(data.totalCount ?? 0)
       setHasMore(nextHasMore)
-    } catch {
-      if (!append) setRawResults([])
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') return  // superseded by newer query — ignore
+      if (!append && !stale) setRawResults([])
     } finally {
       setLoading(false)
       loadingRef.current = false
