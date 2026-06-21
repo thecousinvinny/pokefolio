@@ -8,11 +8,14 @@ import { createClient } from '@supabase/supabase-js'
 import { readFileSync } from 'node:fs'
 
 // ── env ───────────────────────────────────────────────────────────────────────
-const env = {}
-for (const line of readFileSync(new URL('../.env.local', import.meta.url), 'utf8').split('\n')) {
-  const m = line.match(/^([A-Z0-9_]+)=(.*)$/)
-  if (m) env[m[1]] = m[2].trim()
-}
+// Real environment wins (GitHub Actions / Vercel); .env.local fills gaps locally.
+const env = { ...process.env }
+try {
+  for (const line of readFileSync(new URL('../.env.local', import.meta.url), 'utf8').split('\n')) {
+    const m = line.match(/^([A-Z0-9_]+)=(.*)$/)
+    if (m && !env[m[1]]) env[m[1]] = m[2].trim()
+  }
+} catch { /* no .env.local in CI — rely on process.env */ }
 const SUPABASE_URL = env.NEXT_PUBLIC_SUPABASE_URL
 const SERVICE_KEY  = env.SUPABASE_SERVICE_ROLE_KEY
 const TCG_KEY      = env.POKEMONTCG_API_KEY

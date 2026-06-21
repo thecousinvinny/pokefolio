@@ -1,0 +1,31 @@
+name: Seed card catalog
+
+# Refreshes the card_catalog Supabase table with the latest modern-era cards.
+# Runs quarterly (1st of Jan/Apr/Jul/Oct) and on-demand via the "Run workflow" button.
+# Idempotent upsert — only adds/updates card identity; prices are never stored.
+
+on:
+  schedule:
+    - cron: '0 6 1 1,4,7,10 *'   # 06:00 UTC, first of each quarter
+  workflow_dispatch: {}           # manual trigger from the Actions tab
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Seed catalog
+        run: node scripts/seed-catalog.mjs
+        env:
+          # Project URL is public (not a secret).
+          NEXT_PUBLIC_SUPABASE_URL: https://ydbcfvernfothrukmyty.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          POKEMONTCG_API_KEY: ${{ secrets.POKEMONTCG_API_KEY }}
