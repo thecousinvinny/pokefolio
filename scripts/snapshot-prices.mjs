@@ -60,6 +60,9 @@ async function resolveGroupId(setName) {
   const g = await groups()
   const exact = g.find(x => normSet(x.name) === target)
   if (exact) return exact.groupId
+  // bare base-set name → "… Base Set" group, not a same-prefixed subset
+  const base = g.find(x => normSet(x.name) === normSet(aliased + ' Base Set'))
+  if (base) return base.groupId
   return g.find(x => { const n = normSet(x.name); return n && (n.includes(target) || target.includes(n)) })?.groupId ?? null
 }
 

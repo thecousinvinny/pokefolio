@@ -105,6 +105,12 @@ function resolveGroupId(groups: Group[], setName: string): number | null {
   // "Crown Zenith Galarian Gallery" group (and vice-versa).
   const exact = groups.find(g => normSetName(g.name) === target)
   if (exact) return exact.groupId
+  // A bare base-set name ("Scarlet & Violet") matches tcgcsv's "… Base Set"
+  // group, NOT a same-prefixed subset ("Scarlet & Violet 151") that the
+  // containment fallback would otherwise grab — wrong prices.
+  const baseTarget = normSetName(aliased + ' Base Set')
+  const base = groups.find(g => normSetName(g.name) === baseTarget)
+  if (base) return base.groupId
   // Containment fallback for legacy/partial names.
   const partial = groups.find(g => {
     const n = normSetName(g.name)
