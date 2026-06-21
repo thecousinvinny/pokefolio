@@ -15,8 +15,9 @@ const FLICK_VELOCITY = 0.5      // px/ms downward flick that dismisses regardles
 const SNAP_BACK = 'transform 0.34s cubic-bezier(0.34, 1.56, 0.64, 1)'
 
 export function Modal({ open, onClose, title, children, maxWidth = 480 }: ModalProps) {
-  const ref = useRef<HTMLDivElement>(null)
-  const handleRef = useRef<HTMLDivElement>(null)
+  const ref = useRef<HTMLDivElement>(null)        // outer: transform target + touch target (not scrollable)
+  const scrollRef = useRef<HTMLDivElement>(null)  // inner: the scrollable content
+  const handleRef = useRef<HTMLDivElement>(null)  // header: handle + title (outside the scroller)
   const [dragY, setDragY] = useState(0)
   const [snapping, setSnapping] = useState(false)
   const [closing, setClosing] = useState(false)   // flinging physically off-screen
@@ -100,7 +101,7 @@ export function Modal({ open, onClose, title, children, maxWidth = 480 }: ModalP
     function onTouchMove(e: TouchEvent) {
       const t = e.touches[0]
       const delta = t.clientY - startYRef.current
-      const canDrag = fromHandleRef.current || (el?.scrollTop ?? 0) <= 0
+      const canDrag = fromHandleRef.current || (scrollRef.current?.scrollTop ?? 0) <= 0
       if (delta > 0 && canDrag) {
         e.preventDefault()
         draggingRef.current = true
@@ -150,14 +151,16 @@ export function Modal({ open, onClose, title, children, maxWidth = 480 }: ModalP
   let transform: string | undefined
   let transition: string | undefined
   if (closing) {
+    // ease-OUT: continues the fling momentum and decelerates off-screen (no mid-way hang)
     transform = closeArmed ? 'translateY(100vh)' : `translateY(${dragY}px)`
-    transition = 'transform 0.34s cubic-bezier(0.32, 0, 0.67, 0)'
+    transition = 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)'
   } else if (dragging) { transform = `translateY(${dragY}px)`; transition = 'transform 0s' }
   else if (snapping) { transform = 'translateY(0)'; transition = SNAP_BACK }
 
   function onContentTransitionEnd(e: React.TransitionEvent) {
     if (e.target !== e.currentTarget || e.propertyName !== 'transform') return
-    if (snapping) setSnapping(false)
+    if (closing) { setVisible(false); onCloseRef.current() }   // unmount exactly as the fling lands
+    else if (snapping) setSnapping(false)
   }
 
   return createPortal(
@@ -175,19 +178,18 @@ export function Modal({ open, onClose, title, children, maxWidth = 480 }: ModalP
           background: 'var(--elevated)',
           border: '1px solid var(--border2)',
           maxHeight: 'calc(100dvh - 2rem)',
-          overflowY: 'auto',
-          overscrollBehavior: 'contain',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',          // outer never scrolls — it only transforms
           transform,
           transition,
           willChange: 'transform',
         }}>
 
-        {/* Drag header — grab the handle OR the title bar to pull the sheet down.
-            Sticky so it stays grabbable even when the content is scrolled. */}
+        {/* Drag header — lives OUTSIDE the scroller, so grabbing it can only drag
+            the sheet (never scroll). Grab the handle or the title bar. */}
         <div ref={handleRef} style={{
-          position: 'sticky', top: 0, zIndex: 1,
-          background: 'var(--elevated)',
-          borderTopLeftRadius: 16, borderTopRightRadius: 16,
+          flexShrink: 0,
           touchAction: 'none', cursor: 'grab', userSelect: 'none',
         }}>
           <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 8px' }}>
@@ -212,7 +214,11 @@ export function Modal({ open, onClose, title, children, maxWidth = 480 }: ModalP
             </div>
           )}
         </div>
-        <div className="p-5">{children}</div>
+
+        {/* Scrollable content — drag-to-dismiss only kicks in when this is at the top */}
+        <div ref={scrollRef} className="p-5" style={{ overflowY: 'auto', overscrollBehavior: 'contain', flex: '1 1 auto' }}>
+          {children}
+        </div>
       </div>
     </div>,
     document.body
