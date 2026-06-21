@@ -2,6 +2,8 @@
 import { useRef, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 
+const SCAN_TIMEOUT_MS = 12_000
+
 type ScanState = 'idle' | 'camera' | 'confirm'
 interface Props { onResult: (name: string, number?: string) => void }
 
@@ -29,6 +31,7 @@ export function ScanCardButton({ onResult }: Props) {
   const [cardNumber, setCardNumber] = useState('')
   const [camError, setCamError] = useState('')
   const [videoReady, setVideoReady] = useState(false)
+  const [scanTimedOut, setScanTimedOut] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const cardGuideRef = useRef<HTMLDivElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -114,22 +117,11 @@ export function ScanCardButton({ onResult }: Props) {
     streamRef.current = null
 
     openedAtRef.current = Date.now()
+    setScanTimedOut(false)
     setEditValue('Scanning…')
     setCardNumber('')
     setState('confirm')
-
-    try {
-      const res = await fetch('/api/scan-card', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64 }),
-      })
-      const data = await res.json() as { name?: string; number?: string; debug?: string }
-      setEditValue(data.name || data.debug || 'no name detected')
-      setCardNumber(data.number ?? '')
-    } catch (err) {
-      setEditValue(`Error: ${String(err)}`)
-    }
+    await doScan(imageBase64)
   }
 
   // File input fallback (desktop / no camera API)
@@ -160,21 +152,35 @@ export function ScanCardButton({ onResult }: Props) {
     })
 
     openedAtRef.current = Date.now()
+    setScanTimedOut(false)
     setEditValue('Scanning…')
     setCardNumber('')
     setState('confirm')
+    await doScan(imageBase64)
+  }
 
+  async function doScan(imageBase64: string) {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), SCAN_TIMEOUT_MS)
     try {
       const res = await fetch('/api/scan-card', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageBase64 }),
+        signal: controller.signal,
       })
+      clearTimeout(timeout)
       const data = await res.json() as { name?: string; number?: string; debug?: string }
       setEditValue(data.name || data.debug || 'no name detected')
       setCardNumber(data.number ?? '')
     } catch (err) {
-      setEditValue(`Error: ${String(err)}`)
+      clearTimeout(timeout)
+      if ((err as Error).name === 'AbortError') {
+        setScanTimedOut(true)
+        setEditValue('')
+      } else {
+        setEditValue(`Error: ${String(err)}`)
+      }
     }
   }
 
@@ -372,24 +378,39 @@ export function ScanCardButton({ onResult }: Props) {
             <p style={{ margin: '0 0 2px', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)' }}>
               CARD DETECTED
             </p>
-            <p style={{ margin: '0 0 14px', fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>
-              {editValue === 'Scanning…'
-                ? 'Reading card…'
-                : cardNumber
-                  ? `Card #${cardNumber} · fix name if needed, then Search.`
-                  : 'Fix the name if needed, then tap Search.'}
+            <p style={{ margin: '0 0 10px', fontSize: 12, color: scanTimedOut ? 'rgba(251,146,60,0.9)' : 'rgba(255,255,255,0.55)' }}>
+              {scanTimedOut
+                ? 'Scan timed out — tap Retry to try again.'
+                : editValue === 'Scanning…'
+                  ? 'Reading card…'
+                  : cardNumber
+                    ? `Card #${cardNumber} · fix name if needed, then Search.`
+                    : 'Fix the name if needed, then tap Search.'}
             </p>
+
+            {/* Progress bar — visible only while actively scanning */}
+            <div style={{ height: 3, borderRadius: 2, overflow: 'hidden', background: 'rgba(255,255,255,0.08)', marginBottom: 12 }}>
+              {editValue === 'Scanning…' && !scanTimedOut && (
+                <div style={{
+                  height: '100%',
+                  background: 'var(--btn-info)',
+                  animation: `scan-progress ${SCAN_TIMEOUT_MS}ms cubic-bezier(0.1, 0.8, 0.4, 1) forwards`,
+                }} />
+              )}
+            </div>
+
             <input
-              value={editValue}
+              value={editValue === 'Scanning…' ? '' : editValue}
               onChange={e => setEditValue(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSearch()}
-              placeholder="Card name…"
+              placeholder={editValue === 'Scanning…' ? 'Reading card…' : 'Card name…'}
+              disabled={editValue === 'Scanning…'}
               style={{
                 display: 'block', width: '100%', padding: '11px 14px',
                 borderRadius: 10, boxSizing: 'border-box',
                 background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)',
                 color: '#ffffff', fontSize: 16, outline: 'none',
-                marginBottom: 12,
+                marginBottom: 12, opacity: editValue === 'Scanning…' ? 0.4 : 1,
               }}
             />
             <div style={{ display: 'flex', gap: 8 }}>
@@ -405,8 +426,10 @@ export function ScanCardButton({ onResult }: Props) {
                 onClick={handleRetry}
                 style={{
                   flex: 1, padding: '10px 0', borderRadius: 10, fontSize: 13, fontWeight: 700,
-                  background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.75)',
-                  border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer',
+                  background: scanTimedOut ? 'var(--btn-info)' : 'rgba(255,255,255,0.07)',
+                  color: scanTimedOut ? '#fff' : 'rgba(255,255,255,0.75)',
+                  border: scanTimedOut ? 'none' : '1px solid rgba(255,255,255,0.15)',
+                  cursor: 'pointer',
                 }}
               >↺ Retry</button>
               <button

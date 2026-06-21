@@ -190,6 +190,12 @@ input[type="time"] {
   animation: prismatic-glow 4s linear infinite !important;
 }
 
+/* Scan progress bar — fake-advances to 78% over 12s matching the scan timeout */
+@keyframes scan-progress {
+  from { width: 0% }
+  to   { width: 78% }
+}
+
 /* Animations */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(16px) scale(0.99); }
