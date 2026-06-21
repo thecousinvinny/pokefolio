@@ -83,13 +83,54 @@ async function fuzzySnapName(raw: string): Promise<string> {
   return raw
 }
 
-const SUFFIX_RE = /\s+(ex|V|VMAX|VSTAR|VUNION|GX|EX|TAG\s*TEAM)\s*$/i
-// Standalone tokens that are never the Pokémon's base name — used to filter the top name zone
-// and to skip whole lines in the line-based fallback. Includes bare "V" (Leafeon V, etc.).
+const SUFFIX_RE = /\s+(VMAX|VSTAR|V-?UNION|GX|EX|ex|V|TAG\s*TEAM)\s*$/i
+// Standalone tokens that are never the Pokémon's base name — used to skip whole lines
+// in the line-based fallback. Includes bare "V" (Leafeon V, etc.).
 const STAGE_RE = /^(BASIC|STAGE\s*\d+|V|V-?UNION|VMAX|VSTAR|GX|EX|TAG\s*TEAM)$/i
+// Evolution-stage labels only — these are dropped outright (never a card-name suffix).
+const BASIC_STAGE_RE = /^(BASIC|STAGE\s*\d+)$/i
 const HP_TOKEN_RE = /^(HP|\d+)$/i
 // Splits fused suffix tokens: "ReshiramEX" → "Reshiram EX", "CharizardVMAX" → "Charizard VMAX"
 const FUSED_SUFFIX_RE = /([A-Za-z])(VMAX|VSTAR|VUNION|GX|EX|ex)(?=\s|$)/g
+
+// Canonical card-name suffixes. Long ones (VMAX/VSTAR/VUNION) tolerate 1 OCR edit
+// so garbled reads like "VATAR"/"VSTAF"/"VMAk" still snap; short ones (V/GX/EX)
+// require an exact match since a 1-edit window would swallow real letters.
+const FUZZY_SUFFIXES = ['VSTAR', 'VMAX', 'VUNION']
+
+// Maps a single OCR token to a canonical suffix, or null if it isn't one.
+// Preserves ex/EX casing (modern "ex" vs legacy "EX" are different cards).
+function normalizeSuffix(token: string): string | null {
+  if (/^ex$/.test(token)) return 'ex'
+  if (/^EX$/.test(token)) return 'EX'
+  const t = token.toUpperCase().replace(/[^A-Z]/g, '')
+  if (!t) return null
+  if (t === 'V') return 'V'
+  if (t === 'GX') return 'GX'
+  if (t === 'VUNION') return 'V-UNION'
+  if (t === 'VSTAR' || t === 'VMAX') return t
+  for (const s of FUZZY_SUFFIXES) {
+    if (t.length >= 4 && levenshtein(t, s) <= 1) return s === 'VUNION' ? 'V-UNION' : s
+  }
+  return null
+}
+
+// Pulls any suffix token out of a name, drops every suffix-like token, and reattaches
+// the canonical suffix at the end. "VSTAR Leafeon" / "Leafeon VSTAR" → "Leafeon VSTAR";
+// a plain "Leafeon" is returned unchanged (no suffix detected).
+function canonicalizeSuffix(name: string): string {
+  const tokens = name.split(/\s+/).filter(Boolean)
+  let suffix: string | null = null
+  const base: string[] = []
+  for (const t of tokens) {
+    const s = normalizeSuffix(t)
+    if (s) { if (!suffix) suffix = s; continue }
+    base.push(t)
+  }
+  const baseName = base.join(' ').trim()
+  if (!baseName) return name.trim()   // all tokens looked like suffixes — bail, keep original
+  return suffix ? `${baseName} ${suffix}` : baseName
+}
 
 interface WordAnnotation {
   description: string
@@ -122,15 +163,19 @@ function parseCardText(annotations: WordAnnotation[], fullText: string): { rawNa
       return Math.abs(dy) > 8 ? dy : minX(a) - minX(b)
     })
 
+  // Keep suffix tokens (VSTAR/VMAX/V/GX/EX) — only drop stage labels and HP/numbers.
+  // canonicalizeSuffix then relocates the suffix to the end so "Leafeon VSTAR" survives.
   const nameTokens = topWords
     .map(w => w.description)
-    .filter(t => !STAGE_RE.test(t) && !HP_TOKEN_RE.test(t))
-  const rawName = nameTokens
-    .join(' ')
-    .replace(FUSED_SUFFIX_RE, '$1 $2')
-    .replace(/\s+HP\s*\d.*/i, '')
-    .replace(/\s+\d{1,3}\s*$/, '')
-    .trim()
+    .filter(t => !BASIC_STAGE_RE.test(t) && !HP_TOKEN_RE.test(t))
+  const rawName = canonicalizeSuffix(
+    nameTokens
+      .join(' ')
+      .replace(FUSED_SUFFIX_RE, '$1 $2')
+      .replace(/\s+HP\s*\d.*/i, '')
+      .replace(/\s+\d{1,3}\s*$/, '')
+      .trim()
+  )
 
   // BOTTOM zone: bottom 15% — card number (e.g. 025/198, TG01/TG30, SV001/SV122)
   const bottomText = words
@@ -153,12 +198,14 @@ function parseCardText(annotations: WordAnnotation[], fullText: string): { rawNa
 function parseLinesBased(fullText: string): { rawName: string; rawNumber: string; rawTotal: string } {
   const lines = fullText.split('\n').map(l => l.trim()).filter(l => l.length > 1 && /^[A-Za-z]/.test(l))
   const nameLine = lines.find(l => !STAGE_RE.test(l)) ?? lines[0] ?? ''
-  const rawName = nameLine
-    .replace(/^(BASIC|STAGE\s*\d+)\s+/i, '')
-    .replace(FUSED_SUFFIX_RE, '$1 $2')
-    .replace(/\s+HP\s*\d.*/i, '')
-    .replace(/\s+\d{1,3}\s*$/, '')
-    .trim()
+  const rawName = canonicalizeSuffix(
+    nameLine
+      .replace(/^(BASIC|STAGE\s*\d+)\s+/i, '')
+      .replace(FUSED_SUFFIX_RE, '$1 $2')
+      .replace(/\s+HP\s*\d.*/i, '')
+      .replace(/\s+\d{1,3}\s*$/, '')
+      .trim()
+  )
   const numMatch = fullText.match(/([A-Z]{0,6}\d{1,3})\/([A-Z]{0,6}\d{2,3})/)
   const rawNumber = numMatch ? numMatch[1] : ''
   const rawTotal = numMatch ? numMatch[2].replace(/^[A-Z]+/, '') : ''
