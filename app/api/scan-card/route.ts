@@ -115,6 +115,19 @@ function normalizeSuffix(token: string): string | null {
   return null
 }
 
+// Strips HP (label + its 2–3 digit value, whether spaced or fused like "Garchompex320"),
+// splits fused suffixes ("Garchompex" → "Garchomp ex"), and tidies whitespace.
+// Pokémon/Trainer/Energy names contain no 2–3 digit numbers, so removing them is safe.
+function cleanNameString(s: string): string {
+  return s
+    .replace(/\bHP\b/gi, ' ')             // HP label
+    .replace(/(\d{2,3})(?=\D|$)/g, ' ')    // HP value — fused or standalone
+    .replace(FUSED_SUFFIX_RE, '$1 $2')     // "Garchompex" → "Garchomp ex"
+    .replace(/\s+\d\s*$/, '')              // stray trailing single digit
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
 // Pulls any suffix token out of a name, drops every suffix-like token, and reattaches
 // the canonical suffix at the end. "VSTAR Leafeon" / "Leafeon VSTAR" → "Leafeon VSTAR";
 // a plain "Leafeon" is returned unchanged (no suffix detected).
@@ -181,14 +194,7 @@ function parseCardText(annotations: WordAnnotation[], fullText: string): { rawNa
       .map(w => w.description)
       .filter(t => !BASIC_STAGE_RE.test(t) && !HP_TOKEN_RE.test(t))
   }
-  const rawName = canonicalizeSuffix(
-    nameTokens
-      .join(' ')
-      .replace(FUSED_SUFFIX_RE, '$1 $2')
-      .replace(/\s+HP\s*\d.*/i, '')
-      .replace(/\s+\d{1,3}\s*$/, '')
-      .trim()
-  )
+  const rawName = canonicalizeSuffix(cleanNameString(nameTokens.join(' ')))
 
   // BOTTOM zone: bottom 15% — card number (e.g. 025/198, TG01/TG30, SV001/SV122)
   const bottomText = words
@@ -212,12 +218,7 @@ function parseLinesBased(fullText: string): { rawName: string; rawNumber: string
   const lines = fullText.split('\n').map(l => l.trim()).filter(l => l.length > 1 && /^[A-Za-z]/.test(l))
   const nameLine = lines.find(l => !STAGE_RE.test(l)) ?? lines[0] ?? ''
   const rawName = canonicalizeSuffix(
-    nameLine
-      .replace(/^(BASIC|STAGE\s*\d+)\s+/i, '')
-      .replace(FUSED_SUFFIX_RE, '$1 $2')
-      .replace(/\s+HP\s*\d.*/i, '')
-      .replace(/\s+\d{1,3}\s*$/, '')
-      .trim()
+    cleanNameString(nameLine.replace(/^(BASIC|STAGE\s*\d+)\s+/i, ''))
   )
   const numMatch = fullText.match(/([A-Z]{0,6}\d{1,3})\/([A-Z]{0,6}\d{2,3})/)
   const rawNumber = numMatch ? numMatch[1] : ''
