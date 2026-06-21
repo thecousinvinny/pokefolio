@@ -18,7 +18,7 @@ export function AddToPortfolioModal({ card, onClose, defaultStatus = 'owned' }: 
   const { addCard } = useCollection()
   const today = new Date().toISOString().slice(0, 10)
 
-  const [status, setStatus] = useState<'owned' | 'wishlist'>(defaultStatus)
+  const [status] = useState<'owned' | 'wishlist'>(defaultStatus)
   const [language, setLanguage] = useState<'EN' | 'JP' | 'CN'>('EN')
   const [condition, setCondition] = useState<number>(() => {
     const saved = typeof window !== 'undefined' ? localStorage.getItem(LS_DEFAULT_CONDITION) : null

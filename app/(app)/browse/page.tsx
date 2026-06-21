@@ -144,7 +144,7 @@ export default function BrowsePage() {
       _browseScrollY = window.scrollY
       abortRef.current?.abort()
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
 
   const ownedTcgIds = useMemo(() =>

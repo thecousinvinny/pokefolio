@@ -40,7 +40,7 @@ export function EditCardModal({ card, onClose, onBack }: EditCardModalProps) {
       notes: notes.trim() || undefined,
     })
     setSaving(false)
-    onBack ? onBack() : onClose()
+    if (onBack) onBack(); else onClose()
   }
 
   if (!card) return null

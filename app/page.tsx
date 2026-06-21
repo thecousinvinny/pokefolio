@@ -17,7 +17,7 @@ function RootRedirect() {
     } else {
       router.replace('/dashboard')
     }
-  }, [])
+  }, [router, searchParams])
 
   return null
 }

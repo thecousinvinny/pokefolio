@@ -37,7 +37,7 @@ interface CardDetailModalProps {
 }
 
 export function CardDetailModal({ card, onClose, initialView = 'detail', view = 'portfolio' }: CardDetailModalProps) {
-  const { updateCard, setFavorite, setShowcase, removeCard } = useCollection()
+  const { updateCard, removeCard } = useCollection()
   const [condition, setCondition] = useState<number>(
     card ? CONDITION_ORDER.indexOf(card.condition) : 0
   )
@@ -88,7 +88,6 @@ export function CardDetailModal({ card, onClose, initialView = 'detail', view = 
     setCondition(idx)
     await updateCard(card!.id, { condition: CONDITION_ORDER[idx] })
   }
-  function handleShowcase() { setShowcase(card!.id) }
   function handleToWatch() { updateCard(card!.id, { status: 'wishlist' }); onClose() }
   function handleRemove() { removeCard(card!.id); onClose() }
   function startEditTarget() {
@@ -540,9 +539,6 @@ function MiniStat({ label, value }: { label: string; value: string }) {
   )
 }
 
-function Divider() {
-  return <div style={{ width: 1, height: 16, background: 'var(--border)', flexShrink: 0 }} />
-}
 
 function Btn({ label, color = 'var(--text2)', accentBg, gradient, onClick, href, active, wide }: {
   label: string; color?: string; accentBg?: string; gradient?: string

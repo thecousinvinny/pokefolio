@@ -565,10 +565,10 @@ function SwipeRow({
           // Every mouseup/touchend on this element also fires a click. Swallow it
           // after a real drag so we don't accidentally open the detail modal.
           if (didDragRef.current) { didDragRef.current = false; return }
-          isOpen ? onClose() : onView()
+          if (isOpen) onClose(); else onView()
         }}
         onKeyDown={e => {
-          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); isOpen ? onClose() : onView() }
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (isOpen) onClose(); else onView() }
           if (e.key === 'Escape') onClose()
         }}
       >

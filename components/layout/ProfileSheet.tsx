@@ -305,7 +305,6 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
           owned={owned}
           totalValue={totalValue}
           sales={sales}
-          cards={cards}
           onOpenShare={() => { setView('share') }}
           onOpenLogout={() => setView('logout')}
           onExport={() => {
@@ -369,7 +368,7 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
 function MainView({
   avatarImg, initials, uploading, displayName, editing, nameInput, nameInputRef,
   onAvatarClick, onRemoveAvatar, onStartEdit, onNameChange, onSaveName, onCancelEdit,
-  owned, totalValue, sales, cards,
+  owned, totalValue, sales,
   onOpenShare, onOpenLogout, onExport,
   privacyMode, onPrivacyToggle, defaultCondition, onConditionChange,
   cacheCleared, onClearCache, onImport,
@@ -380,7 +379,7 @@ function MainView({
   onAvatarClick: () => void; onRemoveAvatar: () => void
   onStartEdit: () => void; onNameChange: (v: string) => void
   onSaveName: () => void; onCancelEdit: () => void
-  owned: unknown[]; totalValue: number; sales: unknown[]; cards: unknown[]
+  owned: unknown[]; totalValue: number; sales: unknown[]
   onOpenShare: () => void; onOpenLogout: () => void; onExport: () => void
   privacyMode: boolean; onPrivacyToggle: () => void
   defaultCondition: string; onConditionChange: (c: string) => void

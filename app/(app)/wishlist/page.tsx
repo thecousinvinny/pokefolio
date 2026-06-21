@@ -266,8 +266,8 @@ function BudgetModeModal({ wishlist, owned, onClose }: {
     conditionAdjustedValue(b) - conditionAdjustedValue(a)
   )
 
-  let sellList: PokemonCard[] = []
-  let buyList: PokemonCard[] = []
+  const sellList: PokemonCard[] = []
+  const buyList: PokemonCard[] = []
   let proceeds = 0
   let cost = 0
 

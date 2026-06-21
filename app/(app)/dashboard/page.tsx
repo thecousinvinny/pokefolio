@@ -1,7 +1,6 @@
 'use client'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo } from 'react'
 import Image from 'next/image'
-import Link from 'next/link'
 import { TrendingUpIcon, CardIcon, SparkleIcon } from '@/components/ui/Icons'
 import { StatCard } from '@/components/ui/StatCard'
 import { RollingNumber } from '@/components/ui/RollingNumber'
