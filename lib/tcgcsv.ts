@@ -89,8 +89,16 @@ function normSetName(s: string): string {
     .replace(/[^a-z0-9]+/g, '')        // "crown zenith: galarian gallery" → "crownzenithgalariangallery"
 }
 
+// pokemontcg.io ↔ tcgcsv name mismatches that normalization can't bridge
+// (different words entirely). Keyed by lowercased pokemontcg.io set name.
+const SET_NAME_ALIASES: Record<string, string> = {
+  'swsh black star promos': 'Sword & Shield Promo Cards',
+  'scarlet & violet black star promos': 'Scarlet & Violet Promo Cards',
+}
+
 function resolveGroupId(groups: Group[], setName: string): number | null {
-  const target = normSetName(setName)
+  const aliased = SET_NAME_ALIASES[setName.toLowerCase().trim()] ?? setName
+  const target = normSetName(aliased)
   if (!target) return null
   // Exact normalized match first — keeps base "Crown Zenith" from grabbing the
   // "Crown Zenith Galarian Gallery" group (and vice-versa).

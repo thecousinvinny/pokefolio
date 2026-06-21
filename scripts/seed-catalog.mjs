@@ -44,17 +44,19 @@ const tcgHeaders = TCG_KEY ? { 'X-Api-Key': TCG_KEY } : {}
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 async function tcgGet(path) {
-  for (let attempt = 0; attempt < 4; attempt++) {
+  for (let attempt = 0; attempt < 5; attempt++) {
     try {
       const res = await fetch(`${BASE}${path}`, { headers: tcgHeaders })
       if (res.status === 429) { await sleep(2000 * (attempt + 1)); continue }
+      // pokemontcg.io intermittently 404/5xx's under load — retry, don't give up
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       return await res.json()
     } catch (err) {
-      if (attempt === 3) throw err
-      await sleep(1000 * (attempt + 1))
+      if (attempt === 4) { console.warn(`  ! ${path} failed after retries: ${err.message}`); return null }
+      await sleep(1500 * (attempt + 1))
     }
   }
+  return null
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 const toDate = s => s ? s.replace(/\//g, '-') : null   // "2023/03/31" → "2023-03-31"
@@ -93,27 +95,38 @@ const SELECT = 'id,name,supertype,types,rarity,number,set,images,artist,hp,flavo
 
 console.log('• Fetching set list…')
 const setsRes = await tcgGet('/sets?pageSize=250&orderBy=releaseDate')
+// Modern era = SWSH + SV set IDs, OR release date >= cutoff. The id check catches
+// promo sets (e.g. "swshp" SWSH Black Star Promos) whose release date is dated to
+// the start of the era (~2019) but which contain modern cards like Lucario VSTAR.
 const modernSets = (setsRes.data ?? [])
-  .filter(s => s.releaseDate && toDate(s.releaseDate) >= MODERN_CUTOFF)
-  .sort((a, b) => toDate(a.releaseDate) < toDate(b.releaseDate) ? 1 : -1)
+  .filter(s => /^(swsh|sv)/i.test(s.id) || (s.releaseDate && toDate(s.releaseDate) >= MODERN_CUTOFF))
+  .sort((a, b) => toDate(a.releaseDate ?? '0') < toDate(b.releaseDate ?? '0') ? 1 : -1)
 
-console.log(`• ${modernSets.length} modern sets (release >= ${MODERN_CUTOFF})`)
+console.log(`• ${modernSets.length} modern sets (SWSH/SV ids or release >= ${MODERN_CUTOFF})`)
 
 let total = 0
+const skipped = []
 for (const [idx, set] of modernSets.entries()) {
-  let page = 1, setCount = 0
-  for (;;) {
-    const json = await tcgGet(`/cards?q=set.id:${set.id}&select=${SELECT}&page=${page}&pageSize=250`)
-    const cards = json.data ?? []
-    if (cards.length === 0) break
-    await upsertBatch(cards.map(toRow))
-    setCount += cards.length
-    if (cards.length < 250) break
-    page++
+  try {
+    let page = 1, setCount = 0
+    for (;;) {
+      const json = await tcgGet(`/cards?q=set.id:${set.id}&select=${SELECT}&page=${page}&pageSize=250`)
+      if (!json) { skipped.push(set.name); break }   // set failed after retries — skip, keep going
+      const cards = json.data ?? []
+      if (cards.length === 0) break
+      await upsertBatch(cards.map(toRow))
+      setCount += cards.length
+      if (cards.length < 250) break
+      page++
+    }
+    total += setCount
+    console.log(`  [${idx + 1}/${modernSets.length}] ${set.name.padEnd(30)} +${setCount}  (running: ${total})`)
+  } catch (err) {
+    skipped.push(set.name)
+    console.warn(`  [${idx + 1}/${modernSets.length}] ${set.name.padEnd(30)} SKIPPED: ${err.message}`)
   }
-  total += setCount
-  console.log(`  [${idx + 1}/${modernSets.length}] ${set.name.padEnd(30)} +${setCount}  (running: ${total})`)
 }
 
 const { count } = await supabase.from('card_catalog').select('*', { count: 'exact', head: true })
 console.log(`\n✓ Done. Seeded ${total} cards this run. card_catalog now holds ${count} rows.`)
+if (skipped.length) console.log(`⚠ Skipped ${skipped.length} set(s) after retries: ${skipped.join(', ')}`)

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { searchCardsFlexible } from '@/lib/tcg'
+import { searchCatalog, resolveCatalogByNumberTotal, catalogNameExists } from '@/lib/catalog'
 
 const VISION_URL = 'https://vision.googleapis.com/v1/images:annotate'
 
@@ -203,15 +204,22 @@ function parseCardText(annotations: WordAnnotation[], fullText: string): { rawNa
     .map(w => w.description)
     .join(' ')
 
-  // Flexible number regex: handles plain digits, and prefixes up to 6 chars (SWSH, TG, SV, GG…)
-  const numMatch = bottomText.match(/([A-Z]{0,6}\d{1,3})\/([A-Z]{0,6}\d{2,3})/)
-  const rawNumber = numMatch ? numMatch[1] : ''
-  const rawTotal = numMatch ? numMatch[2].replace(/^[A-Z]+/, '') : ''
+  const { rawNumber, rawTotal } = parseNumber(bottomText)
 
   // If position parsing found nothing, fall back
   if (!rawName) return parseLinesBased(fullText)
 
   return { rawName, rawNumber, rawTotal }
+}
+
+// Card number from the bottom text. Handles the standard "025/198" form and the
+// promo form with no denominator ("SWSH291", "SVP123", "SM210").
+function parseNumber(text: string): { rawNumber: string; rawTotal: string } {
+  const slash = text.match(/([A-Z]{0,6}\d{1,3})\/([A-Z]{0,6}\d{2,3})/)
+  if (slash) return { rawNumber: slash[1], rawTotal: slash[2].replace(/^[A-Z]+/, '') }
+  // Promo: 2–5 uppercase letters + digits, no "/total"
+  const promo = text.match(/\b([A-Z]{2,5}\d{1,3})\b/)
+  return { rawNumber: promo ? promo[1] : '', rawTotal: '' }
 }
 
 function parseLinesBased(fullText: string): { rawName: string; rawNumber: string; rawTotal: string } {
@@ -220,9 +228,7 @@ function parseLinesBased(fullText: string): { rawName: string; rawNumber: string
   const rawName = canonicalizeSuffix(
     cleanNameString(nameLine.replace(/^(BASIC|STAGE\s*\d+)\s+/i, ''))
   )
-  const numMatch = fullText.match(/([A-Z]{0,6}\d{1,3})\/([A-Z]{0,6}\d{2,3})/)
-  const rawNumber = numMatch ? numMatch[1] : ''
-  const rawTotal = numMatch ? numMatch[2].replace(/^[A-Z]+/, '') : ''
+  const { rawNumber, rawTotal } = parseNumber(fullText)
   return { rawName, rawNumber, rawTotal }
 }
 
@@ -248,6 +254,29 @@ async function resolveBySetTotal(cardNumber: string, total: string): Promise<str
 }
 
 async function verifyName(name: string, number: string, total: string): Promise<{ name: string; number: string }> {
+  // ── Catalog-first: instant local verification (covers virtually all modern scans) ──
+  try {
+    // a. number + printed total → authoritative exact card
+    if (number && total) {
+      const hit = await resolveCatalogByNumberTotal(number, total)
+      if (hit) return { name: hit, number }
+    }
+    // b. name + number → confirm/correct against the exact printing
+    if (name && number) {
+      const r = await searchCatalog({ query: name, number, pageSize: 2 })
+      if (r && r.data.length) return { name: r.data[0].name, number }
+    }
+    // c. name exists in catalog → trust the OCR name. Drop the number so the
+    //    client's follow-up search stays name-only (a promo number not in the
+    //    catalog would otherwise force a slow live lookup).
+    if (name && await catalogNameExists(name)) return { name, number: '' }
+  } catch { /* catalog unavailable — fall through to live */ }
+
+  // ── Live fallback: pokemontcg.io cascade for cards not in the catalog ──
+  return verifyNameLive(name, number, total)
+}
+
+async function verifyNameLive(name: string, number: string, total: string): Promise<{ name: string; number: string }> {
   // Steps 0 + 1 run in parallel — most successful scans exit here in one round-trip
   const [resolved, exactHit] = await Promise.all([
     number && total ? resolveBySetTotal(number, total) : Promise.resolve(null),

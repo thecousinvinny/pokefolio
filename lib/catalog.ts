@@ -121,6 +121,34 @@ export async function searchCatalog(params: CatalogSearchParams): Promise<TCGSea
   }
 }
 
+// Scan helper: card number + printed total uniquely identifies a card. Returns the
+// authoritative catalog name when exactly one card matches. Plain-digit only
+// (promos/subsets have no clean total). Instant — used to verify/correct OCR.
+export async function resolveCatalogByNumberTotal(number: string, total: string): Promise<string | null> {
+  if (!/^\d+$/.test(number) || !/^\d+$/.test(total)) return null
+  const { data, error } = await supabase
+    .from('card_catalog')
+    .select('name')
+    .eq('number', number)
+    .eq('printed_total', Number(total))
+    .limit(2)
+  if (error || !data || data.length !== 1) return null
+  return (data[0] as { name: string }).name
+}
+
+// Scan helper: does any catalog card match this name (prefix)? Instant existence
+// check that replaces a live API round-trip when confirming an OCR'd name.
+export async function catalogNameExists(name: string): Promise<boolean> {
+  const term = sanitize(name)
+  if (!term) return false
+  const { data, error } = await supabase
+    .from('card_catalog')
+    .select('id')
+    .ilike('name', `${term}%`)
+    .limit(1)
+  return !error && !!data && data.length > 0
+}
+
 // Fills in live prices for catalog cards: groups by set, fetches each unique
 // set's tcgcsv price map in parallel, then matches each card by number.
 // Best-effort — any set that fails just leaves those cards priceless.
