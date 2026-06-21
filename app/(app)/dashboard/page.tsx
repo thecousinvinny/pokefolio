@@ -4,6 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { TrendingUpIcon, CardIcon, SparkleIcon } from '@/components/ui/Icons'
 import { StatCard } from '@/components/ui/StatCard'
+import { RollingNumber } from '@/components/ui/RollingNumber'
 import { getArtColors } from '@/components/cards/CardArtwork'
 import { useCollection } from '@/components/CollectionContext'
 import { conditionAdjustedValue, unrealizedProfit } from '@/types'
@@ -91,27 +92,12 @@ export default function DashboardPage() {
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function PortfolioHero({ totalValue, unrealized }: { totalValue: number; unrealized: number }) {
-  const [displayed, setDisplayed] = useState(0)
-
-  useEffect(() => {
-    if (totalValue === 0) return
-    let start = 0
-    const step = totalValue / 40
-    const timer = setInterval(() => {
-      start = Math.min(start + step, totalValue)
-      setDisplayed(start)
-      if (start >= totalValue) clearInterval(timer)
-    }, 25)
-    return () => clearInterval(timer)
-  }, [totalValue])
-
   return (
     <div className="surface-card p-6 text-center"
       style={{ border: '1px solid rgba(255,200,69,0.2)', boxShadow: '0 0 40px rgba(255,200,69,0.05)' }}>
       <p className="section-label mb-2">TOTAL PORTFOLIO VALUE</p>
-      <p className="text-5xl font-black tracking-tight pv"
-        style={{ background: 'linear-gradient(135deg, var(--gold), var(--amber))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-        {formatPrice(displayed)}
+      <p className="text-5xl font-black tracking-tight pv">
+        <RollingNumber value={formatPrice(totalValue)} gradient="linear-gradient(135deg, var(--gold), var(--amber))" />
       </p>
       <div className="flex items-center justify-center gap-1.5 mt-3 text-sm font-semibold"
         style={{ color: unrealized >= 0 ? 'var(--emerald)' : 'var(--crimson)' }}>
