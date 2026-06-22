@@ -131,6 +131,7 @@ export default function BrowsePage() {
   const [showFilters, setShowFilters] = useState(false)
   const [setFilter, setSetFilter] = useState('')
   const [sets, setSets] = useState<{ name: string }[]>([])
+  const [showTop, setShowTop] = useState(false)
   const [priceMin, setPriceMin] = useState('')
   const [priceMax, setPriceMax] = useState('')
   const defaultKey = cacheKey('', '')
@@ -189,6 +190,15 @@ export default function BrowsePage() {
       _browseScrollY = window.scrollY
       abortRef.current?.abort()
     }
+  }, [])
+
+  // Show a "back to top" FAB once the user has scrolled past the first screen —
+  // the only way back to the search bar after a deep infinite scroll.
+  useEffect(() => {
+    const onScroll = () => setShowTop(window.scrollY > 700)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    onScroll()
+    return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
 
@@ -616,6 +626,33 @@ export default function BrowsePage() {
         onClose={() => setAddTarget(null)}
         defaultStatus={addDefaultStatus}
       />
+
+      {/* Back to top — sits just above the global Scan FAB, fades in on scroll */}
+      <button
+        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        aria-label="Back to top"
+        style={{
+          position: 'fixed',
+          bottom: 'calc(156px + env(safe-area-inset-bottom))',
+          right: 22,
+          zIndex: 101,
+          width: 48, height: 48, borderRadius: '50%',
+          background: 'rgba(30, 32, 51, 0.55)',
+          backdropFilter: 'blur(16px) saturate(160%)',
+          WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+          border: '1px solid rgba(255, 255, 255, 0.18)',
+          color: 'var(--text)', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+          opacity: showTop ? 1 : 0,
+          transform: showTop ? 'translateY(0) scale(1)' : 'translateY(12px) scale(0.85)',
+          pointerEvents: showTop ? 'auto' : 'none',
+          transition: 'opacity 0.25s ease, transform 0.38s cubic-bezier(0.34, 1.56, 0.64, 1)',
+        }}>
+        <svg width={20} height={20} fill="none" viewBox="0 0 24 24" strokeWidth={2.4} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
+        </svg>
+      </button>
     </div>
   )
 }
