@@ -130,9 +130,20 @@ export default function BrowsePage() {
   const [rarityGroup, setRarityGroup] = useState<RarityGroup>(() => lsGet('catchm_b_rarity', 'all'))
   const [showFilters, setShowFilters] = useState(false)
   const [setFilter, setSetFilter] = useState('')
+  const [sets, setSets] = useState<{ name: string }[]>([])
   const [priceMin, setPriceMin] = useState('')
   const [priceMax, setPriceMax] = useState('')
   const defaultKey = cacheKey('', '')
+
+  // Set list for the filter dropdown (cached endpoint; sets change rarely)
+  useEffect(() => {
+    let active = true
+    fetch('/api/sets')
+      .then(r => (r.ok ? r.json() : { sets: [] }))
+      .then(d => { if (active) setSets(d.sets ?? []) })
+      .catch(() => {})
+    return () => { active = false }
+  }, [])
 
   // Compute initial data once: module cache (fastest) → localStorage → nothing
   const [initState] = useState(() => {
@@ -258,7 +269,8 @@ export default function BrowsePage() {
       if (q)   params.set('q', q)
       if (set) params.set('set', set)
       if (num) params.set('number', num)
-      if (!q && !set && !num) params.set('fullArtOnly', 'true')
+      // Default browse covers the whole catalog (premium sort surfaces full-arts
+      // first); no rarity gate, so infinite scroll runs all the way through.
       params.set('page', String(p))
       params.set('pageSize', String(PAGE_SIZE))
       const res = await fetch(`/api/tcg/search?${params}`, { signal })
@@ -276,7 +288,9 @@ export default function BrowsePage() {
         const next = append ? dedupById([...prev, ...incoming]) : incoming
         const cEntry: CacheEntry = { results: next, totalCount: data.totalCount ?? 0, hasMore: nextHasMore, ts: Date.now() }
         _browseCache.set(key, cEntry)
-        if (!q && !set && !num) lsSaveDefault(cEntry)
+        // Persist only the first page to LS for a fast cross-session paint — the
+        // full-catalog scroll would otherwise blow past the localStorage quota.
+        if (!q && !set && !num && !append) lsSaveDefault(cEntry)
         return next
       })
       setTotalCount(data.totalCount ?? 0)
@@ -475,11 +489,14 @@ export default function BrowsePage() {
           <p className="section-label mb-3">ADVANCED</p>
           <div className="flex gap-3 flex-wrap">
             <div style={{ flex: '1 1 140px' }}>
-              <label className="section-label block mb-1.5">Set Name</label>
-              <input type="text" placeholder="Surging Sparks…" value={setFilter}
+              <label className="section-label block mb-1.5">Set</label>
+              <select value={setFilter}
                 onChange={e => setSetFilter(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                style={{ background: 'var(--s2)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+                style={{ background: 'var(--s2)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+                <option value="">All sets</option>
+                {sets.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
+              </select>
             </div>
             <div style={{ flex: '1 1 100px' }}>
               <label className="section-label block mb-1.5">Min Price</label>
@@ -533,7 +550,6 @@ export default function BrowsePage() {
       {(!loading || displayResults.length > 0) && displayResults.length > 0 && (
         <p className="text-sm mb-4" style={{ color: 'var(--text3)' }}>
           {displayResults.length}{totalCount > rawResults.length ? '+' : ''} cards
-          {!query && !setFilter && ' · Full Art'}
         </p>
       )}
 
@@ -552,7 +568,14 @@ export default function BrowsePage() {
             style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
             {displayResults.map((card, i) => (
               <div key={card.id} className="card-enter"
-                style={{ animationDelay: `${Math.min(i, 16) * 0.028}s` }}>
+                style={{
+                  // Stagger only the first row-ful; the rest appear instantly so
+                  // scrolled-in cards don't lag behind a delay.
+                  animationDelay: i < 12 ? `${i * 0.028}s` : '0s',
+                  // Skip rendering off-screen cards so thousands stay smooth.
+                  contentVisibility: 'auto',
+                  containIntrinsicSize: '0 300px',
+                }}>
                 <BrowseTile
                   card={card}
                   onClick={handleCardClick}
