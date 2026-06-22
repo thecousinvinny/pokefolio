@@ -87,6 +87,40 @@ function lsGet<T>(key: string, def: T): T {
   try { const s = localStorage.getItem(key); return s != null ? JSON.parse(s) as T : def } catch { return def }
 }
 
+// Returns a sorted copy. `id` is the final tiebreaker so the order is fully
+// deterministic (no "random" reshuffling for cards with equal sort keys).
+function sortCards(arr: TCGCard[], sort: SortMode): TCGCard[] {
+  const out = [...arr]
+  const byPriceDesc = (a: TCGCard, b: TCGCard) => ((getBestTCGPrice(b) ?? 0) - (getBestTCGPrice(a) ?? 0)) || a.id.localeCompare(b.id)
+  switch (sort) {
+    case 'premium': {
+      const dateMs = (c: TCGCard) => c.set.releaseDate ? new Date(c.set.releaseDate.replace(/\//g, '-')).getTime() : Infinity
+      const supertypeRank = (s?: string) => s === 'Pokémon' ? 2 : s === 'Trainer' ? 1 : 0
+      out.sort((a, b) => {
+        const dDiff = dateMs(b) - dateMs(a); if (dDiff !== 0) return dDiff
+        const fullA = rarityWeight(a.rarity) >= 80 ? 1 : 0, fullB = rarityWeight(b.rarity) >= 80 ? 1 : 0
+        if (fullB !== fullA) return fullB - fullA
+        const stDiff = supertypeRank(b.supertype) - supertypeRank(a.supertype); if (stDiff !== 0) return stDiff
+        const pDiff = (getBestTCGPrice(b) ?? 0) - (getBestTCGPrice(a) ?? 0); if (pDiff !== 0) return pDiff
+        return a.id.localeCompare(b.id)
+      })
+      break
+    }
+    case 'price-desc': out.sort(byPriceDesc); break
+    case 'price-asc':  out.sort((a, b) => ((getBestTCGPrice(a) ?? 0) - (getBestTCGPrice(b) ?? 0)) || a.id.localeCompare(b.id)); break
+    case 'alpha':      out.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id)); break
+    case 'newest':     break  // keep server release-date order
+  }
+  return out
+}
+
+function dedupById(arr: TCGCard[]): TCGCard[] {
+  const seen = new Set<string>()
+  const out: TCGCard[] = []
+  for (const c of arr) if (!seen.has(c.id)) { seen.add(c.id); out.push(c) }
+  return out
+}
+
 export default function BrowsePage() {
   const { cards, addCard, removeCard } = useCollection()
   const [query, setQuery] = useState(() => _lastQuery)
@@ -157,6 +191,12 @@ export default function BrowsePage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const loadingRef = useRef(false)
   const abortRef = useRef<AbortController | null>(null)
+  const sortRef = useRef(sort)
+  sortRef.current = sort
+
+  // Re-sort the accumulated list when the user changes sort (a deliberate reorder,
+  // unlike scroll-append which must NOT move already-shown cards).
+  useEffect(() => { setRawResults(prev => sortCards(prev, sort)) }, [sort])
 
   const search = useCallback(async (q: string, set: string, p: number, append: boolean, num = '') => {
     if (loadingRef.current && append) return
@@ -202,7 +242,7 @@ export default function BrowsePage() {
       if (stale) { setSearchError(msg); return }
       const fb = isDefaultReq ? lsGetDefaultStale() : null
       if (fb && fb.results.length) {
-        setRawResults(fb.results)
+        setRawResults(sortCards(fb.results, sortRef.current))
         setTotalCount(fb.totalCount)
         setHasMore(fb.hasMore)
         setSearchError('Showing saved cards — live data unavailable.')
@@ -231,7 +271,9 @@ export default function BrowsePage() {
       const batch: TCGCard[] = data.data ?? []
       const nextHasMore = p * PAGE_SIZE < (data.totalCount ?? 0)
       setRawResults(prev => {
-        const next = append ? [...prev, ...batch] : batch
+        // Sort each batch on its own and append below; existing cards never move.
+        const incoming = sortCards(batch, sortRef.current)
+        const next = append ? dedupById([...prev, ...incoming]) : incoming
         const cEntry: CacheEntry = { results: next, totalCount: data.totalCount ?? 0, hasMore: nextHasMore, ts: Date.now() }
         _browseCache.set(key, cEntry)
         if (!q && !set && !num) lsSaveDefault(cEntry)
@@ -277,49 +319,18 @@ export default function BrowsePage() {
     prevQueryRef.current = query
   }, [query])
 
+  // rawResults is already sorted incrementally (each batch sorted on append, and
+  // re-sorted wholesale only on a deliberate sort change), so here we only filter.
   const displayResults = useMemo(() => {
-    let arr = [...rawResults]
+    let arr = rawResults
     if (rarityGroup !== 'all') arr = arr.filter(c => rarityGroupMatch(c.rarity, rarityGroup))
     if (priceMin || priceMax) {
       const pMin = parseFloat(priceMin) || 0
       const pMax = parseFloat(priceMax) || Infinity
       arr = arr.filter(c => { const p = getBestTCGPrice(c) ?? 0; return p >= pMin && p <= pMax })
     }
-    switch (sort) {
-      case 'premium': {
-        // SET (newest first, nulls → top) > FULL ART > POKEMON > TRAINER > price
-        const dateMs = (c: TCGCard) => {
-          if (!c.set.releaseDate) return Infinity
-          return new Date(c.set.releaseDate.replace(/\//g, '-')).getTime()
-        }
-        const supertypeRank = (s?: string) => s === 'Pokémon' ? 2 : s === 'Trainer' ? 1 : 0
-        arr.sort((a, b) => {
-          const dDiff = dateMs(b) - dateMs(a)
-          if (dDiff !== 0) return dDiff
-          const rwA = rarityWeight(a.rarity), rwB = rarityWeight(b.rarity)
-          const fullA = rwA >= 80 ? 1 : 0, fullB = rwB >= 80 ? 1 : 0
-          if (fullB !== fullA) return fullB - fullA
-          const stDiff = supertypeRank(b.supertype) - supertypeRank(a.supertype)
-          if (stDiff !== 0) return stDiff
-          return (getBestTCGPrice(b) ?? 0) - (getBestTCGPrice(a) ?? 0)
-        })
-        break
-      }
-      case 'newest':
-        // Keep API's release-date ordering as-is (already sorted server-side)
-        break
-      case 'price-desc':
-        arr.sort((a, b) => (getBestTCGPrice(b) ?? 0) - (getBestTCGPrice(a) ?? 0))
-        break
-      case 'price-asc':
-        arr.sort((a, b) => (getBestTCGPrice(a) ?? 0) - (getBestTCGPrice(b) ?? 0))
-        break
-      case 'alpha':
-        arr.sort((a, b) => a.name.localeCompare(b.name))
-        break
-    }
     return arr
-  }, [rawResults, rarityGroup, priceMin, priceMax, sort])
+  }, [rawResults, rarityGroup, priceMin, priceMax])
 
   const loadMore = useCallback(() => {
     if (loadingRef.current || !hasMore) return
