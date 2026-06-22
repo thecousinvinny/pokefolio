@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { Modal } from '@/components/ui/Modal'
 import { useCollection } from '@/components/CollectionContext'
@@ -14,23 +14,41 @@ interface AddToPortfolioModalProps {
   defaultStatus?: 'owned' | 'wishlist'
 }
 
+function defaultConditionIdx(): number {
+  const saved = typeof window !== 'undefined' ? localStorage.getItem(LS_DEFAULT_CONDITION) : null
+  const idx = saved ? CONDITION_ORDER.indexOf(saved as never) : -1
+  return idx >= 0 ? idx : 0
+}
+
 export function AddToPortfolioModal({ card, onClose, defaultStatus = 'owned' }: AddToPortfolioModalProps) {
   const { addCard } = useCollection()
   const today = new Date().toISOString().slice(0, 10)
 
-  const [status] = useState<'owned' | 'wishlist'>(defaultStatus)
+  // Derive (not state) so the title/save always reflect the current open.
+  const status = defaultStatus
+
   const [language, setLanguage] = useState<'EN' | 'JP' | 'CN'>('EN')
-  const [condition, setCondition] = useState<number>(() => {
-    const saved = typeof window !== 'undefined' ? localStorage.getItem(LS_DEFAULT_CONDITION) : null
-    const idx = saved ? CONDITION_ORDER.indexOf(saved as never) : -1
-    return idx >= 0 ? idx : 0
-  })
+  const [condition, setCondition] = useState<number>(defaultConditionIdx)
   const [pricePaid, setPricePaid] = useState('')
   const [boughtFrom, setBoughtFrom] = useState('')
   const [dateBought, setDateBought] = useState(today)
   const [targetPrice, setTargetPrice] = useState('')
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
+
+  // The modal stays mounted across cards — reset the form each time a NEW card
+  // opens so price/from/notes don't carry over from the previous entry.
+  useEffect(() => {
+    if (!card) return
+    setLanguage('EN')
+    setCondition(defaultConditionIdx())
+    setPricePaid('')
+    setBoughtFrom('')
+    setDateBought(new Date().toISOString().slice(0, 10))
+    setTargetPrice('')
+    setNotes('')
+    setSaving(false)
+  }, [card?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const marketPrice = card ? getBestTCGPrice(card) : undefined
 
