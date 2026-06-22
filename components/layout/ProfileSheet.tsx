@@ -6,7 +6,7 @@ import { LinkIcon, UploadIcon, LogOutIcon, DownloadIcon, ArrowPathIcon, EyeSlash
 import { useCollection } from '@/components/CollectionContext'
 import { createClient } from '@/lib/supabase/client'
 import { conditionAdjustedValue } from '@/types'
-import { formatPrice, rarityWeight } from '@/lib/utils'
+import { formatPrice, isFullArt } from '@/lib/utils'
 
 export const LS_DISPLAY_NAME = 'catchm_display_name'
 export const LS_AVATAR = 'catchm_avatar_img'
@@ -206,7 +206,7 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
       const owned = cards.filter(c => c.status === 'owned' || c.status === 'for_sale')
       const wishlist = cards.filter(c => c.status === 'wishlist')
       const filteredOwned = shareFilter === 'full-art'
-        ? owned.filter(c => rarityWeight(c.rarity) >= 80)
+        ? owned.filter(c => isFullArt(c.rarity))
         : shareFilter === 'favorites'
         ? owned.filter(c => c.is_favorite)
         : owned
@@ -267,7 +267,7 @@ export function ProfileSheet({ open, onClose, onAvatarChange }: Props) {
   const owned = cards.filter(c => c.status === 'owned' || c.status === 'for_sale')
   const totalValue = owned.reduce((s, c) => s + conditionAdjustedValue(c), 0)
   const filteredOwnedCount = shareFilter === 'full-art'
-    ? owned.filter(c => rarityWeight(c.rarity) >= 80).length
+    ? owned.filter(c => isFullArt(c.rarity)).length
     : shareFilter === 'favorites'
     ? owned.filter(c => c.is_favorite).length
     : owned.length

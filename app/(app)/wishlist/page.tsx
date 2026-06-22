@@ -9,7 +9,7 @@ import { CardDetailModal } from '@/components/cards/CardDetailModal'
 import { MoveToPortfolioModal } from '@/components/cards/MoveToPortfolioModal'
 import { useCollection } from '@/components/CollectionContext'
 import { conditionAdjustedValue } from '@/types'
-import { formatPrice, rarityWeight } from '@/lib/utils'
+import { formatPrice, isFullArt, rarityWeight } from '@/lib/utils'
 import type { PokemonCard } from '@/types'
 
 type WLSort = 'rarity' | 'price-desc' | 'price-asc' | 'target' | 'newest' | 'delta'
@@ -36,8 +36,8 @@ function rarityGroupMatch(rarity: string | undefined, group: RarityGroup): boole
   const w = rarityWeight(rarity)
   switch (group) {
     case 'all':     return true
-    case 'fullart': return w >= 80
-    case 'ultra':   return w >= 50 && w < 80
+    case 'fullart': return isFullArt(rarity)
+    case 'ultra':   return w >= 50 && w < 80 && !isFullArt(rarity)
     case 'holo':    return w >= 30 && w < 50
     case 'common':  return w < 30
   }

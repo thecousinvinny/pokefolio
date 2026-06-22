@@ -9,7 +9,7 @@ import { Sparkline } from '@/components/ui/Sparkline'
 import { TcgLink } from '@/components/ui/TcgLink'
 import { Modal } from '@/components/ui/Modal'
 import { useCollection } from '@/components/CollectionContext'
-import { formatPrice, generatePriceHistory, rarityWeight, tcgSearchUrl } from '@/lib/utils'
+import { formatPrice, generatePriceHistory, isFullArt, rarityWeight, tcgSearchUrl } from '@/lib/utils'
 import { getBestTCGPrice, getBestTCGPriceTiers, tcgCardToPortfolioCard } from '@/types'
 import type { TCGCard } from '@/types'
 
@@ -75,8 +75,8 @@ function rarityGroupMatch(rarity: string | undefined, group: RarityGroup): boole
   const w = rarityWeight(rarity)
   switch (group) {
     case 'all':     return true
-    case 'fullart': return w >= 80
-    case 'ultra':   return w >= 50 && w < 80
+    case 'fullart': return isFullArt(rarity)
+    case 'ultra':   return w >= 50 && w < 80 && !isFullArt(rarity)
     case 'holo':    return w >= 30 && w < 50
     case 'common':  return w < 30
   }
@@ -98,7 +98,7 @@ function sortCards(arr: TCGCard[], sort: SortMode): TCGCard[] {
       const supertypeRank = (s?: string) => s === 'Pokémon' ? 2 : s === 'Trainer' ? 1 : 0
       out.sort((a, b) => {
         const dDiff = dateMs(b) - dateMs(a); if (dDiff !== 0) return dDiff
-        const fullA = rarityWeight(a.rarity) >= 80 ? 1 : 0, fullB = rarityWeight(b.rarity) >= 80 ? 1 : 0
+        const fullA = isFullArt(a.rarity) ? 1 : 0, fullB = isFullArt(b.rarity) ? 1 : 0
         if (fullB !== fullA) return fullB - fullA
         const stDiff = supertypeRank(b.supertype) - supertypeRank(a.supertype); if (stDiff !== 0) return stDiff
         const pDiff = (getBestTCGPrice(b) ?? 0) - (getBestTCGPrice(a) ?? 0); if (pDiff !== 0) return pDiff

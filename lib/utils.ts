@@ -87,6 +87,19 @@ export function rarityWeight(rarity?: string | null): number {
   return 0
 }
 
+// "Full Art" per the app's definition: Illustration Rare, Special Illustration
+// Rare, and the classic full-art treatment (full-art V/VMAX/VSTAR/GX/ex and
+// full-art Trainers, which the TCG API tags "Rare Ultra"/"Ultra Rare").
+// Deliberately EXCLUDES Hyper Rare (gold), Rainbow, and Secret rares.
+export function isFullArt(rarity?: string | null): boolean {
+  if (!rarity) return false
+  const r = rarity.toLowerCase()
+  if (r.includes('illustration rare')) return true   // IR + Special IR
+  if (r === 'rare ultra' || r === 'ultra rare') return true
+  if (r.includes('full art')) return true            // defensive / future tags
+  return false
+}
+
 // Type → accent color
 export function typeColor(types?: string[]): string {
   const t = types?.[0]?.toLowerCase()
