@@ -31,13 +31,13 @@ Mutations use optimistic updates: state is updated immediately, then the Supabas
 
 `GET /api/tcg/search` is **catalog-first**. This is the single most important thing to understand about search/prices:
 
-1. **Local catalog** (`lib/catalog.ts:searchCatalog`) — queries the `card_catalog` Supabase table (≈8,200 modern-era cards) with a pg_trgm prefix match. Instant (~130ms). Handles the default full-art browse, name queries, set queries, and name+number scans. Uses the **anon key** (catalog is public-read).
+1. **Local catalog** (`lib/catalog.ts:searchCatalog`) — queries the `card_catalog` Supabase table (≈20,000 cards, all eras WOTC→current) with a pg_trgm prefix match. Instant (~130ms). Handles the default full-art browse, name queries, set queries, and name+number scans. Uses the **anon key** (catalog is public-read).
 2. If the catalog returns hits → enrich prices from tcgcsv (`enrichCatalogPrices`, one fetch per unique set, parallel, hard time-capped) and return with `source: 'catalog'`.
 3. **Live fallback** — on a catalog miss/error, or when `type`/`rarity` filters are present, it falls through to `lib/tcg.ts:searchCardsFlexible` → `api.pokemontcg.io/v2`. This is the original path; nothing was removed, the live API is now the safety net rather than the bottleneck.
 
 `lib/tcg.ts` builds Lucene-style queries. Every live fetch has an `AbortSignal.timeout` (parameterized `timeoutMs`/`retries`); the default browse uses a longer budget plus a cheaper 2-term full-art fallback filter (`FULL_ART_FALLBACK_FILTER`) as its retry. The route returns **504** on timeout (the client shows a retry banner). `Cache-Control: public, s-maxage=…, stale-while-revalidate=…` headers are emitted for the edge/browser cache. `lib/tcg.ts:getCard` (single-card fetch + enrich) is used server-side by `/api/prices`. `POKEMONTCG_API_KEY` is optional (raises rate limits).
 
-**Catalog is identity/art only — prices are always live** (tcgcsv). To rebuild the catalog (e.g. a new set dropped) run `scripts/seed-catalog.mjs`; it selects sets by SWSH/SV set id (not a date cutoff) so promo sets with early release dates are still included. Migration: `supabase/migrations/002_card_catalog.sql`.
+**Catalog is identity/art only — prices are always live** (tcgcsv). To rebuild the catalog (e.g. a new set dropped) run `scripts/seed-catalog.mjs`; it seeds **every** English set (~20k cards, ~11 MB). Migration: `supabase/migrations/002_card_catalog.sql`.
 
 ### Prices — tcgcsv fallback + daily snapshots
 

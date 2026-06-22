@@ -1,6 +1,6 @@
-// Seeds card_catalog with modern-era Pokémon cards (SWSH + SV, release date >= 2020).
+// Seeds card_catalog with every English Pokémon card (WOTC → current, ~20k).
 // Static identity/art only — no prices. Idempotent: upserts on id, safe to re-run
-// (run again quarterly when new sets drop).
+// (run again when new sets drop).
 //
 //   node scripts/seed-catalog.mjs
 //
@@ -19,7 +19,6 @@ try {
 const SUPABASE_URL = env.NEXT_PUBLIC_SUPABASE_URL
 const SERVICE_KEY  = env.SUPABASE_SERVICE_ROLE_KEY
 const TCG_KEY      = env.POKEMONTCG_API_KEY
-const MODERN_CUTOFF = '2020-01-01'   // SWSH base onward
 
 // Precise diagnostics — a blind exit(1) in CI is useless. Report exactly what's set.
 console.log(`• NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL ? SUPABASE_URL : '(MISSING)'}`)
@@ -95,18 +94,17 @@ const SELECT = 'id,name,supertype,types,rarity,number,set,images,artist,hp,flavo
 
 console.log('• Fetching set list…')
 const setsRes = await tcgGet('/sets?pageSize=250&orderBy=releaseDate')
-// Modern era = SWSH + SV set IDs, OR release date >= cutoff. The id check catches
-// promo sets (e.g. "swshp" SWSH Black Star Promos) whose release date is dated to
-// the start of the era (~2019) but which contain modern cards like Lucario VSTAR.
-const modernSets = (setsRes.data ?? [])
-  .filter(s => /^(swsh|sv)/i.test(s.id) || (s.releaseDate && toDate(s.releaseDate) >= MODERN_CUTOFF))
+// Seed EVERY English set (WOTC → current). The catalog is small even at full
+// size (~11 MB for ~20k cards).
+const seedSets = (setsRes.data ?? [])
+  .filter(s => s.releaseDate)
   .sort((a, b) => toDate(a.releaseDate ?? '0') < toDate(b.releaseDate ?? '0') ? 1 : -1)
 
-console.log(`• ${modernSets.length} modern sets (SWSH/SV ids or release >= ${MODERN_CUTOFF})`)
+console.log(`• ${seedSets.length} sets (all eras)`)
 
 let total = 0
 const skipped = []
-for (const [idx, set] of modernSets.entries()) {
+for (const [idx, set] of seedSets.entries()) {
   try {
     let page = 1, setCount = 0
     for (;;) {
@@ -120,10 +118,10 @@ for (const [idx, set] of modernSets.entries()) {
       page++
     }
     total += setCount
-    console.log(`  [${idx + 1}/${modernSets.length}] ${set.name.padEnd(30)} +${setCount}  (running: ${total})`)
+    console.log(`  [${idx + 1}/${seedSets.length}] ${set.name.padEnd(30)} +${setCount}  (running: ${total})`)
   } catch (err) {
     skipped.push(set.name)
-    console.warn(`  [${idx + 1}/${modernSets.length}] ${set.name.padEnd(30)} SKIPPED: ${err.message}`)
+    console.warn(`  [${idx + 1}/${seedSets.length}] ${set.name.padEnd(30)} SKIPPED: ${err.message}`)
   }
 }
 
