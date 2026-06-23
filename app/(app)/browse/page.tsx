@@ -96,12 +96,19 @@ function sortCards(arr: TCGCard[], sort: SortMode): TCGCard[] {
   switch (sort) {
     case 'premium': {
       const dateMs = (c: TCGCard) => c.set.releaseDate ? new Date(c.set.releaseDate.replace(/\//g, '-')).getTime() : Infinity
-      const supertypeRank = (s?: string) => s === 'Pokémon' ? 2 : s === 'Trainer' ? 1 : 0
+      // Within each set: chase Pokémon (full art / IR / SIR) → other Pokémon →
+      // Trainers → Energy/other. Cheap Trainer "Item" cards naturally sink to the
+      // bottom of the Trainer block via the price tiebreaker below.
+      const group = (c: TCGCard) => {
+        if (c.supertype === 'Pokémon') return isFullArt(c.rarity) ? 0 : 1
+        if (c.supertype === 'Trainer') return 2
+        return 3   // Energy / other
+      }
       out.sort((a, b) => {
         const dDiff = dateMs(b) - dateMs(a); if (dDiff !== 0) return dDiff
-        const fullA = isFullArt(a.rarity) ? 1 : 0, fullB = isFullArt(b.rarity) ? 1 : 0
-        if (fullB !== fullA) return fullB - fullA
-        const stDiff = supertypeRank(b.supertype) - supertypeRank(a.supertype); if (stDiff !== 0) return stDiff
+        const gDiff = group(a) - group(b); if (gDiff !== 0) return gDiff
+        // Within a group, full-art first (puts chase Trainers atop the Trainer block)
+        const fDiff = (isFullArt(b.rarity) ? 1 : 0) - (isFullArt(a.rarity) ? 1 : 0); if (fDiff !== 0) return fDiff
         const pDiff = (getBestTCGPrice(b) ?? 0) - (getBestTCGPrice(a) ?? 0); if (pDiff !== 0) return pDiff
         return a.id.localeCompare(b.id)
       })

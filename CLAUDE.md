@@ -31,11 +31,11 @@ Mutations use optimistic updates: state is updated immediately, then the Supabas
 
 `GET /api/tcg/search` is **catalog-first**. This is the single most important thing to understand about search/prices:
 
-1. **Local catalog** (`lib/catalog.ts:searchCatalog`) — queries the `card_catalog` Supabase table (≈20,000 cards, all eras WOTC→current) with a pg_trgm prefix match. Instant (~130ms). Handles the default full-art browse, name queries, set queries, and name+number scans. Uses the **anon key** (catalog is public-read).
+1. **Local catalog** (`lib/catalog.ts:searchCatalog`) — queries the `card_catalog` Supabase table (≈20,000 cards, all eras WOTC→current) with a pg_trgm prefix match. Instant (~130ms). Handles the default **whole-catalog** browse (no rarity gate — premium sort surfaces full-arts first), name queries, set queries, and name+number scans. Uses the **anon key** (catalog is public-read).
 2. If the catalog returns hits → enrich prices from tcgcsv (`enrichCatalogPrices`, one fetch per unique set, parallel, hard time-capped) and return with `source: 'catalog'`.
 3. **Live fallback** — on a catalog miss/error, or when `type`/`rarity` filters are present, it falls through to `lib/tcg.ts:searchCardsFlexible` → `api.pokemontcg.io/v2`. This is the original path; nothing was removed, the live API is now the safety net rather than the bottleneck.
 
-`lib/tcg.ts` builds Lucene-style queries. Every live fetch has an `AbortSignal.timeout` (parameterized `timeoutMs`/`retries`); the default browse uses a longer budget plus a cheaper 2-term full-art fallback filter (`FULL_ART_FALLBACK_FILTER`) as its retry. The route returns **504** on timeout (the client shows a retry banner). `Cache-Control: public, s-maxage=…, stale-while-revalidate=…` headers are emitted for the edge/browser cache. `lib/tcg.ts:getCard` (single-card fetch + enrich) is used server-side by `/api/prices`. `POKEMONTCG_API_KEY` is optional (raises rate limits).
+`lib/tcg.ts` builds Lucene-style queries. Every live fetch has an `AbortSignal.timeout` (parameterized `timeoutMs`/`retries`); a default/no-query live browse uses a longer budget plus a cheaper 2-term full-art fallback filter (`FULL_ART_FALLBACK_FILTER`) as its retry (this fallback only fires when the catalog misses; the in-app default browse is served by the catalog and is no longer gated to full-arts). The route returns **504** on timeout (the client shows a retry banner). `Cache-Control: public, s-maxage=…, stale-while-revalidate=…` headers are emitted for the edge/browser cache. `lib/tcg.ts:getCard` (single-card fetch + enrich) is used server-side by `/api/prices`. `POKEMONTCG_API_KEY` is optional (raises rate limits).
 
 **Catalog is identity/art only — prices are always live** (tcgcsv). To rebuild the catalog (e.g. a new set dropped) run `scripts/seed-catalog.mjs`; it seeds **every** English set (~20k cards, ~11 MB). Migration: `supabase/migrations/002_card_catalog.sql`.
 
@@ -84,6 +84,7 @@ app/
     page.tsx                → server component, reads share row via anon Supabase key
     ShareView.tsx           → client component, renders the public share page
   api/tcg/search/route.ts   → catalog-first search (see Search architecture)
+  api/sets/route.ts         → cached list of all set names (FIND set-filter dropdown)
   api/scan-card/route.ts    → Vision OCR pipeline (see Scan / OCR)
   api/prices/route.ts       → batch price backfill for collection cards
   api/import/route.ts       → JSON collection import
@@ -149,15 +150,19 @@ TCGPlayer blocks iframes via `frame-ancestors` CSP — never try to embed it in 
 
 ### Browse page client cache
 
-`browse/page.tsx` keeps a three-tier cache for the default full-art browse:
+`browse/page.tsx` keeps a three-tier cache for the default browse:
 
-1. **Module-level `_browseCache`** (`Map<string, CacheEntry>`, 10-min TTL) — survives tab navigation within the same session. Keyed by `"query|set"`. Blank key (`"|"`) is the default browse; searching never pollutes it.
-2. **`localStorage` key `catchm_browse_default_v3`** (30-min TTL) — survives page refreshes and new tabs. On mount, `initState` reads from LS if the module cache is cold, warms the module cache from it, and skips the initial API call entirely. On a live-fetch failure the page falls back to this LS entry even when expired (`lsGetDefaultStale`), so FIND is never blank.
+1. **Module-level `_browseCache`** (`Map<string, CacheEntry>`, 10-min TTL) — survives tab navigation within the same session. Keyed by `"query|set"`. Blank key (`"|"`) is the default browse; searching never pollutes it. Holds the **full** in-session infinite scroll (can be thousands of cards).
+2. **`localStorage` key `catchm_browse_default_v3`** (30-min TTL) — survives page refreshes and new tabs. On mount, `initState` reads from LS if the module cache is cold, warms the module cache from it, and skips the initial API call entirely. On a live-fetch failure the page falls back to this LS entry even when expired (`lsGetDefaultStale`), so FIND is never blank. **Only the first page is persisted** (the default browse now scrolls the whole catalog, so persisting the full accumulation would blow the LS quota).
 3. **HTTP edge cache** — the route handler emits `Cache-Control: s-maxage=3600, stale-while-revalidate=86400` so Vercel's edge serves repeat requests without hitting Next.js.
 
 `_browseScrollY: number` — saves scroll position on unmount, restored on remount via `requestAnimationFrame`.
 
-Default sort (`premium`): SET date descending → full art (rarityWeight ≥ 80) → Pokémon → Trainer → price descending.
+The default browse covers the **whole catalog** (no full-art gate), so infinite scroll runs through every era. Two things keep that smooth: each grid tile gets `content-visibility: auto` + `contain-intrinsic-size` so off-screen cards skip rendering, and the `.card-enter` entrance stagger is capped to the first row. A **back-to-top FAB** (portaled to `document.body` — the page's `.animate-fade-in` transform would otherwise trap its `position: fixed`) fades in past ~700px and sits just above the global Scan FAB.
+
+The **Set filter is a `<select>` dropdown** populated from `GET /api/sets` (a heavily-cached list of every set name), not a free-text input.
+
+Default sort (`premium`): SET date descending, then per set into groups — chase Pokémon (`isFullArt`) → other Pokémon → Trainers → Energy/other — with full-art-first + price-descending tiebreakers inside each group (so cheap Trainer "Item" cards sink to the bottom of the Trainer block). "Full Art" everywhere (sort, filter chips, share filter) means `isFullArt(rarity)` — see Key utilities. (The catalog doesn't store card `subtypes`, so a strict Item tier would need a column add + re-seed.)
 
 ### Key types (`types/index.ts`)
 
@@ -175,7 +180,8 @@ Single source of truth for data shapes:
 
 - `tcgSearchUrl(name, setName?)` — direct TCGPlayer search URL (use this, not stored URLs)
 - `formatPrice(value, compact?)` — `$12.34` / `$1.2k`
-- `rarityWeight(rarity?)` — 0–100; ≥80 = full art (SIR=100, HyperRare=90, IllustrationRare=80)
+- `rarityWeight(rarity?)` — 0–100 ranking for sorting (SIR=95, HyperRare=90, Rainbow=85, IllustrationRare=80, …). This is a sort weight, **not** the "Full Art" definition.
+- `isFullArt(rarity?)` — the app's definition of "Full Art": Illustration Rare + Special Illustration Rare + the classic full-art treatment (`"Rare Ultra"`/`"Ultra Rare"` — full-art V/VMAX/VSTAR/GX/ex + full-art Trainers). **Excludes** Hyper Rare (gold), Rainbow, and Secret rares. Use this — not `rarityWeight >= 80` — for any "Full Art" filter/chip/count (FIND, CATCHM, WISH, share). `rarityWeight >= 80` is the *wrong* set (it grabs gold/rainbow but misses the actual full-art V/ex cards at weight 60–65).
 - `generatePriceHistory(currentPrice, points?)` — synthetic 30-day sparkline data
 
 ### Filter-state persistence
