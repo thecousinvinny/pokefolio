@@ -1,12 +1,14 @@
 'use client'
-import { useMemo } from 'react'
+import { useMemo, useState, useRef, useLayoutEffect } from 'react'
 import Image from 'next/image'
 import { TrendingUpIcon, CardIcon, SparkleIcon } from '@/components/ui/Icons'
 import { StatCard } from '@/components/ui/StatCard'
 import { RollingNumber } from '@/components/ui/RollingNumber'
+import { AreaChart, type AreaPoint } from '@/components/ui/AreaChart'
 import { getArtColors } from '@/components/cards/CardArtwork'
 import { useCollection } from '@/components/CollectionContext'
 import { conditionAdjustedValue, unrealizedProfit } from '@/types'
+import type { PokemonCard, SaleRecord } from '@/types'
 import { formatPrice, formatPercent } from '@/lib/utils'
 
 export default function DashboardPage() {
@@ -50,8 +52,13 @@ export default function DashboardPage() {
             />
           </div>
 
-          {/* ── Showcase card ── */}
+          {/* ── Analytics ── */}
           <div className="section-enter" style={{ animationDelay: '160ms' }}>
+            <AnalyticsSection owned={owned} sales={sales} />
+          </div>
+
+          {/* ── Showcase card ── */}
+          <div className="section-enter" style={{ animationDelay: '220ms' }}>
             {showcaseCard ? (
               <ShowcaseSection card={showcaseCard} />
             ) : (
@@ -60,7 +67,7 @@ export default function DashboardPage() {
           </div>
 
           {/* ── Market movers ── */}
-          <section className="section-enter" style={{ animationDelay: '220ms' }}>
+          <section className="section-enter" style={{ animationDelay: '280ms' }}>
             <div className="flex items-center gap-2 mb-3">
               <span className="text-base font-bold">Top Performers</span>
               <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
@@ -75,7 +82,7 @@ export default function DashboardPage() {
             ) : (
               <div className="space-y-2">
                 {topPerformers.map((card, i) => (
-                  <div key={card.id} className="card-enter" style={{ animationDelay: `${280 + i * 50}ms` }}>
+                  <div key={card.id} className="card-enter" style={{ animationDelay: `${340 + i * 50}ms` }}>
                     <MoverRow card={card} />
                   </div>
                 ))}
@@ -85,6 +92,133 @@ export default function DashboardPage() {
         </>
       )}
     </div>
+  )
+}
+
+// ─── Analytics ────────────────────────────────────────────────────────────────
+
+const DAY = 24 * 3600 * 1000
+
+// Cumulative count of currently-owned cards by when each was added — a stepped
+// "collection growth" line that flattens out to today.
+function buildCollectionSeries(owned: PokemonCard[]): AreaPoint[] {
+  const dated = owned
+    .map(c => Date.parse(c.date_added))
+    .filter(t => !Number.isNaN(t))
+    .sort((a, b) => a - b)
+  if (dated.length === 0) return []
+  const pts: AreaPoint[] = [{ t: dated[0] - DAY, v: 0 }]
+  dated.forEach((t, i) => pts.push({ t, v: i + 1 }))
+  const now = Date.now()
+  if (now > dated[dated.length - 1]) pts.push({ t: now, v: dated.length })
+  return pts
+}
+
+// Running total of realized net profit by sale date — steps up/down per sale,
+// then holds flat to today. Matches the "Lifetime Earned" stat at the right edge.
+function buildEarningsSeries(sales: SaleRecord[]): AreaPoint[] {
+  const sorted = sales
+    .map(s => ({ t: Date.parse(s.date_sold), v: s.net_profit }))
+    .filter(s => !Number.isNaN(s.t))
+    .sort((a, b) => a.t - b.t)
+  if (sorted.length === 0) return []
+  const pts: AreaPoint[] = [{ t: sorted[0].t - DAY, v: 0 }]
+  let run = 0
+  for (const s of sorted) { run += s.v; pts.push({ t: s.t, v: run }) }
+  const now = Date.now()
+  if (now > sorted[sorted.length - 1].t) pts.push({ t: now, v: run })
+  return pts
+}
+
+type Metric = 'collection' | 'earnings'
+const METRICS: Metric[] = ['collection', 'earnings']
+const METRIC_LABELS: Record<Metric, string> = { collection: 'Collection', earnings: 'Earnings' }
+
+function AnalyticsSection({ owned, sales }: { owned: PokemonCard[]; sales: SaleRecord[] }) {
+  const [metric, setMetric] = useState<Metric>('collection')
+  const collection = useMemo(() => buildCollectionSeries(owned), [owned])
+  const earnings = useMemo(() => buildEarningsSeries(sales), [sales])
+
+  // Animated spring pill (matches the nav bar / SOLD tabs).
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [pill, setPill] = useState<{ left: number; w: number } | null>(null)
+  useLayoutEffect(() => {
+    const tabEl = tabRefs.current[METRICS.indexOf(metric)]
+    const container = containerRef.current
+    if (!tabEl || !container) return
+    const cr = container.getBoundingClientRect()
+    const tr = tabEl.getBoundingClientRect()
+    setPill({ left: tr.left - cr.left, w: tr.width })
+  }, [metric])
+
+  const isCollection = metric === 'collection'
+  const series = isCollection ? collection : earnings
+  // Hex (not CSS var) — SVG stroke/stopColor don't resolve var() reliably.
+  const color = isCollection ? '#5DA9FF' : '#45DB8D'
+  const accentRgb = isCollection ? '93,169,255' : '69,219,141'
+  const fmt = isCollection ? (v: number) => String(Math.round(v)) : (v: number) => formatPrice(v)
+  const headline = series.length ? series[series.length - 1].v : 0
+  const caption = isCollection ? 'cards collected' : 'net realized'
+
+  return (
+    <section>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <span style={{ fontWeight: 700, fontSize: 15 }}>Analytics</span>
+        <TrendingUpIcon size={15} style={{ color: 'var(--text3)' }} />
+      </div>
+
+      <div className="surface-card" style={{ padding: 16, overflow: 'hidden' }}>
+        {/* Metric toggle */}
+        <div ref={containerRef} style={{
+          position: 'relative', display: 'flex', padding: 4, marginBottom: 16,
+          borderRadius: 14, background: 'var(--bg)', border: '1px solid var(--border)',
+        }}>
+          {pill && (
+            <div style={{
+              position: 'absolute', left: pill.left, top: 4,
+              width: pill.w, height: 'calc(100% - 8px)',
+              borderRadius: 10, background: `rgba(${accentRgb},0.16)`, border: `1px solid rgba(${accentRgb},0.30)`,
+              pointerEvents: 'none', zIndex: 0,
+              transition: 'left 0.38s cubic-bezier(0.34, 1.56, 0.64, 1), width 0.38s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.25s ease, border-color 0.25s ease',
+            }} />
+          )}
+          {METRICS.map((m, i) => (
+            <button key={m} ref={el => { tabRefs.current[i] = el }} onClick={() => setMetric(m)} style={{
+              flex: 1, padding: '8px 0', borderRadius: 10,
+              fontSize: 12, fontWeight: 800, letterSpacing: '0.04em',
+              background: 'transparent',
+              color: metric === m ? (m === 'collection' ? 'var(--sky)' : 'var(--emerald)') : 'var(--text2)',
+              border: 'none', cursor: 'pointer', position: 'relative', zIndex: 1,
+              transition: 'color 0.22s ease',
+            }}>
+              {METRIC_LABELS[m]}
+            </button>
+          ))}
+        </div>
+
+        {series.length < 2 ? (
+          <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+            <p style={{ fontSize: 13, color: 'var(--text3)', maxWidth: 240 }}>
+              {isCollection
+                ? 'Add cards to your collection to watch it grow over time.'
+                : 'Record a sale in LEDGER to chart your earnings over time.'}
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Headline */}
+            <div style={{ marginBottom: 10 }}>
+              <p style={{ fontSize: 28, fontWeight: 900, lineHeight: 1, color }}>{fmt(headline)}</p>
+              <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text3)', marginTop: 4 }}>
+                {caption}
+              </p>
+            </div>
+            <AreaChart points={series} color={color} stepped height={132} format={fmt} />
+          </>
+        )}
+      </div>
+    </section>
   )
 }
 
