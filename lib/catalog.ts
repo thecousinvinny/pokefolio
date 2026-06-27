@@ -10,14 +10,34 @@ const supabase = createClient(
   { auth: { persistSession: false } },
 )
 
-// Same full-art rarities as the live default browse (lib/tcg.ts FULL_ART_FILTER).
-const FULL_ART_RARITIES = [
-  'Special Illustration Rare',
-  'Illustration Rare',
-  'Hyper Rare',
-  'Rare Rainbow',
-  'Rainbow Rare',
-]
+// Narrows a query to one rarity bucket server-side so each page comes back dense
+// (matters for sparse premium rarities like SIR/IR — otherwise the client throws
+// away most of every catalog page). Substring/ilike matching folds legacy era
+// names into the nearest modern tier (e.g. legacy "Rare Ultra" → Ultra Rare).
+// MUST stay in sync with rarityGroupMatch() in app/(app)/browse/page.tsx.
+type RarityFilterBuilder = ReturnType<ReturnType<typeof supabase.from>['select']>
+function applyRarityGroup(q: RarityFilterBuilder, group: string): RarityFilterBuilder {
+  switch (group) {
+    case 'promo':    return q.ilike('rarity', '%promo%')
+    case 'secret':   return q.ilike('rarity', '%secret%')
+    case 'hyper':    return q.or('rarity.ilike.%hyper%,rarity.ilike.%rainbow%')
+    case 'sir':      return q.ilike('rarity', '%special illustration%')
+    case 'ir':       return q.ilike('rarity', '%illustration rare%').not('rarity', 'ilike', '%special%')
+    case 'ultra':    return q.ilike('rarity', '%ultra%')
+    case 'double':   return q.ilike('rarity', '%double rare%')
+    case 'uncommon': return q.ilike('rarity', '%uncommon%')
+    case 'common':   return q.ilike('rarity', 'common')   // no %: exact (avoids "Uncommon")
+    case 'rare':     return q.ilike('rarity', '%rare%')
+      .not('rarity', 'ilike', '%secret%')
+      .not('rarity', 'ilike', '%hyper%')
+      .not('rarity', 'ilike', '%rainbow%')
+      .not('rarity', 'ilike', '%illustration%')
+      .not('rarity', 'ilike', '%ultra%')
+      .not('rarity', 'ilike', '%double%')
+      .not('rarity', 'ilike', '%promo%')
+    default:         return q
+  }
+}
 
 interface CatalogRow {
   id: string
@@ -73,7 +93,7 @@ export interface CatalogSearchParams {
   query?: string
   set?: string
   number?: string
-  fullArtOnly?: boolean
+  rarityGroup?: string   // bucket key: promo|secret|hyper|sir|ir|ultra|double|rare|uncommon|common
   page?: number
   pageSize?: number
 }
@@ -81,7 +101,7 @@ export interface CatalogSearchParams {
 // Queries the local catalog. Returns null when the catalog can't serve this
 // request (DB error, or zero hits) so the caller can fall back to the live API.
 export async function searchCatalog(params: CatalogSearchParams): Promise<TCGSearchResponse | null> {
-  const { query, set, number, fullArtOnly = false, page = 1, pageSize = 50 } = params
+  const { query, set, number, rarityGroup, page = 1, pageSize = 50 } = params
 
   let q = supabase
     .from('card_catalog')
@@ -99,8 +119,10 @@ export async function searchCatalog(params: CatalogSearchParams): Promise<TCGSea
   if (number) {
     q = q.eq('number', number)
   }
-  if (!term && !set && !number && fullArtOnly) {
-    q = q.in('rarity', FULL_ART_RARITIES)
+  // Honor a rarity bucket whenever requested — ANDs cleanly with any
+  // name/set/number predicate above so pages come back dense.
+  if (rarityGroup && rarityGroup !== 'all') {
+    q = applyRarityGroup(q, rarityGroup)
   }
 
   const from = (page - 1) * pageSize

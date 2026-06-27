@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   const number = searchParams.get('number') ?? undefined
   const type = searchParams.get('type') ?? undefined
   const rarity = searchParams.get('rarity') ?? undefined
-  const fullArtOnly = searchParams.get('fullArtOnly') === 'true'
+  const rarityGroup = searchParams.get('rarityGroup') ?? undefined
   const page = Number(searchParams.get('page') ?? 1)
   const pageSize = Number(searchParams.get('pageSize') ?? 24)
   const isDefault = !q && !set
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   // Type/rarity filters aren't in the catalog path → those skip straight to live.
   if (!type && !rarity) {
     try {
-      const hit = await searchCatalog({ query: q, set, number, fullArtOnly, page, pageSize })
+      const hit = await searchCatalog({ query: q, set, number, rarityGroup, page, pageSize })
       if (hit && hit.data.length > 0) {
         // Few sets per query → enrich fast; default browse spans many → allow more.
         const enriched = await enrichWithTimeout(hit.data, isDefault ? 7_000 : 4_000)
@@ -54,7 +54,6 @@ export async function GET(request: NextRequest) {
       page,
       pageSize,
       skipEnrich: true,
-      fullArtOnly,
       // Initial default browse is the heaviest query → longer budget; the cheaper
       // 2-term fallback filter inside searchCardsFlexible acts as its retry.
       // Active user searches stay snappy with a tighter single-attempt budget.

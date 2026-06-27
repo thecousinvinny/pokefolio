@@ -15,7 +15,7 @@ import { getBestTCGPrice, getBestTCGPriceTiers, tcgCardToPortfolioCard } from '@
 import type { TCGCard } from '@/types'
 
 type SortMode = 'premium' | 'newest' | 'price-desc' | 'price-asc' | 'alpha'
-type RarityGroup = 'all' | 'fullart' | 'ultra' | 'holo' | 'common'
+type RarityGroup = 'all' | 'promo' | 'secret' | 'hyper' | 'sir' | 'ir' | 'ultra' | 'double' | 'rare' | 'uncommon' | 'common'
 
 const PAGE_SIZE = 50
 const CACHE_TTL_MS = 30 * 60 * 1000  // 30 min — stale entries still shown instantly while refreshing
@@ -50,7 +50,7 @@ function lsSaveDefault(e: CacheEntry) {
   try { localStorage.setItem(BROWSE_LS_KEY, JSON.stringify(e)) } catch {}
 }
 
-function cacheKey(q: string, set: string) { return `${q}|${set}` }
+function cacheKey(q: string, set: string, rarity = '') { return `${q}|${set}${rarity ? `|${rarity}` : ''}` }
 function cacheValid(key: string) {
   const e = _browseCache.get(key)
   return !!(e && Date.now() - e.ts < CACHE_TTL_MS)
@@ -65,21 +65,39 @@ const SORT_OPTIONS: { key: SortMode; label: string }[] = [
 ]
 
 const RARITY_GROUPS: { key: RarityGroup; label: string }[] = [
-  { key: 'all',     label: 'All' },
-  { key: 'fullart', label: 'Full Art' },
-  { key: 'ultra',   label: 'Ultra Rare' },
-  { key: 'holo',    label: 'Holo' },
-  { key: 'common',  label: 'Common' },
+  { key: 'all',      label: 'All' },
+  { key: 'promo',    label: 'Promo' },
+  { key: 'secret',   label: 'Secret Rare' },
+  { key: 'hyper',    label: 'Hyper Rare' },
+  { key: 'sir',      label: 'Special Illustration Rare' },
+  { key: 'ir',       label: 'Illustration Rare' },
+  { key: 'ultra',    label: 'Ultra Rare' },
+  { key: 'double',   label: 'Double Rare' },
+  { key: 'rare',     label: 'Rare' },
+  { key: 'uncommon', label: 'Uncommon' },
+  { key: 'common',   label: 'Common' },
 ]
 
+// Client-side safety net mirroring applyRarityGroup() in lib/catalog.ts (which
+// pre-filters server-side). Substring matching folds legacy era names into the
+// nearest modern tier. Keep the two in sync.
 function rarityGroupMatch(rarity: string | undefined, group: RarityGroup): boolean {
-  const w = rarityWeight(rarity)
+  const r = (rarity ?? '').toLowerCase()
   switch (group) {
-    case 'all':     return true
-    case 'fullart': return isFullArt(rarity)
-    case 'ultra':   return w >= 50 && w < 80 && !isFullArt(rarity)
-    case 'holo':    return w >= 30 && w < 50
-    case 'common':  return w < 30
+    case 'all':      return true
+    case 'promo':    return r.includes('promo')
+    case 'secret':   return r.includes('secret')
+    case 'hyper':    return r.includes('hyper') || r.includes('rainbow')
+    case 'sir':      return r.includes('special illustration')
+    case 'ir':       return r.includes('illustration rare') && !r.includes('special')
+    case 'ultra':    return r.includes('ultra')
+    case 'double':   return r.includes('double rare')
+    case 'rare':     return r.includes('rare')
+      && !r.includes('secret') && !r.includes('hyper') && !r.includes('rainbow')
+      && !r.includes('illustration') && !r.includes('ultra') && !r.includes('double')
+      && !r.includes('promo')
+    case 'uncommon': return r.includes('uncommon')
+    case 'common':   return r === 'common'
   }
 }
 
@@ -225,14 +243,19 @@ export default function BrowsePage() {
   const sortRef = useRef(sort)
   sortRef.current = sort
 
+  // A chosen rarity bucket is served server-side (dense pages) rather than by
+  // client-discarding most of each catalog page. '' (= "all") means no gate.
+  // The client filter in displayResults still applies as a safety net.
+  const serverRarity = rarityGroup === 'all' ? '' : rarityGroup
+
   // Re-sort the accumulated list when the user changes sort (a deliberate reorder,
   // unlike scroll-append which must NOT move already-shown cards).
   useEffect(() => { setRawResults(prev => sortCards(prev, sort)) }, [sort])
 
-  const search = useCallback(async (q: string, set: string, p: number, append: boolean, num = '') => {
+  const search = useCallback(async (q: string, set: string, p: number, append: boolean, num = '', rarity = '') => {
     if (loadingRef.current && append) return
 
-    const key = cacheKey(q, set)
+    const key = cacheKey(q, set, rarity)
 
     // Fresh cache: serve immediately, skip network
     if (!append && p === 1 && !num && cacheValid(key)) {
@@ -291,6 +314,9 @@ export default function BrowsePage() {
       if (num) params.set('number', num)
       // Default browse covers the whole catalog (premium sort surfaces full-arts
       // first); no rarity gate, so infinite scroll runs all the way through.
+      // A selected rarity bucket pushes server-side so pages come back dense for
+      // that rarity instead of the client discarding most of every page.
+      if (rarity) params.set('rarityGroup', rarity)
       params.set('page', String(p))
       params.set('pageSize', String(PAGE_SIZE))
       const res = await fetch(`/api/tcg/search?${params}`, { signal })
@@ -310,7 +336,7 @@ export default function BrowsePage() {
         _browseCache.set(key, cEntry)
         // Persist only the first page to LS for a fast cross-session paint — the
         // full-catalog scroll would otherwise blow past the localStorage quota.
-        if (!q && !set && !num && !append) lsSaveDefault(cEntry)
+        if (!q && !set && !num && !append && !rarity) lsSaveDefault(cEntry)
         return next
       })
       setTotalCount(data.totalCount ?? 0)
@@ -325,7 +351,9 @@ export default function BrowsePage() {
   }, [])
 
   useEffect(() => {
-    if (skipInitialLoad.current && !query && !setFilter) {
+    // Don't skip the initial load when a rarity bucket is active on mount
+    // (persisted) — the warm cache is the all-cards default, not that stream.
+    if (skipInitialLoad.current && !query && !setFilter && !serverRarity) {
       skipInitialLoad.current = false
       return
     }
@@ -334,13 +362,13 @@ export default function BrowsePage() {
     const delay = query || setFilter ? 350 : 0
     debounceRef.current = setTimeout(() => {
       setPage(1)
-      search(query, setFilter, 1, false, cardNumber)
+      search(query, setFilter, 1, false, cardNumber, serverRarity)
     }, delay)
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
-  }, [query, setFilter, cardNumber, search])
+  }, [query, setFilter, cardNumber, search, serverRarity])
 
-  // Auto-switch rarity: browsing = all (server already filters to full arts)
-  //                     searching = all (show everything matching the query)
+  // Reset the rarity bucket to "all" when entering or leaving a text search, so
+  // a query always shows everything that matches before the user re-narrows.
   const prevQueryRef = useRef('')
   useEffect(() => {
     const wasSearching = !!prevQueryRef.current.trim()
@@ -370,8 +398,8 @@ export default function BrowsePage() {
     if (loadingRef.current || !hasMore) return
     const next = pageRef.current + 1
     setPage(next)
-    search(query, setFilter, next, true, cardNumber)
-  }, [hasMore, search, query, setFilter, cardNumber])
+    search(query, setFilter, next, true, cardNumber, serverRarity)
+  }, [hasMore, search, query, setFilter, cardNumber, serverRarity])
 
   const handleCardClick = useCallback((card: TCGCard) => setDetailCard(card), [])
   const handleAddToPortfolio = useCallback((card: TCGCard) => { setAddTarget(card); setAddDefaultStatus('owned') }, [])
@@ -392,6 +420,13 @@ export default function BrowsePage() {
     }
   }, [cards, addCard, removeCard])
 
+  // Rebuild the observer after every batch (length) and when a load finishes
+  // (loading → false). An IntersectionObserver only fires on a false→true
+  // crossing; appending cards keeps the sentinel continuously intersecting, so
+  // without re-observing it would never re-fire and auto-load would stall after
+  // one page (the user had to scroll up and back down to retrigger). Re-observing
+  // delivers a fresh initial callback that loads the next page if still parked
+  // at the bottom — and naturally stops once the sentinel scrolls out of margin.
   useEffect(() => {
     const el = sentinelRef.current
     if (!el) return
@@ -401,7 +436,7 @@ export default function BrowsePage() {
     )
     observer.observe(el)
     return () => observer.disconnect()
-  }, [loadMore])
+  }, [loadMore, displayResults.length, loading])
 
   const activeFilterCount = [
     sort !== 'premium',
@@ -557,7 +592,7 @@ export default function BrowsePage() {
         }}>
           <span style={{ fontSize: 13, color: 'rgba(251,146,60,0.95)' }}>{searchError}</span>
           <button
-            onClick={() => { setSearchError(null); search(query, setFilter, 1, false, cardNumber) }}
+            onClick={() => { setSearchError(null); search(query, setFilter, 1, false, cardNumber, serverRarity) }}
             style={{
               padding: '5px 12px', borderRadius: 7, fontSize: 12, fontWeight: 700,
               background: 'var(--btn-info)', color: '#fff', border: 'none', cursor: 'pointer', flexShrink: 0,
