@@ -748,7 +748,7 @@ function BrowseDetailModal({ card, onClose, onAddToPortfolio, onAddToWishlist, i
             position: 'relative', paddingTop: `${Math.round(120 * 1.39)}px`,
             boxShadow: '0 6px 24px rgba(0,0,0,0.50)',
           }}>
-            <CardArtwork types={card.types} imageUrl={card.images.large || card.images.small}
+            <CardArtwork types={card.types} imageUrl={card.images.small || card.images.large}
               imageAlt={card.name} isHolo={rarityWeight(card.rarity) >= 30} />
           </div>
           <div style={{ flex: 1, minWidth: 0, paddingTop: 2 }}>
